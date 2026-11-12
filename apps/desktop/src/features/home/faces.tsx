@@ -293,9 +293,20 @@ function GhostwriterFace({ g }: { g: Data<"ghostwriter"> }) {
       <p className="nt-glance-line">
         Margin wrote <b className="nt-glance-hot">{g.margin_pct}%</b> of your notes
       </p>
-      <span className="nt-glance-caption">You bring the ideas. Margin brings the full stops.</span>
+      <span className="nt-glance-caption">{ghostwriterQuip(g.margin_pct)}</span>
     </div>
   );
+}
+
+/** A dig that fits how much of the writing Margin did. */
+function ghostwriterQuip(pct: number): string {
+  if (pct >= 90) return "At this point you're more of a prompt.";
+  if (pct >= 75) return "You hold the pen. Margin moves your hand.";
+  if (pct >= 60) return "Bold of you to keep your name on these.";
+  if (pct >= 40) return "You bring the ideas. Margin brings the full stops.";
+  if (pct >= 25) return "Margin mostly fixes the bits you were sure about.";
+  if (pct >= 10) return "You barely let Margin help. It's taking it personally.";
+  return "Writing it all yourself. Very artisanal. Very slow.";
 }
 
 function UndosFace({ u }: { u: Data<"undos"> }) {

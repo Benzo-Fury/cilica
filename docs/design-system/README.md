@@ -1,4 +1,4 @@
-Margin is a private, local-first desktop notes app. You write in Markdown, an AI assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. It runs on macOS, Windows and Linux (Tauri 2, React 19). The interface should feel like a first-party Apple app on every platform: one calm opaque sheet, glass only on controls that float, one graphite accent, and quick, physical motion on everything that moves.
+Margin is a private, local-first desktop notes app with an AI assistant and a meeting summariser. You write in Markdown, the assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. It runs on macOS, Windows and Linux (Tauri 2, React 19). The interface should feel like a first-party Apple app on every platform: one calm opaque sheet, glass only on controls that float, one graphite accent, and quick, physical motion on everything that moves.
 
 ## Principles
 

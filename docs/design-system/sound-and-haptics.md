@@ -10,6 +10,7 @@ Margin follows what people already expect from meeting and recording tools: an a
 | Recording stopped | On | The same two tones, falling. |
 | Notes ready | On | One warm chime, 400ms. Choosable in Settings › Sounds (Chime, Bloom, Ready, Glass), or off. |
 | Undo, task done, copy | Off | Optional soft ticks under "Interface sounds". |
+| Setup background | Off | A quiet ambient pad in the setup window, made with Web Audio. Starts muted; the speaker button in the title band plays it, and it fades out when setup closes. |
 
 - Volume 60%, mixed so it is quieter than a typical notification.
 - No sound plays while the person is speaking in a recorded meeting except start and stop (and those are also kept out of the recording: they play after capture starts and before it stops).
@@ -24,7 +25,7 @@ Haptics only exist where the OS supports them (`NSHapticFeedbackManager`); Windo
 | --- | --- |
 | A dragged note or category snaps into its drop position | alignment |
 | Sidebar or assistant resize snaps to its default width | alignment |
-| A permission is granted during onboarding | generic |
+| A permission is granted during setup | generic |
 | Slider detents (playback speed) | levelChange |
 
 Haptics never fire on hover, scroll or typing.

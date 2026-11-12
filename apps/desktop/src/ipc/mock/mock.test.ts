@@ -356,3 +356,117 @@ describe("tasks", () => {
     expect((await rejection(api().deleteTask("task_notes_review"))).code).toBe("invalid");
   });
 });
+
+describe("speech engines", () => {
+  it("records with live speakers only when the service labels them", async () => {
+    vi.useFakeTimers();
+    await api().updateSettings({ transcription: { engine: "soniox" } });
+    const live = await api().startRecording({
+      note_id: null,
+      meeting_app: null,
+      trigger: "manual",
+    });
+    expect(live.live_speakers).toBe(true);
+    await api().stopRecording();
+    await api().updateSettings({ transcription: { engine: "open_ai" } });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect((await api().getRecordingState()).phase).toBe("idle");
+    const later = await api().startRecording({
+      note_id: null,
+      meeting_app: null,
+      trigger: "manual",
+    });
+    expect(later.live_speakers).toBe(false);
+  });
+
+  it("tests a cloud service with the sample clip, word by word", async () => {
+    vi.useFakeTimers();
+    await api().updateSettings({ transcription: { engine: "soniox" } });
+    const missing = await rejection(api().testTranscription());
+    expect(missing.code).toBe("unavailable");
+    await api().setSttProviderKey("soniox", "sk-good");
+    const running = api().testTranscription();
+    await vi.advanceTimersByTimeAsync(5_000);
+    const result = await running;
+    expect(result.engine).toBe("soniox");
+    expect(result.text).toBe(result.expected);
+    expect(result.first_words_ms).toBeGreaterThan(0);
+    const progress = ofType("transcription_test_progress").map((e) => e.text);
+    expect(progress[0]).toBe("And");
+    expect(progress.at(-1)).toBe(result.text);
+  });
+
+  it("downloads a model, then switches to it", async () => {
+    vi.useFakeTimers();
+    const before = await api().getSettings();
+    expect(before.transcription.model_id).not.toBe("large-v3-turbo-q5_0");
+    await api().downloadAndUseSttModel("large-v3-turbo-q5_0");
+    // Still the old model while it downloads.
+    expect((await api().getSettings()).transcription.model_id).toBe(before.transcription.model_id);
+    await vi.advanceTimersByTimeAsync(5_000);
+    const after = await api().getSettings();
+    expect(after.transcription).toMatchObject({
+      engine: "whisper_local",
+      model_id: "large-v3-turbo-q5_0",
+    });
+    expect(ofType("model_download").at(-1)?.progress.done).toBe(true);
+    expect(ofType("settings_changed").at(-1)?.settings.transcription.model_id).toBe(
+      "large-v3-turbo-q5_0",
+    );
+  });
+
+  it("a cancelled download does not switch", async () => {
+    vi.useFakeTimers();
+    const before = (await api().getSettings()).transcription.model_id;
+    await api().downloadAndUseSttModel("large-v3-turbo-q5_0");
+    await api().cancelSttModelDownload("large-v3-turbo-q5_0");
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect((await api().getSettings()).transcription.model_id).toBe(before);
+  });
+
+  it("keeps cloud keys out of replies and rejects a bad one", async () => {
+    expect(await api().getSttProviderStatus("soniox")).toEqual({
+      engine: "soniox",
+      has_key: false,
+      problem: null,
+    });
+    const error = await rejection(api().setSttProviderKey("soniox", "bad-key"));
+    expect(error.code).toBe("permission_denied");
+    const status = await api().setSttProviderKey("soniox", "sk-good");
+    expect(status).toEqual({ engine: "soniox", has_key: true, problem: null });
+    expect(JSON.stringify(status)).not.toContain("sk-good");
+    expect((await api().clearSttProviderKey("soniox")).has_key).toBe(false);
+  });
+
+  it("merges cloud settings without dropping the other field", async () => {
+    await api().updateSettings({
+      transcription: {
+        cloud: { base_url: "https://api.groq.com/openai/v1", model: "whisper-large-v3-turbo" },
+      },
+    });
+    const next = await api().updateSettings({
+      transcription: { cloud: { model: "whisper-large-v3" } },
+    });
+    expect(next.transcription.cloud).toEqual({
+      base_url: "https://api.groq.com/openai/v1",
+      model: "whisper-large-v3",
+    });
+    expect(next.transcription.refine_after_meeting).toBe(true);
+  });
+});
+
+describe("saved voices", () => {
+  it("always has You, which can be forgotten but not deleted or merged away", async () => {
+    const people = await api().listPeople();
+    const you = people[0];
+    if (!you) throw new Error("expected people");
+    expect(you).toMatchObject({ name: "You", is_self: true });
+    const other = people.find((p) => !p.is_self);
+    if (!other) throw new Error("expected someone else");
+
+    expect((await rejection(api().deletePerson(you.id))).code).toBe("invalid");
+    expect((await rejection(api().mergePeople(you.id, other.id))).code).toBe("invalid");
+    expect((await api().forgetPersonVoice(you.id)).sample_count).toBe(0);
+    expect((await api().listPeople()).some((p) => p.is_self)).toBe(true);
+  });
+});

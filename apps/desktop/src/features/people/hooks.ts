@@ -89,6 +89,21 @@ export function useMergePeople() {
   });
 }
 
+/** Forget how a person sounds; they and their meetings stay. */
+export function useForgetVoice() {
+  const { replace, refreshTranscripts } = usePeopleCache();
+  return useMutation({
+    mutationFn: (personId: string) => api.forgetPersonVoice(personId),
+    onError: (error) =>
+      toast.error("The voice was not forgotten", { description: errorMessage(error) }),
+    onSuccess: (person) => {
+      replace(person);
+      refreshTranscripts();
+      toast(person.is_self ? "Forgot your voice" : `Forgot ${person.name}'s voice`);
+    },
+  });
+}
+
 export function useDeletePerson() {
   const { queryClient, refreshTranscripts } = usePeopleCache();
   return useMutation({

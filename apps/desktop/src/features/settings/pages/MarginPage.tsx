@@ -3,10 +3,9 @@
  * again), base URL and models, whether edits apply without asking, and the experimental Claude
  * Code bridge behind an opt-in with the policy warning (spec › AI providers and auth).
  */
-import { Check, CircleAlert, KeyRound, ShieldAlert, Terminal } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { Check, CircleAlert, ShieldAlert, Terminal } from "lucide-react";
+import { useState } from "react";
 import { useProviderStatus } from "@/features/assistant/hooks";
-import { toAppError } from "@/ipc/client";
 import type { ProviderKind } from "@/ipc/types";
 import {
   Button,
@@ -16,7 +15,6 @@ import {
   DialogRoot,
   DialogSurface,
   DialogTitle,
-  Field,
   Icon,
   SelectMenu,
   SettingsGroup,
@@ -25,6 +23,7 @@ import {
   Spinner,
   Switch,
 } from "@/ui";
+import { KeyRow, TextSetting } from "../fields";
 import { useSettings, useUpdateSettings } from "../hooks";
 import { useClaudeCode, useProviderKey } from "../system";
 import { LocalModelsGroup } from "./LocalModels";
@@ -118,7 +117,7 @@ export function MarginPage() {
           }
         />
         {NEEDS_KEY.has(ai.provider) && (
-          <KeyRow kind={ai.provider} hasKey={status?.has_key ?? false} />
+          <ProviderKeyRow kind={ai.provider} hasKey={status?.has_key ?? false} />
         )}
         {NEEDS_URL.has(ai.provider) && (ai.provider !== "ollama" || ai.base_url) && (
           <TextSetting
@@ -202,136 +201,27 @@ function retentionValue(days: number): RetentionValue {
   return CONVERSATION_RETENTION.find((o) => o.value === String(days))?.value ?? "7";
 }
 
-/** A text setting that saves on Enter or blur. */
-function TextSetting({
-  label,
-  description,
-  value,
-  placeholder,
-  onSave,
-}: {
-  label: string;
-  description?: string;
-  value: string;
-  placeholder: string;
-  onSave: (value: string) => void;
-}) {
-  const id = useId();
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const commit = () => draft !== value && onSave(draft);
-  return (
-    <SettingsRow
-      label={label}
-      htmlFor={id}
-      description={description}
-      control={
-        <Field
-          id={id}
-          size="sm"
-          className="nt-setting-field"
-          value={draft}
-          placeholder={placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            }
-          }}
-        />
-      }
-    />
-  );
-}
-
-/** The key goes straight to the keychain and is never shown again; we only learn whether it works. */
-function KeyRow({ kind, hasKey }: { kind: ProviderKind; hasKey: boolean }) {
-  const id = useId();
+/** The AI provider's key row: save and check through the provider status. */
+function ProviderKeyRow({ kind, hasKey }: { kind: ProviderKind; hasKey: boolean }) {
   const { save, clear } = useProviderKey();
-  const [key, setKey] = useState("");
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const submit = () => {
-    const trimmed = key.trim();
-    if (!trimmed) return;
-    setResult(null);
-    save.mutate(
-      { kind, key: trimmed },
-      {
-        onSuccess: (status) => {
-          setKey("");
-          setResult(
-            status.ready
-              ? { ok: true, message: "The key works. It is saved in your keychain." }
-              : {
-                  ok: false,
-                  message:
-                    status.problem ??
-                    "The key was saved but did not work. Check it and paste it again.",
-                },
-          );
-        },
-        onError: (error) => setResult({ ok: false, message: toAppError(error).message }),
-      },
-    );
-  };
   return (
-    <SettingsRow
-      label="API key"
-      htmlFor={id}
-      description={
-        result ? (
-          <span className={result.ok ? "nt-key-ok" : "nt-key-bad"} role="status">
-            <Icon icon={result.ok ? Check : CircleAlert} size="sm" />
-            {result.message}
-          </span>
-        ) : hasKey ? (
-          "A key is saved in your keychain. Paste a new one to replace it."
-        ) : (
-          "Stored in your system keychain, never in Margin's files."
+    <KeyRow
+      hasKey={hasKey}
+      saving={save.isPending}
+      clearing={clear.isPending}
+      onSave={(key) =>
+        save.mutateAsync({ kind, key }).then((status) =>
+          status.ready
+            ? { ok: true, message: "The key works. It is saved in your keychain." }
+            : {
+                ok: false,
+                message:
+                  status.problem ??
+                  "The key was saved but did not work. Check it and paste it again.",
+              },
         )
       }
-      control={
-        <span className="nt-key-control">
-          <Field
-            id={id}
-            size="sm"
-            type="password"
-            icon={KeyRound}
-            className="nt-setting-field"
-            value={key}
-            placeholder={hasKey ? "Saved in keychain" : "Paste your key"}
-            autoComplete="off"
-            onChange={(e) => setKey(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                submit();
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={!key.trim()}
-            loading={save.isPending}
-            onClick={submit}
-          >
-            {hasKey ? "Replace key" : "Save key"}
-          </Button>
-          {hasKey && !key && (
-            <Button
-              size="sm"
-              variant="ghost"
-              loading={clear.isPending}
-              onClick={() => clear.mutate(kind)}
-            >
-              Remove
-            </Button>
-          )}
-        </span>
-      }
+      onClear={() => clear.mutate(kind)}
     />
   );
 }

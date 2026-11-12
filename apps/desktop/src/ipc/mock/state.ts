@@ -86,7 +86,16 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       audio_retention_days: 30,
       consent_notice_seen: false,
     },
-    transcription: { engine: "whisper_local", model_id: "small.en", language: null },
+    transcription: {
+      engine: "whisper_local",
+      model_id: "small",
+      language: null,
+      refine_after_meeting: true,
+      live_speaker_labels: true,
+      identify_speakers_after_meeting: true,
+      recognise_voices: true,
+      cloud: { base_url: null, model: null },
+    },
     ai: {
       provider: "anthropic",
       model: "claude-sonnet-5-5",
@@ -121,44 +130,42 @@ export function defaultSettings(onboardingDone: boolean): Settings {
 export function defaultSttModels(): SttModel[] {
   return [
     {
-      id: "base.en",
-      name: "Base (English)",
-      description: "Fast and light. Good for clear audio on older Macs.",
-      size_mb: 142,
-      multilingual: false,
+      id: "base",
+      name: "Base",
+      description: "Small and quick. Good for older or slower computers.",
+      size_mb: 148,
+      multilingual: true,
       recommended: false,
       downloaded: false,
-    },
-    {
-      id: "small.en",
-      name: "Small (English)",
-      description: "The best balance of speed and accuracy for English meetings.",
-      size_mb: 466,
-      multilingual: false,
-      recommended: true,
-      downloaded: true,
     },
     {
       id: "small",
-      name: "Small (multilingual)",
-      description: "Transcribes 99 languages. A little slower than the English model.",
-      size_mb: 466,
+      name: "Small",
+      description: "Better accuracy than Base at a moderate size.",
+      size_mb: 488,
       multilingual: true,
       recommended: false,
-      downloaded: false,
+      downloaded: true,
     },
     {
-      id: "large-v3-turbo",
+      id: "large-v3-turbo-q5_0",
       name: "Large v3 Turbo",
-      description: "Most accurate, multilingual. Needs Apple silicon or a recent GPU.",
-      size_mb: 1550,
+      description: "Most accurate, in many languages. Needs Apple silicon or a recent PC.",
+      size_mb: 574,
       multilingual: true,
-      recommended: false,
+      recommended: true,
       downloaded: false,
     },
   ];
 }
 
 export function idleRecording(): RecordingState {
-  return { phase: "idle", note_id: null, meeting_app: null, started_at: null, auto_stop_at: null };
+  return {
+    phase: "idle",
+    note_id: null,
+    meeting_app: null,
+    started_at: null,
+    auto_stop_at: null,
+    live_speakers: false,
+  };
 }

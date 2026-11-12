@@ -11,7 +11,7 @@ Use these four presets in Motion (`transition={springs.snappy}`) and the matchin
 | snappy | `{ type: "spring", visualDuration: 0.2, bounce: 0.15 }` | `--spring-snappy` / `--spring-snappy-dur` | Press release, hover nudges, chevrons, checkbox, menus opening, icon motions |
 | smooth | `{ type: "spring", visualDuration: 0.3, bounce: 0.1 }` | `--spring-smooth` | Panels and sidebar collapse, segmented thumb, active-row pill, palette and dialog open, diff card collapse |
 | bouncy | `{ type: "spring", visualDuration: 0.35, bounce: 0.3 }` | `--spring-bouncy` | The record button morph, recorder capsule widening, Dynamic Island expand, toasts entering, drag-and-drop settling, switch knob |
-| gentle | `{ type: "spring", visualDuration: 0.45, bounce: 0 }` | `--spring-gentle` | View changes: Notes ⇄ Transcript, opening a note, settings pages, onboarding steps |
+| gentle | `{ type: "spring", visualDuration: 0.45, bounce: 0 }` | `--spring-gentle` | View changes: Notes ⇄ Transcript, opening a note, settings pages, setup steps |
 
 Springs keep their velocity when interrupted, so a panel toggled twice reverses smoothly from where it is. Never block input while something animates.
 

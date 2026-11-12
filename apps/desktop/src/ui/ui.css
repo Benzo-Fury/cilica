@@ -2479,6 +2479,13 @@ mark {
   font: 600 13px / 18px var(--font-sans);
   color: var(--ink);
 }
+/* A line of help under a popover's title. */
+.nt-popover-note {
+  margin: 0;
+  padding: 0 var(--space-1) var(--space-1-5);
+  font: 400 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
 .nt-popover .nt-menu-heading {
   padding-left: var(--space-1);
 }
@@ -2624,28 +2631,6 @@ mark {
     transform: translateX(100%) scaleX(0.3);
   }
 }
-.nt-steps {
-  display: flex;
-  gap: var(--space-1-5);
-  align-items: center;
-}
-.nt-step-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--fill-press);
-  box-shadow: inset 0 0 0 0.5px var(--line-strong);
-  transition:
-    transform var(--spring-bouncy-dur) var(--spring-bouncy),
-    background-color var(--dur-base) var(--ease-out);
-}
-.nt-step-dot-done {
-  background: var(--ink-3);
-}
-.nt-step-dot-current {
-  background: var(--accent-text);
-  transform: scale(1.35);
-}
 
 /* ───────── Transcript ───────── */
 .nt-utt-app {
@@ -2661,6 +2646,16 @@ mark {
 }
 .nt-utt-hit {
   animation: nt-settle 2.4s var(--ease-out) both;
+}
+/* Who is speaking is not known yet (it appears when the meeting is finished): text only. */
+.nt-utt.nt-utt-anon {
+  grid-template-columns: minmax(0, 1fr);
+}
+.nt-utt-anon .nt-utt-text {
+  grid-column: 1;
+}
+.nt-utt-anon .nt-utt-head:empty {
+  display: none;
 }
 .nt-utt-head {
   min-width: 0;
@@ -3716,149 +3711,7 @@ mark {
   font: 400 13px / 18px var(--font-mono);
 }
 
-/* ───────── Onboarding ───────── */
-.nt-onboarding {
-  width: min(560px, 100%);
-  padding: var(--space-5) var(--space-6) var(--space-6);
-  overflow: hidden;
-}
-.nt-dialog.nt-onboarding {
-  display: flex;
-  flex-direction: column;
-}
-.nt-onb-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: var(--size-control-sm);
-  margin-bottom: var(--space-4);
-}
-.nt-onb-stage {
-  position: relative;
-  min-height: 360px;
-  display: grid;
-}
-.nt-onb-step {
-  grid-area: 1 / 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.nt-onb-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  margin-bottom: var(--space-4);
-}
-.nt-dialog .nt-onb-title {
-  font: 640 22px / 28px var(--font-sans);
-  letter-spacing: -0.017em;
-  margin: 0 0 var(--space-2);
-  text-wrap: balance;
-}
-.nt-onb-body {
-  flex: 1;
-  display: grid;
-  align-content: start;
-  gap: var(--space-3);
-}
-.nt-dialog .nt-onb-lead {
-  margin: 0 0 var(--space-1);
-  color: var(--ink-2);
-  font: 450 14px / 21px var(--font-sans);
-}
-.nt-onb-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-5);
-}
-.nt-promises,
-.nt-onb-keys {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-3);
-}
-.nt-promises li {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  font: 450 14px / 20px var(--font-sans);
-  color: var(--ink-2);
-}
-.nt-promises b {
-  color: var(--ink);
-  font-weight: 600;
-}
-.nt-promises .nt-ico {
-  color: var(--accent-text);
-  margin-top: 2px;
-}
-.nt-onb-keys li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
-  box-shadow: inset 0 -0.5px 0 var(--line);
-  font: 450 14px / 20px var(--font-sans);
-}
-.nt-onb-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: calc(var(--radius-lg) * var(--sq));
-  background: var(--bg-sunken);
-  box-shadow: inset 0 0 0 0.5px var(--line-strong);
-}
-.nt-onb-card-text {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-.nt-onb-card .nt-perm-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.nt-onb-card .nt-chip {
-  height: 20px;
-}
-.nt-onb-progress {
-  margin-top: var(--space-2);
-}
-.nt-onb-progress .nt-progress {
-  flex: 1;
-  width: auto;
-}
-.nt-dialog .nt-onb-note {
-  margin: 0;
-  font: 450 13px / 18px var(--font-sans);
-  color: var(--ink-3);
-}
-.nt-onb-key {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-.nt-onb-key .nt-field-wrap {
-  flex: 1;
-}
-.nt-dialog p.nt-key-ok,
-.nt-dialog p.nt-key-bad {
-  margin: 0;
-  font: 450 13px / 18px var(--font-sans);
-}
 @supports (corner-shape: squircle) {
-  .nt-onb-card,
   .nt-policy {
     corner-shape: squircle;
   }

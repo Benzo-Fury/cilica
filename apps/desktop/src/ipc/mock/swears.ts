@@ -161,8 +161,7 @@ export function swearJar(state: MockState, prefs: SwearJarSettings, start = week
           hasMeetings = true;
           person(key, who);
         }
-        for (const hit of matcher.find(s.text, true))
-          add(held + s.start_ms, hit.root, key, who);
+        for (const hit of matcher.find(s.text, true)) add(held + s.start_ms, hit.root, key, who);
       }
     }
   }

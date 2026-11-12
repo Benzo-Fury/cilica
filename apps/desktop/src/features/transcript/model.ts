@@ -2,7 +2,7 @@
  * Transcript logic without React: live segment upserts, grouping segments into speaker turns,
  * how a speaker is shown (a linked Saved person's name and colour win), and find matches.
  */
-import type { Person, Segment, Speaker, Transcript } from "@/ipc/types";
+import type { Person, RecordingState, Segment, Speaker, Transcript } from "@/ipc/types";
 
 /** Segments in reading order. */
 export function bySegmentTime(a: Segment, b: Segment): number {
@@ -32,6 +32,14 @@ export function upsertSegment(transcript: Transcript, segment: Segment): Transcr
     segments.splice(at, 0, segment);
   }
   return { ...transcript, segments };
+}
+
+/**
+ * Who is speaking is not shown yet: this note's meeting is being recorded or finished, and the
+ * engine does not label speakers live. They appear once the meeting is done.
+ */
+export function speakersPending(recording: RecordingState, noteId: string): boolean {
+  return recording.note_id === noteId && recording.phase !== "idle" && !recording.live_speakers;
 }
 
 /** True when the transcript does not know a segment's speaker yet (fetch speakers again). */

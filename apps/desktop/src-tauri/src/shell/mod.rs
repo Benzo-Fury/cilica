@@ -1,5 +1,5 @@
 //! The native shell around the webview: window material, theme, tray, global hotkey, the Dynamic
-//! Island window, the macOS app menu, close and quit behaviour, haptics. Owner: Core agent.
+//! Island window, the first-run setup window, the macOS app menu, close and quit behaviour, haptics. Owner: Core agent.
 //!
 //! State lives in one managed [`Shell`]. It learns about recording and settings changes by
 //! listening to backend events (see [`crate::events`]), so other areas never call into it.
@@ -8,6 +8,7 @@ pub mod haptics;
 pub mod hotkey;
 pub mod island;
 pub mod material;
+pub mod onboarding;
 #[cfg(target_os = "macos")]
 pub mod menu;
 pub mod titlebar;
@@ -44,6 +45,8 @@ pub struct Shell {
     pub(crate) hotkey: Mutex<Option<hotkey::Registered>>,
     pub(crate) tray: Mutex<Option<tray::Items>>,
     pub(crate) island_visible: AtomicBool,
+    /// Setup is closing; a second Open Margin or close does nothing until it is done.
+    pub(crate) onboarding_finishing: AtomicBool,
 }
 
 impl Shell {
@@ -60,6 +63,7 @@ impl Shell {
             hotkey: Mutex::new(None),
             tray: Mutex::new(None),
             island_visible: AtomicBool::new(false),
+            onboarding_finishing: AtomicBool::new(false),
         }
     }
 
@@ -113,6 +117,12 @@ pub fn setup(app: &AppHandle, core: &Core) -> margin_domain::AppResult<()> {
     material::sync(app);
     if let Err(error) = island::create(app) {
         tracing::warn!(%error, "could not create the island window");
+    }
+    // First launch: setup gets its own window and the main window waits until it is done.
+    if !settings.onboarding_done
+        && let Err(error) = onboarding::create(app)
+    {
+        tracing::warn!(%error, "could not create the setup window; opening Margin instead");
     }
     if let Err(error) = tray::create(app, &settings) {
         tracing::warn!(%error, "could not create the tray icon");
@@ -198,16 +208,24 @@ pub fn save_settings(app: &AppHandle, change: impl FnOnce(&mut Settings) + Send 
     });
 }
 
-fn apply_theme(app: &AppHandle, mode: ThemeMode) {
-    let theme = match mode {
+/// The native window theme for a setting (`None` follows the system).
+pub(crate) fn window_theme(mode: ThemeMode) -> Option<Theme> {
+    match mode {
         ThemeMode::System => None,
         ThemeMode::Light => Some(Theme::Light),
         ThemeMode::Dark => Some(Theme::Dark),
-    };
-    if let Some(window) = app.get_webview_window(MAIN)
-        && let Err(error) = window.set_theme(theme)
-    {
-        tracing::warn!(%error, "could not set the window theme");
+    }
+}
+
+/// The main and setup windows follow the theme setting; the island is always dark.
+fn apply_theme(app: &AppHandle, mode: ThemeMode) {
+    let theme = window_theme(mode);
+    for label in [MAIN, onboarding::LABEL] {
+        if let Some(window) = app.get_webview_window(label)
+            && let Err(error) = window.set_theme(theme)
+        {
+            tracing::warn!(%error, label, "could not set the window theme");
+        }
     }
 }
 
@@ -225,8 +243,14 @@ fn sync_autostart(app: &AppHandle, enabled: bool) {
 
 // ── Windows, close and quit ────────────────────────────────────────────────
 
-/// Show, unminimise and focus the main window.
+/// Show, unminimise and focus the main window. While setup is open, bring setup forward instead.
 pub fn show_main(app: &AppHandle) {
+    if onboarding::is_open(app) {
+        if let Err(error) = onboarding::show(app) {
+            tracing::warn!(message = %error.message, "could not show the setup window");
+        }
+        return;
+    }
     if let Some(window) = app.get_webview_window(MAIN) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -246,6 +270,19 @@ pub fn is_capturing(app: &AppHandle) -> bool {
 
 /// `Builder::on_window_event` handler.
 pub fn on_window_event(window: &Window, event: &WindowEvent) {
+    // Closing setup early opens Margin with whatever was set up.
+    if window.label() == onboarding::LABEL {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let app = window.app_handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = onboarding::finish(&app).await {
+                    app.state::<Shell>().toast(error_toast("Setup was not saved", error.message));
+                }
+            });
+        }
+        return;
+    }
     if window.label() != MAIN {
         return;
     }

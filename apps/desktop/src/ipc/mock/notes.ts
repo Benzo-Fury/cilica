@@ -417,6 +417,19 @@ export function makeExcerpt(text: string, terms: string[]): string {
 
 // ───────── Settings and app info ─────────
 
+/** The welcome note the shell writes when setup finishes (crates/store/src/welcome.rs). */
+const WELCOME_BODY = [
+  "Margin is a notes app with an AI assistant and a meeting summariser. This note covers the basics. Delete it whenever you like.",
+  "## Write",
+  "Notes are plain Markdown. Type `#` for a heading, `-` for a list and `[[` to link to another note. Shortcuts can be changed in Settings › Keybinds.",
+  "## Ask Margin",
+  "Press **⌘J** to open the assistant. Ask it to sort notes into categories, summarise a meeting or tidy up this note. Every change can be undone.",
+  "## Record a meeting",
+  "Press **⌘⇧R** from anywhere, or click Record in the sidebar. Margin hears your microphone and the call, transcribes it on this computer, and writes a summary with decisions and action items when you stop.",
+  "## Find anything",
+  "Press **⌘K** to search every note and transcript, or to ask Margin a question about them.",
+].join("\n\n");
+
 export function settingsCommands({ state, emit }: MockContext) {
   return {
     getSettings(): Settings {
@@ -449,6 +462,43 @@ export function settingsCommands({ state, emit }: MockContext) {
     showMainWindow(): null {
       return null;
     },
+
+    showOnboardingWindow(): null {
+      return null;
+    },
+
+    /** As the shell does: mark setup done, write the welcome note once, open it in the main window. */
+    finishOnboarding(): null {
+      if (state.settings.onboarding_done) return null;
+      state.settings = { ...state.settings, onboarding_done: true };
+      emit({ type: "settings_changed", settings: JSON.parse(JSON.stringify(state.settings)) });
+      const now = iso();
+      const note: Note = {
+        id: newId("note"),
+        title: "Welcome to Margin",
+        body_md: WELCOME_BODY,
+        snippet: "Margin is a notes app with an AI assistant and a meeting summariser.",
+        category_id: null,
+        kind: "manual",
+        meeting_app: null,
+        started_at: null,
+        ended_at: null,
+        position: topPosition(state, null),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+      };
+      state.notes.set(note.id, note);
+      emit({ type: "data_changed", scopes: ["notes"], note_id: null });
+      emit({ type: "open_note", note_id: note.id });
+      return null;
+    },
+
+    /** In the browser preview, setup opens in a new tab with a fresh mock. */
+    openOnboarding(): null {
+      if (typeof window !== "undefined") window.open("/?window=onboarding&fresh", "_blank");
+      return null;
+    },
   };
 }
 
@@ -472,7 +522,14 @@ export function mergeSettings(current: Settings, input: SettingsInput): Settings
       },
     ),
     recording: pick(current.recording, input.recording),
-    transcription: pick(current.transcription, input.transcription),
+    transcription: pick(
+      current.transcription,
+      input.transcription && {
+        ...input.transcription,
+        cloud:
+          input.transcription.cloud && pick(current.transcription.cloud, input.transcription.cloud),
+      },
+    ),
     ai: pick(current.ai, input.ai),
     sounds: pick(current.sounds, input.sounds),
     swear_jar: pick(current.swear_jar, input.swear_jar),

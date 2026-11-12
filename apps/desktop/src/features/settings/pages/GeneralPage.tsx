@@ -1,4 +1,5 @@
-import { Keyboard, RefreshCw, RotateCw } from "lucide-react";
+import { Keyboard, RefreshCw, RotateCw, Sparkle } from "lucide-react";
+import { useOpenSetup } from "@/features/onboarding/hooks";
 import { useOverlays } from "@/features/shell/overlays";
 import {
   checkForUpdate,
@@ -14,6 +15,7 @@ export function GeneralPage() {
   const { data: info } = useAppInfo();
   const { update } = useUpdateSettings();
   const { phase, update: available } = useUpdateState();
+  const openSetup = useOpenSetup();
   if (!settings) return null;
   const autoInstall = settings.updates.auto_install;
   return (
@@ -85,6 +87,21 @@ export function GeneralPage() {
               onClick={() => useOverlays.getState().show("cheatsheet")}
             >
               Show shortcuts
+            </Button>
+          }
+        />
+        <SettingsRow
+          label="Setup"
+          description="Go through permissions, models, imports and appearance again. Nothing you set up is lost."
+          control={
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={Sparkle}
+              loading={openSetup.isPending}
+              onClick={() => openSetup.mutate()}
+            >
+              Run setup again
             </Button>
           }
         />

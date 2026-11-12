@@ -14,6 +14,7 @@ import type {
   AiAction,
   AudioChannel,
   AudioDevice,
+  HardwareProfile,
   Note,
   PermissionKind,
   PermissionStatus,
@@ -23,8 +24,11 @@ import type {
   Speaker,
   SpeakerSuggestion,
   StartRecordingOptions,
+  SttEngine,
   SttModel,
+  SttProviderStatus,
   Transcript,
+  TranscriptionTest,
 } from "@/ipc/types";
 import { requireLiveNote, requireNote, writeBody } from "./notes";
 import type { MockContext } from "./state";
@@ -71,6 +75,11 @@ const PAUSE_MS = 1200;
 const PHASE_MS = 600;
 const STREAM_MS = 40;
 
+/** What the transcription test's sample clip says (crates/stt/src/sample.rs). */
+const SAMPLE_TEXT =
+  "And so, my fellow Americans, ask not what your country can do for you, ask what you can do for your country.";
+const TEST_FIRST_WORDS_MS = 600;
+
 export function recordingCommands({ state, emit }: MockContext) {
   const timers = new Timers();
   let levelTimer: ReturnType<typeof setInterval> | null = null;
@@ -79,6 +88,21 @@ export function recordingCommands({ state, emit }: MockContext) {
   let startedMs = 0;
   let levels = { mic: 0, system: 0 };
   const downloads = new Map<string, ReturnType<typeof setInterval>>();
+  /** Called when a download finishes (download-and-use). */
+  const onDownloaded = new Map<string, () => void>();
+  /** Cloud speech services with a key in the "keychain". */
+  const sttKeys = new Set<SttEngine>();
+  const switchToSttModel = (modelId: string) => {
+    state.settings = {
+      ...state.settings,
+      transcription: {
+        ...state.settings.transcription,
+        engine: "whisper_local",
+        model_id: modelId,
+      },
+    };
+    emit({ type: "settings_changed", settings: JSON.parse(JSON.stringify(state.settings)) });
+  };
   let detected = false;
   let autoStopTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -376,12 +400,16 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       scriptIndex = 0;
       detected = options.trigger === "detected";
       emit({ type: "data_changed", scopes: ["notes"], note_id: note.id });
+      const t = state.settings.transcription;
       setRecording({
         phase: "starting",
         note_id: note.id,
         meeting_app: app,
         started_at: iso(now),
         auto_stop_at: null,
+        // As the backend: only cloud services that label speakers, with the setting on.
+        live_speakers:
+          t.live_speaker_labels && ["soniox", "deepgram", "assembly_ai"].includes(t.engine),
       });
       const noteId = note.id;
       const title = note.title;
@@ -529,13 +557,85 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
           clearInterval(handle);
           downloads.delete(modelId);
           model.downloaded = true;
+          onDownloaded.get(modelId)?.();
+          onDownloaded.delete(modelId);
         }
       }, 250);
       downloads.set(modelId, handle);
       return null;
     },
 
+    downloadAndUseSttModel(modelId: string): null {
+      const model = state.sttModels.find((m) => m.id === modelId);
+      if (!model) throw notFound("model");
+      if (model.downloaded) {
+        switchToSttModel(modelId);
+        return null;
+      }
+      onDownloaded.set(modelId, () => switchToSttModel(modelId));
+      return commands.downloadSttModel(modelId);
+    },
+
+    getHardwareProfile(): HardwareProfile {
+      return { cores: 10, ram_gb: 24, apple_silicon: true, suggest_cloud: false };
+    },
+
+    getSttProviderStatus(engine: SttEngine): SttProviderStatus {
+      return { engine, has_key: sttKeys.has(engine), problem: null };
+    },
+
+    /** Keys containing "bad" are rejected, as a provider would. */
+    setSttProviderKey(engine: SttEngine, key: string): SttProviderStatus {
+      if (!key.trim()) throw appError("invalid", "Paste a key first.");
+      if (/bad/i.test(key)) {
+        throw appError(
+          "permission_denied",
+          "The service did not accept the API key. Paste a valid key in Settings › Transcription.",
+        );
+      }
+      sttKeys.add(engine);
+      return { engine, has_key: true, problem: null };
+    },
+
+    clearSttProviderKey(engine: SttEngine): SttProviderStatus {
+      sttKeys.delete(engine);
+      return { engine, has_key: false, problem: null };
+    },
+
+    /** Plays the sample's words back over about three seconds, as a service would. */
+    testTranscription(): Promise<TranscriptionTest> {
+      const engine = state.settings.transcription.engine;
+      if (state.recording.phase !== "idle") {
+        throw appError("invalid", "Finish the recording first, then run the test.");
+      }
+      if (engine !== "whisper_local" && !sttKeys.has(engine)) {
+        throw appError(
+          "unavailable",
+          "There is no API key for this service. Add one in Settings › Transcription.",
+        );
+      }
+      const words = SAMPLE_TEXT.split(" ");
+      const step = 3_000 / words.length;
+      return new Promise((resolve) => {
+        words.forEach((_, i) => {
+          timers.later(TEST_FIRST_WORDS_MS + i * step, () =>
+            emit({ type: "transcription_test_progress", text: words.slice(0, i + 1).join(" ") }),
+          );
+        });
+        timers.later(TEST_FIRST_WORDS_MS + words.length * step, () =>
+          resolve({
+            engine,
+            text: SAMPLE_TEXT,
+            expected: SAMPLE_TEXT,
+            first_words_ms: TEST_FIRST_WORDS_MS,
+            took_ms: Math.round(TEST_FIRST_WORDS_MS + words.length * step),
+          }),
+        );
+      });
+    },
+
     cancelSttModelDownload(modelId: string): null {
+      onDownloaded.delete(modelId);
       const handle = downloads.get(modelId);
       if (!handle) return null;
       clearInterval(handle);
@@ -622,6 +722,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         sample_count: 1,
         meeting_count: 1,
         created_at: iso(),
+        is_self: false,
       };
       state.people.push(person);
       speaker.person_id = person.id;
@@ -638,7 +739,8 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       const speaker = transcript.speakers.find(
         (s) => !s.is_self && !s.person_id && /^(speaker|person) \d+$/i.test(s.label),
       );
-      const person = state.people.find((p) => !linked.has(p.id));
+      // You are the mic speaker (linked to You), so never suggested for anyone else.
+      const person = state.people.find((p) => !linked.has(p.id) && !p.is_self);
       if (!speaker || !person) return [];
       return [
         {
@@ -653,7 +755,9 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     // ── Saved people ──
 
     listPeople(): Person[] {
-      return [...state.people].sort((a, b) => a.name.localeCompare(b.name));
+      return [...state.people].sort(
+        (a, b) => Number(b.is_self) - Number(a.is_self) || a.name.localeCompare(b.name),
+      );
     },
 
     renamePerson(personId: string, name: string): Person {
@@ -678,6 +782,9 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     mergePeople(sourceId: string, targetId: string): Person {
       if (sourceId === targetId) throw appError("invalid", "Pick two different people to merge.");
       const source = requirePerson(sourceId);
+      if (source.is_self) {
+        throw appError("invalid", "You are always kept. Merge the other person into You instead.");
+      }
       const target = requirePerson(targetId);
       target.sample_count += source.sample_count;
       target.meeting_count += source.meeting_count;
@@ -693,10 +800,21 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     },
 
     deletePerson(personId: string): null {
-      requirePerson(personId);
+      if (requirePerson(personId).is_self) {
+        throw appError(
+          "invalid",
+          "You are always kept. To start your voice afresh, choose Forget voice.",
+        );
+      }
       for (const s of allSpeakers()) if (s.person_id === personId) s.person_id = null;
       state.people = state.people.filter((p) => p.id !== personId);
       return null;
+    },
+
+    forgetPersonVoice(personId: string): Person {
+      const person = requirePerson(personId);
+      person.sample_count = 0;
+      return person;
     },
 
     /** Test helper: stop every timer. */

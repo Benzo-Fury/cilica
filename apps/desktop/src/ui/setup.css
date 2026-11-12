@@ -1,0 +1,786 @@
+/*
+ * The first-run setup window (docs/design-system/components/SetupWindow). One column over
+ * background art: a welcome screen, then steps that open one at a time and collapse to a line
+ * when done. The art shows clearly only at the bottom; a blur and a fade keep text on the canvas.
+ */
+
+.nt-setup {
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-canvas);
+  color: var(--ink);
+}
+
+/* ───────── Art ───────── */
+
+.nt-setup-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nt-setup-art canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 1600ms var(--ease-out) 300ms,
+    transform 1800ms var(--ease-out) 300ms;
+}
+.nt-setup[data-ready] .nt-setup-art canvas {
+  opacity: 1;
+  transform: none;
+}
+.nt-setup-veil-blur {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 78%;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  mask-image: linear-gradient(to bottom, black 0, black 46%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black 46%, transparent 100%);
+}
+.nt-setup-veil {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 90%;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-canvas) 0,
+    var(--bg-canvas) 48%,
+    color-mix(in srgb, var(--bg-canvas) 80%, transparent) 72%,
+    transparent 100%
+  );
+}
+:root[data-material="opaque"] .nt-setup-veil-blur {
+  display: none;
+}
+
+/* ───────── Title band ───────── */
+
+.nt-setup-band {
+  position: relative;
+  z-index: 3;
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2) 0 var(--space-3);
+}
+.nt-setup-band .nt-lights {
+  width: 64px;
+}
+.nt-setup-band-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--ink-2);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-setup-band-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.nt-setup-count {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-right: var(--space-1);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-setup[data-phase="welcome"] .nt-setup-band-title,
+.nt-setup[data-phase="welcome"] .nt-setup-count {
+  opacity: 0;
+}
+.nt-setup-band .nt-win-caps button {
+  height: 44px;
+}
+
+/* ───────── Welcome ───────── */
+
+.nt-setup-welcome {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--space-10) var(--space-10) 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-in),
+    transform 220ms var(--ease-out);
+}
+.nt-setup-welcome[data-leaving] {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+.nt-setup-welcome h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.nt-setup-lead {
+  margin: -4px 0 0;
+  font-size: 15.5px;
+  color: var(--ink-2);
+  max-width: 48ch;
+  text-wrap: balance;
+}
+.nt-setup-features {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 46ch;
+}
+.nt-setup-features li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+.nt-setup-features li > .nt-ico {
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+.nt-setup-feature-title {
+  display: block;
+  font-weight: 580;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.nt-setup-feature-text {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+.nt-setup-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: 10px;
+}
+
+/* ───────── Steps ───────── */
+
+.nt-setup-steps {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1) var(--space-10) 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 14px,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 14px,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  animation: nt-setup-in var(--spring-gentle-dur) var(--spring-gentle);
+}
+.nt-setup-steps::-webkit-scrollbar {
+  display: none;
+}
+@keyframes nt-setup-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.nt-setup-step {
+  scroll-margin-top: 8px;
+}
+.nt-setup-step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 22px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.nt-setup-step[data-status="active"] .nt-setup-step-head {
+  padding-top: 14px;
+  align-items: baseline;
+}
+button.nt-setup-step-head {
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+button.nt-setup-step-head:hover .nt-setup-step-title {
+  color: var(--ink);
+}
+.nt-setup-step-check {
+  display: inline-flex;
+  color: var(--success);
+}
+.nt-setup-step[data-skipped] .nt-setup-step-check {
+  color: var(--ink-4);
+}
+.nt-setup-step-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.1;
+  text-wrap: balance;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-setup-step[data-status="done"] .nt-setup-step-title {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 450;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+.nt-setup-skip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-xs);
+  flex: none;
+}
+.nt-setup-skip:hover {
+  color: var(--ink);
+}
+.nt-setup-step-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--spring-smooth-dur) var(--spring-smooth),
+    opacity var(--dur-base) var(--ease-out);
+}
+.nt-setup-step[data-status="active"] .nt-setup-step-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.nt-setup-step-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.nt-setup-step-pad {
+  padding: 6px 2px var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.nt-setup-desc {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  max-width: 54ch;
+}
+.nt-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding-top: 2px;
+}
+.nt-setup-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* ───────── Surfaces inside a step ───────── */
+
+.nt-setup-glass {
+  background: var(--glass-fill-strong);
+  box-shadow: 0 0 0 0.5px var(--glass-edge);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+:root[data-material="opaque"] .nt-setup-glass {
+  background: var(--bg-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Permission buttons: an invitation that turns into a quiet confirmation. */
+.nt-setup-perms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.nt-setup-perm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-setup-perm:hover {
+  background: var(--bg-raised);
+}
+.nt-setup-perm:active {
+  transform: scale(0.985);
+}
+.nt-setup-perm[data-primary] {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-float);
+}
+.nt-setup-perm[data-primary]:hover {
+  background: var(--accent-hover);
+}
+.nt-setup-perm[data-primary] .nt-setup-perm-sub {
+  color: color-mix(in srgb, var(--on-accent) 72%, transparent);
+}
+.nt-setup-perm[data-granted] {
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 0.5px var(--line-strong);
+  cursor: default;
+  transform: none;
+}
+.nt-setup-perm[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+.nt-setup-perm-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.nt-setup-perm[data-granted] .nt-setup-perm-icon {
+  color: var(--success);
+}
+.nt-setup-perm-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-setup-perm-title {
+  font-weight: 560;
+  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  flex-wrap: wrap;
+}
+.nt-setup-perm-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.nt-setup-perm-go {
+  opacity: 0.7;
+  transition: transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-setup-perm:hover .nt-setup-perm-go {
+  transform: translateX(3px);
+}
+.nt-setup-tag {
+  font-size: 11px;
+  font-weight: 520;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  color: var(--ink-3);
+}
+.nt-setup-perm[data-primary] .nt-setup-tag {
+  background: color-mix(in srgb, var(--on-accent) 16%, transparent);
+  color: var(--on-accent);
+}
+
+/* A grouped block of controls (the auto-detect switch and its mode). */
+.nt-setup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+}
+.nt-setup-panel-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A model or download card. */
+.nt-setup-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 14px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 0.5px var(--line-strong),
+    var(--shadow-sm);
+}
+.nt-setup-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nt-setup-card-title {
+  font-weight: 580;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.nt-setup-card-sub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.nt-setup-card .nt-progress {
+  margin-top: 6px;
+}
+
+/* Several cards, one after another. */
+.nt-setup-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Radio cards: providers, typefaces. */
+.nt-setup-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.nt-setup-choices[data-columns="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.nt-setup-choice {
+  text-align: left;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-setup-choice:hover {
+  background: var(--bg-raised);
+}
+.nt-setup-choice:active {
+  transform: scale(0.985);
+}
+.nt-setup-choice[aria-checked="true"],
+.nt-setup-choice[aria-pressed="true"] {
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 1.5px var(--accent),
+    var(--shadow-sm);
+}
+.nt-setup-choice-title {
+  font-weight: 580;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  flex-wrap: wrap;
+}
+.nt-setup-choice-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.nt-setup-choice-preview {
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.nt-setup-choice[data-font] .nt-setup-choice-sub {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.nt-setup-choice[data-font="sans"] :is(.nt-setup-choice-preview, .nt-setup-choice-sub) {
+  font-family: var(--font-sans);
+}
+.nt-setup-choice[data-font="serif"] :is(.nt-setup-choice-preview, .nt-setup-choice-sub) {
+  font-family: var(--font-serif);
+}
+.nt-setup-choice[data-font="serif"] .nt-setup-choice-sub {
+  font-size: 13.5px;
+}
+.nt-setup-choice[data-font="mono"] :is(.nt-setup-choice-preview, .nt-setup-choice-sub) {
+  font-family: var(--font-mono);
+}
+.nt-setup-choice[data-font="mono"] .nt-setup-choice-preview {
+  font-size: 23px;
+}
+.nt-setup-choice[data-font="mono"] .nt-setup-choice-sub {
+  font-size: 11.5px;
+}
+
+/* App tiles in the import step. */
+.nt-setup-apps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.nt-setup-app {
+  position: relative;
+  text-align: left;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-setup-app:hover {
+  background: var(--bg-raised);
+}
+.nt-setup-app:active {
+  transform: scale(0.98);
+}
+.nt-setup-app[aria-pressed="true"] {
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 1.5px var(--accent),
+    var(--shadow-sm);
+}
+.nt-setup-app:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+.nt-setup-app img {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+.nt-setup-app-name {
+  font-weight: 580;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.nt-setup-app-sub {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.3;
+}
+.nt-setup-app-tick {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: scale(0);
+  transition: transform var(--spring-bouncy-dur) var(--spring-bouncy);
+}
+.nt-setup-app[aria-pressed="true"] .nt-setup-app-tick {
+  transform: scale(1);
+}
+
+/* Labelled fields (provider keys). */
+.nt-setup-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nt-setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nt-setup-label {
+  font-size: 12px;
+  font-weight: 540;
+  color: var(--ink-2);
+}
+.nt-setup-field-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.nt-setup-field-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.nt-setup p.nt-key-ok,
+.nt-setup p.nt-key-bad {
+  margin: 0;
+  font-size: 12.5px;
+}
+.nt-setup-warning {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.nt-setup-warning .nt-ico {
+  color: var(--warning);
+  margin-top: 1px;
+}
+
+/* ───────── Background work ───────── */
+
+.nt-setup-tray {
+  position: absolute;
+  z-index: 4;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+.nt-setup-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 var(--space-3) 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  background: var(--glass-fill-strong);
+  box-shadow:
+    0 0 0 0.5px var(--glass-edge),
+    var(--shadow-float);
+  backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+  animation: nt-setup-pill-in var(--spring-bouncy-dur) var(--spring-bouncy);
+}
+:root[data-material="opaque"] .nt-setup-pill {
+  background: var(--bg-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+@keyframes nt-setup-pill-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.nt-setup-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: conic-gradient(var(--ink) calc(var(--p, 0) * 100%), var(--fill-press) 0);
+  mask: radial-gradient(circle, transparent 4px, black 4.5px);
+  -webkit-mask: radial-gradient(circle, transparent 4px, black 4.5px);
+}
+.nt-setup-ring[data-unknown] {
+  animation: nt-setup-spin 1.1s linear infinite;
+  --p: 0.3;
+}
+@keyframes nt-setup-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (max-width: 520px) {
+  .nt-setup-welcome,
+  .nt-setup-steps {
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
+  }
+  .nt-setup-apps,
+  .nt-setup-choices[data-columns="3"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-setup-art canvas {
+    transform: none;
+    transition: opacity 120ms linear;
+  }
+  .nt-setup-steps,
+  .nt-setup-pill {
+    animation-duration: 1ms;
+  }
+  .nt-setup-ring[data-unknown] {
+    animation: none;
+  }
+}

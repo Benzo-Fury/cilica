@@ -21,18 +21,27 @@ function AppEffects() {
   return <ThemeController />;
 }
 
+/** The same without the app's keybinds, for windows that have no notes to act on (setup). */
+function WindowEffects() {
+  useBackendEventBridge();
+  return <ThemeController />;
+}
+
 export function Providers({
   children,
   client = queryClient,
+  keybinds = true,
 }: {
   children: ReactNode;
   client?: QueryClient;
+  /** False in the setup window: ⌘K and friends belong to the main window. */
+  keybinds?: boolean;
 }) {
   return (
     <QueryClientProvider client={client}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
-          <AppEffects />
+          {keybinds ? <AppEffects /> : <WindowEffects />}
           {children}
           <Toaster />
         </TooltipProvider>

@@ -23,6 +23,7 @@ const IDLE: RecordingState = {
   meeting_app: null,
   started_at: null,
   auto_stop_at: null,
+  live_speakers: false,
 };
 
 /** Live recording state: fetched once, then kept current by `recording_state_changed`. */

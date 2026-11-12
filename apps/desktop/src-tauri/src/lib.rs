@@ -45,6 +45,9 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::settings::update_settings,
             commands::settings::get_app_info,
             commands::settings::show_main_window,
+            commands::settings::show_onboarding_window,
+            commands::settings::finish_onboarding,
+            commands::settings::open_onboarding,
             commands::settings::title_bar_double_click,
             commands::settings::show_island,
             commands::settings::hide_island,
@@ -61,6 +64,12 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::recording::open_permission_settings,
             commands::recording::list_stt_models,
             commands::recording::download_stt_model,
+            commands::recording::download_and_use_stt_model,
+            commands::recording::get_hardware_profile,
+            commands::recording::get_stt_provider_status,
+            commands::recording::set_stt_provider_key,
+            commands::recording::clear_stt_provider_key,
+            commands::recording::test_transcription,
             commands::recording::cancel_stt_model_download,
             commands::recording::delete_stt_model,
             commands::recording::get_transcript,
@@ -74,6 +83,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::recording::set_person_color,
             commands::recording::merge_people,
             commands::recording::delete_person,
+            commands::recording::forget_person_voice,
             commands::recording::regenerate_summary,
             commands::assistant::list_threads,
             commands::assistant::create_thread,
@@ -168,7 +178,7 @@ pub fn run() {
             // Size and position of the main window only; never visibility or decorations.
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(tauri_plugin_window_state::StateFlags::SIZE | tauri_plugin_window_state::StateFlags::POSITION)
-                .with_denylist(&[shell::island::LABEL])
+                .with_denylist(&[shell::island::LABEL, shell::onboarding::LABEL])
                 .build(),
         )
         .invoke_handler(builder.invoke_handler())

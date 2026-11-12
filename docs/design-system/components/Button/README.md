@@ -9,7 +9,7 @@ Buttons trigger one action; the label is the verb that happens.
 - `nt-btn-glass`: only on controls that float over content or the desktop (recorder, floating toolbars). Never on an opaque surface.
 - `nt-btn-danger`: destructive. Soft at rest, fills `danger` on hover. In a confirmation dialog it starts filled.
 
-**Sizes**: `nt-btn-sm` 28px (toolbars, cards), default 32px, `nt-btn-lg` 40px (dialogs, onboarding).
+**Sizes**: `nt-btn-sm` 28px (toolbars, cards), default 32px, `nt-btn-lg` 40px (dialogs, setup).
 
 **Consumer provides**: label text (sentence case, a verb), an optional leading Lucide icon with an `nt-i-*` motion class, an optional trailing Kbd, `disabled`.
 

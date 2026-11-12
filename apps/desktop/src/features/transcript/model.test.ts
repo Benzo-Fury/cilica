@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { Person, Segment, Speaker, Transcript } from "@/ipc/types";
+import type { Person, RecordingState, Segment, Speaker, Transcript } from "@/ipc/types";
 import {
   findMatches,
   groupTurns,
   hasUnknownSpeaker,
   segmentAt,
   speakerLook,
+  speakersPending,
   TURN_GAP_MS,
   upsertSegment,
 } from "./model";
@@ -88,7 +89,15 @@ describe("groupTurns", () => {
 
 describe("speakerLook", () => {
   const people: Person[] = [
-    { id: "p", name: "Sam Lee", color_index: 3, sample_count: 1, meeting_count: 1, created_at: "" },
+    {
+      id: "p",
+      name: "Sam Lee",
+      color_index: 3,
+      sample_count: 1,
+      meeting_count: 1,
+      created_at: "",
+      is_self: false,
+    },
   ];
   const speaker = (patch: Partial<Speaker>): Speaker => ({
     id: "s",
@@ -126,5 +135,25 @@ describe("lookups", () => {
       ["2", 0],
       ["2", 9],
     ]);
+  });
+});
+
+describe("speakers while recording", () => {
+  const recording = (patch: Partial<RecordingState>): RecordingState => ({
+    phase: "recording",
+    note_id: "n1",
+    meeting_app: null,
+    started_at: null,
+    auto_stop_at: null,
+    live_speakers: false,
+    ...patch,
+  });
+
+  it("waits for the end of the meeting unless the service labels speakers live", () => {
+    expect(speakersPending(recording({}), "n1")).toBe(true);
+    expect(speakersPending(recording({ phase: "diarizing" }), "n1")).toBe(true);
+    expect(speakersPending(recording({ live_speakers: true }), "n1")).toBe(false);
+    expect(speakersPending(recording({ phase: "idle" }), "n1")).toBe(false);
+    expect(speakersPending(recording({}), "another note")).toBe(false);
   });
 });

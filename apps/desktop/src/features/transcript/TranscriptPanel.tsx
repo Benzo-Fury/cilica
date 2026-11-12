@@ -6,7 +6,16 @@
  * Turns are windowed, so an hour-long meeting scrolls as smoothly as a short one.
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AudioLines, ChevronDown, ChevronUp, Mic, Search, Settings2, X } from "lucide-react";
+import {
+  AudioLines,
+  ChevronDown,
+  ChevronUp,
+  Mic,
+  Search,
+  Settings2,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import {
   type KeyboardEvent,
@@ -26,6 +35,7 @@ import { useBandSlot } from "@/features/note/bandSlot";
 import { useNote } from "@/features/notes/hooks";
 import { usePeople } from "@/features/people/hooks";
 import { isLive, useRecordingState, useToggleRecording } from "@/features/recorder/hooks";
+import { useSettings } from "@/features/settings/hooks";
 import { useSwearMarks } from "@/features/swearjar/hooks";
 import type { Person, Quote, Segment, Speaker, SpeakerSuggestion } from "@/ipc/types";
 import { clock, plural } from "@/lib/format";
@@ -63,6 +73,7 @@ import {
   type SpeakerLook,
   segmentAt,
   speakerLook,
+  speakersPending,
   type Turn,
   turnIndexAt,
 } from "./model";
@@ -80,6 +91,8 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
   const recording = useRecordingState();
   const live = isLive(recording) && recording.note_id === noteId;
   const toggle = useToggleRecording();
+  const { data: settings } = useSettings();
+  const hideSpeakers = speakersPending(recording, noteId);
 
   if (isLoading || !transcript) {
     return (
@@ -154,6 +167,8 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
       }
       live={live}
       idle={recording.phase === "idle"}
+      hideSpeakers={hideSpeakers}
+      speakersLater={settings?.transcription.identify_speakers_after_meeting ?? true}
       atMs={atMs}
     />
   );
@@ -171,6 +186,8 @@ function TranscriptBody({
   durationMs,
   live,
   idle,
+  hideSpeakers,
+  speakersLater,
   atMs,
 }: {
   noteId: string;
@@ -183,6 +200,10 @@ function TranscriptBody({
   durationMs: number;
   live: boolean;
   idle: boolean;
+  /** The engine does not label speakers live: leave them out until the meeting is finished. */
+  hideSpeakers: boolean;
+  /** Speakers will be identified once the meeting is finished (Settings › Transcription). */
+  speakersLater: boolean;
   atMs?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -453,7 +474,13 @@ function TranscriptBody({
                 )
               }
             />
-            <Chip leading={<AvatarStack people={stack} />}>{plural(speakerCount, "speaker")}</Chip>
+            {hideSpeakers ? (
+              speakersLater && <Chip icon={UsersRound}>Speakers appear when it's finished</Chip>
+            ) : (
+              <Chip leading={<AvatarStack people={stack} />}>
+                {plural(speakerCount, "speaker")}
+              </Chip>
+            )}
             {live && <Chip icon={AudioLines}>Live</Chip>}
           </div>
           <ol
@@ -480,6 +507,7 @@ function TranscriptBody({
                     look={speakerLook(speaker, people, turn.channel)}
                     people={people}
                     live={live}
+                    anonymous={hideSpeakers}
                     hit={hitTurn === turn.id}
                     playingId={playingSegment?.id ?? null}
                     marks={matchesBySegment}
@@ -572,6 +600,7 @@ const TurnRow = memo(function TurnRow({
   look,
   people,
   live,
+  anonymous,
   hit,
   playingId,
   marks,
@@ -588,6 +617,8 @@ const TurnRow = memo(function TurnRow({
   look: SpeakerLook;
   people: readonly Person[];
   live: boolean;
+  /** Leave out who is speaking (not known yet). */
+  anonymous: boolean;
   hit: boolean;
   playingId: string | null;
   marks: Map<string, { start: number; end: number; current: boolean }[]>;
@@ -600,9 +631,10 @@ const TurnRow = memo(function TurnRow({
   return (
     <Utterance
       hit={hit}
-      avatar={<Avatar name={look.name} color={look.color} />}
+      className={anonymous ? "nt-utt-anon" : undefined}
+      avatar={anonymous ? null : <Avatar name={look.name} color={look.color} />}
       name={
-        speaker ? (
+        anonymous ? null : speaker ? (
           <SpeakerMenu
             noteId={noteId}
             speaker={speaker}

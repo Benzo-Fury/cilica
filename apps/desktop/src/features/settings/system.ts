@@ -3,6 +3,7 @@
  * their downloads, provider keys and the Claude Code bridge.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { create } from "zustand";
 import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
@@ -13,6 +14,7 @@ import type {
   PermissionKind,
   Permissions,
   ProviderKind,
+  SttEngine,
   SttModel,
 } from "@/ipc/types";
 import { haptic } from "@/lib/haptics";
@@ -169,7 +171,77 @@ export function useModelActions() {
     onError: (error) =>
       toast.error("The model was not deleted", { description: errorMessage(error) }),
   });
-  return { download, cancel, remove };
+  /** Download a model (if needed), then switch to it once it is ready. */
+  const downloadAndUse = useMutation({
+    mutationFn: (modelId: string) => api.downloadAndUseSttModel(modelId),
+    onMutate: (modelId) => {
+      const model = queryClient
+        .getQueryData<SttModel[]>(qk.sttModels)
+        ?.find((m) => m.id === modelId);
+      if (!model?.downloaded) {
+        useDownloads.getState().set(modelId, { downloaded: 0, total: null, error: null });
+      }
+    },
+    onError: (error, modelId) => {
+      useDownloads.getState().set(modelId, null);
+      toast.error("The download did not start", { description: errorMessage(error) });
+    },
+  });
+  return { download, downloadAndUse, cancel, remove };
+}
+
+/** What this computer can run (cores, memory, chip) and whether a cloud service suits it better. */
+export function useHardwareProfile() {
+  return useQuery({
+    queryKey: qk.hardwareProfile,
+    queryFn: () => api.getHardwareProfile(),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+// ───────── Cloud speech services ─────────
+
+export function useSttProviderStatus(engine: SttEngine) {
+  return useQuery({
+    queryKey: qk.sttProviderStatus(engine),
+    queryFn: () => api.getSttProviderStatus(engine),
+    enabled: engine !== "whisper_local",
+  });
+}
+
+export function useSttProviderKey(engine: SttEngine) {
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    void queryClient.invalidateQueries({ queryKey: qk.sttProviderStatus(engine) });
+  const save = useMutation({
+    mutationFn: (key: string) => api.setSttProviderKey(engine, key),
+    onSuccess: (status) => queryClient.setQueryData(qk.sttProviderStatus(engine), status),
+  });
+  const clear = useMutation({
+    mutationFn: () => api.clearSttProviderKey(engine),
+    onSuccess: (status) => {
+      queryClient.setQueryData(qk.sttProviderStatus(engine), status);
+      refresh();
+      toast("Removed the key from your keychain");
+    },
+    onError: (error) =>
+      toast.error("The key was not removed", { description: errorMessage(error) }),
+  });
+  return { save, clear };
+}
+
+/**
+ * Stream the sample clip to the transcription engine in Settings. `heard` is what has come back
+ * so far while it runs; the mutation resolves with the full result.
+ */
+export function useTranscriptionTest() {
+  const [heard, setHeard] = useState("");
+  useBackendEvent("transcription_test_progress", ({ text }) => setHeard(text));
+  const run = useMutation({
+    mutationFn: () => api.testTranscription(),
+    onMutate: () => setHeard(""),
+  });
+  return { run, heard };
 }
 
 // ───────── Local models (Ollama) ─────────

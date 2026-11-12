@@ -39,9 +39,12 @@ export interface MockOptions {
   latencyMs?: number;
 }
 
-/** Each command as a plain synchronous function returning the resolved value. */
+/** Each command as a function returning the resolved value, or a promise of it when the
+ * command takes a while (the transcription test). */
 type Impl = {
-  [K in keyof Commands]: (...args: Parameters<Commands[K]>) => Awaited<ReturnType<Commands[K]>>;
+  [K in keyof Commands]: (
+    ...args: Parameters<Commands[K]>
+  ) => Awaited<ReturnType<Commands[K]>> | Promise<Awaited<ReturnType<Commands[K]>>>;
 };
 
 export function createMockBackend(options: MockOptions = {}): MockBackend {
@@ -75,16 +78,11 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
   const wrap =
     (fn: (...args: unknown[]) => unknown) =>
     (...args: unknown[]): Promise<unknown> => {
-      const run = () => clone(fn(...args));
+      // Commands that take a while (the transcription test) return a promise.
+      const run = async () => clone(await fn(...args));
       if (latency === 0) return Promise.resolve().then(run);
       return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          try {
-            resolve(run());
-          } catch (error) {
-            reject(error);
-          }
-        }, latency);
+        setTimeout(() => run().then(resolve, reject), latency);
       });
     };
 

@@ -8,6 +8,7 @@ const state = (patch: Partial<RecordingState>): RecordingState => ({
   meeting_app: null,
   started_at: null,
   auto_stop_at: null,
+  live_speakers: false,
   ...patch,
 });
 

@@ -170,6 +170,10 @@ function handle(queryClient: QueryClient, event: BackendEvent) {
     case "toast":
       showBackendToast(event.toast);
       break;
+    case "open_note":
+      // Setup finished: the main window opens on the welcome note.
+      openNote(event.note_id);
+      break;
     default:
       break;
   }

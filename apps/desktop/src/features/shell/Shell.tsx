@@ -9,7 +9,6 @@
 import { useEffect, useState } from "react";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 import { useMarginPlacement } from "@/features/assistant/placement";
-import { Onboarding } from "@/features/onboarding/Onboarding";
 import { CheatSheet } from "@/features/palette/CheatSheet";
 import { CommandPalette } from "@/features/palette/CommandPalette";
 import { ConsentNotice } from "@/features/recorder/ConsentNotice";
@@ -137,7 +136,6 @@ export function Shell() {
       <CommandPalette />
       <CheatSheet />
       <ConsentNotice />
-      <Onboarding />
     </WindowFrame>
   );
 }

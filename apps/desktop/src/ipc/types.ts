@@ -14,6 +14,7 @@ import type {
   AssistantEvent_Serialize,
   Backlinks,
   ClaudeCodeStatus_Serialize,
+  CloudSttSettings_Serialize,
   commands,
   GraphNode_Serialize,
   HomeFace_Serialize,
@@ -49,6 +50,7 @@ import type {
   SoundSettings_Serialize,
   Speaker_Serialize,
   StartRecordingOptions_Deserialize,
+  SttProviderStatus_Serialize,
   SwearJar_Serialize,
   SwearJarSettings_Serialize,
   SwearPerson_Serialize,
@@ -61,6 +63,7 @@ import type {
   ToastRequest_Serialize,
   Transcript_Serialize,
   TranscriptionSettings_Serialize,
+  TranscriptionTest_Serialize,
   UpdateInfo_Serialize,
   UpdateSettings_Serialize,
   ViewContext_Deserialize,
@@ -83,6 +86,7 @@ export type {
   GraphEdgeKind,
   GraphNodeKind,
   HapticKind,
+  HardwareProfile,
   ImportCategoryMode,
   ImportedFrom,
   ImportFidelity,
@@ -150,6 +154,9 @@ export type SettingsInput = Settings_Deserialize;
 export type AppearanceSettings = AppearanceSettings_Serialize;
 export type RecordingSettings = RecordingSettings_Serialize;
 export type TranscriptionSettings = TranscriptionSettings_Serialize;
+export type CloudSttSettings = CloudSttSettings_Serialize;
+export type SttProviderStatus = SttProviderStatus_Serialize;
+export type TranscriptionTest = TranscriptionTest_Serialize;
 export type AiSettings = AiSettings_Serialize;
 export type SoundSettings = SoundSettings_Serialize;
 export type SwearJarSettings = SwearJarSettings_Serialize;

@@ -4,13 +4,15 @@ import { api, isTauri } from "@/ipc/client";
 import "@/styles/index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
-const isIsland = new URLSearchParams(window.location.search).get("window") === "island";
+const windowKind = new URLSearchParams(window.location.search).get("window");
+const isIsland = windowKind === "island";
+const isOnboarding = windowKind === "onboarding";
 
-/** The main window starts hidden to avoid a white flash; show it once the first render ran. */
-function showWhenRendered() {
+/** Windows start hidden to avoid a white flash; show this one once the first render ran. */
+function showWhenRendered(show: () => Promise<unknown>, name: string) {
   if (!isTauri) return;
   setTimeout(() => {
-    api.showMainWindow().catch((error: unknown) => console.error("showMainWindow failed", error));
+    show().catch((error: unknown) => console.error(`${name} failed`, error));
   }, 0);
 }
 
@@ -23,6 +25,17 @@ if (isIsland) {
       </React.StrictMode>,
     ),
   );
+} else if (isOnboarding) {
+  // First-run setup is its own window (shell/onboarding.rs); the main window waits behind it.
+  void import("@/features/onboarding/OnboardingWindow")
+    .then(({ OnboardingWindow }) => {
+      root.render(
+        <React.StrictMode>
+          <OnboardingWindow />
+        </React.StrictMode>,
+      );
+    })
+    .finally(() => showWhenRendered(() => api.showOnboardingWindow(), "showOnboardingWindow"));
 } else {
   void import("@/app/App")
     .then(({ App }) => {
@@ -32,5 +45,5 @@ if (isIsland) {
         </React.StrictMode>,
       );
     })
-    .finally(showWhenRendered);
+    .finally(() => showWhenRendered(() => api.showMainWindow(), "showMainWindow"));
 }

@@ -70,6 +70,15 @@ export const commands = {
 	 *  Also delivers toasts raised before the UI was listening.
 	 */
 	showMainWindow: () => __TAURI_INVOKE<null>("show_main_window"),
+	/**  The setup window starts hidden; its UI calls this after the first paint. */
+	showOnboardingWindow: () => __TAURI_INVOKE<null>("show_onboarding_window"),
+	/**
+	 *  Open Margin from setup: marks setup done, writes the welcome note on the first run, closes
+	 *  the setup window and shows the main window on that note.
+	 */
+	finishOnboarding: () => __TAURI_INVOKE<null>("finish_onboarding"),
+	/**  Settings › General › Run setup again: open the setup window over Margin. */
+	openOnboarding: () => __TAURI_INVOKE<null>("open_onboarding"),
 	/**
 	 *  The user double-clicked an empty part of the title band: do what the system setting for
 	 *  title-bar double-clicks asks (fill, zoom, minimise or nothing), with the system's animation.
@@ -101,6 +110,26 @@ export const commands = {
 	listSttModels: () => __TAURI_INVOKE<SttModel[]>("list_stt_models"),
 	/**  Starts the download; progress arrives as ModelDownload events. */
 	downloadSttModel: (modelId: string) => __TAURI_INVOKE<null>("download_stt_model", { modelId }),
+	/**
+	 *  Download a speech model if needed, then make it the one Margin transcribes with. Returns at
+	 *  once; progress arrives as ModelDownload events and Settings changes when the model is ready.
+	 */
+	downloadAndUseSttModel: (modelId: string) => __TAURI_INVOKE<null>("download_and_use_stt_model", { modelId }),
+	/**  What this computer can run, and whether a cloud service would serve it better. */
+	getHardwareProfile: () => __TAURI_INVOKE<HardwareProfile>("get_hardware_profile"),
+	getSttProviderStatus: (engine: SttEngine) => __TAURI_INVOKE<SttProviderStatus_Serialize>("get_stt_provider_status", { engine }),
+	/**
+	 *  Check the key with the provider, then save it to the keychain. A rejected key is not kept;
+	 *  one that could not be checked (offline) is kept with a note.
+	 */
+	setSttProviderKey: (engine: SttEngine, key: string) => __TAURI_INVOKE<SttProviderStatus_Serialize>("set_stt_provider_key", { engine, key }),
+	clearSttProviderKey: (engine: SttEngine) => __TAURI_INVOKE<SttProviderStatus_Serialize>("clear_stt_provider_key", { engine }),
+	/**
+	 *  Stream a short public-domain speech clip to the transcription engine in Settings, in real
+	 *  time as a meeting would, and report what came back. Progress arrives as
+	 *  `transcription_test_progress` events. Takes about as long as the clip (11 s).
+	 */
+	testTranscription: () => __TAURI_INVOKE<TranscriptionTest_Serialize>("test_transcription"),
 	cancelSttModelDownload: (modelId: string) => __TAURI_INVOKE<null>("cancel_stt_model_download", { modelId }),
 	deleteSttModel: (modelId: string) => __TAURI_INVOKE<null>("delete_stt_model", { modelId }),
 	getTranscript: (noteId: string) => __TAURI_INVOKE<Transcript_Serialize>("get_transcript", { noteId }),
@@ -114,9 +143,11 @@ export const commands = {
 	listPeople: () => __TAURI_INVOKE<Person[]>("list_people"),
 	renamePerson: (personId: string, name: string) => __TAURI_INVOKE<Person>("rename_person", { personId, name }),
 	setPersonColor: (personId: string, colorIndex: number) => __TAURI_INVOKE<Person>("set_person_color", { personId, colorIndex }),
-	/**  Fold `source` into `target` (voiceprints averaged, speakers relinked). */
+	/**  Fold `source` into `target` (voice samples move, speakers relinked). */
 	mergePeople: (sourceId: string, targetId: string) => __TAURI_INVOKE<Person>("merge_people", { sourceId, targetId }),
 	deletePerson: (personId: string) => __TAURI_INVOKE<null>("delete_person", { personId }),
+	/**  Forget how a person sounds (their voice samples); the person and their meetings stay. */
+	forgetPersonVoice: (personId: string) => __TAURI_INVOKE<Person>("forget_person_voice", { personId }),
 	/**  Write the meeting summary again from the transcript. */
 	regenerateSummary: (noteId: string) => __TAURI_INVOKE<null>("regenerate_summary", { noteId }),
 	/**  Newest first. */
@@ -325,7 +356,11 @@ export type AppEvent_Deserialize =
 /**  The app is about to quit: the UI must save any unsaved edits now. The shell waits briefly. */
 { type: "will_quit" } | { type: "toast"; toast: ToastRequest_Deserialize } | 
 /**  An import from another app moved on (docs/import.md). */
-{ type: "import_progress"; progress: ImportProgress_Deserialize };
+{ type: "import_progress"; progress: ImportProgress_Deserialize } | 
+/**  Open this note in the main window (the welcome note when setup finishes). */
+{ type: "open_note"; note_id: string } | 
+/**  What the transcription test has heard so far (the whole text, replacing the last). */
+{ type: "transcription_test_progress"; text: string };
 
 /**
  *  Everything the backend tells the UI. Crates emit these through an [`EventSink`];
@@ -346,7 +381,11 @@ export type AppEvent_Serialize =
 /**  The app is about to quit: the UI must save any unsaved edits now. The shell waits briefly. */
 { type: "will_quit" } | { type: "toast"; toast: ToastRequest_Serialize } | 
 /**  An import from another app moved on (docs/import.md). */
-{ type: "import_progress"; progress: ImportProgress_Serialize };
+{ type: "import_progress"; progress: ImportProgress_Serialize } | 
+/**  Open this note in the main window (the welcome note when setup finishes). */
+{ type: "open_note"; note_id: string } | 
+/**  What the transcription test has heard so far (the whole text, replacing the last). */
+{ type: "transcription_test_progress"; text: string };
 
 /**  Facts about this build and machine that the UI needs to pick its chrome. */
 export type AppInfo = {
@@ -462,6 +501,25 @@ export type ClaudeCodeStatus_Serialize = {
 	signed_in: boolean,
 };
 
+/**  Settings for cloud engines that need more than a key. */
+export type CloudSttSettings = CloudSttSettings_Serialize | CloudSttSettings_Deserialize;
+
+/**  Settings for cloud engines that need more than a key. */
+export type CloudSttSettings_Deserialize = {
+	/**  Base URL of an OpenAI-compatible service, e.g. "https://api.groq.com/openai/v1". */
+	base_url?: string | null,
+	/**  Model name for the OpenAI-compatible service (other providers use their own default). */
+	model?: string | null,
+};
+
+/**  Settings for cloud engines that need more than a key. */
+export type CloudSttSettings_Serialize = {
+	/**  Base URL of an OpenAI-compatible service, e.g. "https://api.groq.com/openai/v1". */
+	base_url: string | null,
+	/**  Model name for the OpenAI-compatible service (other providers use their own default). */
+	model: string | null,
+};
+
 /**  Which lists the UI should refetch. Coarse on purpose: the UI invalidates query keys. */
 export type DataScope = "notes" | "categories" | "trash" | "versions" | "transcript" | "people" | "tasks" | "proposals" | "ai_actions" | "threads" | 
 /**  The swear jar's counts (coins typed or emptied by hand). */
@@ -564,6 +622,17 @@ export type HapticKind =
 "generic" | 
 /**  Slider detents. */
 "level_change";
+
+/**  What this computer can run, for recommending a speech model. */
+export type HardwareProfile = {
+	/**  Logical CPU cores. */
+	cores: number,
+	/**  Installed memory, whole gigabytes. */
+	ram_gb: number,
+	apple_silicon: boolean,
+	/**  Too slow for good local transcription: suggest a cloud service. */
+	suggest_cloud: boolean,
+};
 
 /**  What Home shows when no note is open. */
 export type HomeFace = HomeFace_Serialize | HomeFace_Deserialize;
@@ -1410,9 +1479,12 @@ export type Person = {
 	name: string,
 	/**  1..=8, maps to the `speaker-N` colour tokens. */
 	color_index: number,
+	/**  Voice samples Margin recognises them by (one per speaker you confirmed as them). */
 	sample_count: number,
 	meeting_count: number,
 	created_at: string,
+	/**  "You": the app's user. Always there; cannot be deleted or merged away. */
+	is_self: boolean,
 };
 
 /**  A suggested prompt shown in the assistant's empty state. */
@@ -1564,6 +1636,11 @@ export type RecordingState_Deserialize = {
 	started_at?: string | null,
 	/**  Set while a detected meeting has ended and recording will stop unless the user keeps it. */
 	auto_stop_at?: string | null,
+	/**
+	 *  The engine labels who is speaking as the meeting goes. When false, speakers are only
+	 *  known once the meeting is finished, so the live transcript does not show them.
+	 */
+	live_speakers?: boolean,
 };
 
 export type RecordingState_Serialize = {
@@ -1573,6 +1650,11 @@ export type RecordingState_Serialize = {
 	started_at: string | null,
 	/**  Set while a detected meeting has ended and recording will stop unless the user keeps it. */
 	auto_stop_at: string | null,
+	/**
+	 *  The engine labels who is speaking as the meeting goes. When false, speakers are only
+	 *  known once the meeting is finished, so the live transcript does not show them.
+	 */
+	live_speakers: boolean,
 };
 
 export type RecordingTrigger = "manual" | "hotkey" | "tray" | "detected";
@@ -1793,7 +1875,9 @@ export type StartRecordingOptions_Serialize = {
 	trigger: RecordingTrigger,
 };
 
-export type SttEngine = "whisper_local" | "deepgram" | "soniox" | "assembly_ai";
+export type SttEngine = "whisper_local" | "deepgram" | "soniox" | "assembly_ai" | "open_ai" | 
+/**  Any service with an OpenAI-compatible `/audio/transcriptions` endpoint. */
+"open_ai_compatible";
 
 /**  A local speech model that can be downloaded. */
 export type SttModel = {
@@ -1804,6 +1888,27 @@ export type SttModel = {
 	multilingual: boolean,
 	recommended: boolean,
 	downloaded: boolean,
+};
+
+/**  Whether a cloud speech service is set up. Never carries the key itself. */
+export type SttProviderStatus = SttProviderStatus_Serialize | SttProviderStatus_Deserialize;
+
+/**  Whether a cloud speech service is set up. Never carries the key itself. */
+export type SttProviderStatus_Deserialize = {
+	engine: SttEngine,
+	/**  A key is stored in the OS keychain. */
+	has_key: boolean,
+	/**  What is wrong, written for people (for example the key could not be checked). */
+	problem?: string | null,
+};
+
+/**  Whether a cloud speech service is set up. Never carries the key itself. */
+export type SttProviderStatus_Serialize = {
+	engine: SttEngine,
+	/**  A key is stored in the OS keychain. */
+	has_key: boolean,
+	/**  What is wrong, written for people (for example the key could not be checked). */
+	problem: string | null,
 };
 
 /**  A word and how often it went in the jar. */
@@ -2188,6 +2293,28 @@ export type TranscriptionSettings_Deserialize = {
 	model_id?: string,
 	/**  ISO 639-1 code, or `None` to detect. */
 	language?: string | null,
+	/**
+	 *  When the meeting ends, transcribe the whole recording again, carefully, with Whisper
+	 *  Large v3 Turbo on this computer (if it is downloaded), replacing the live transcript.
+	 *  Only with the local engine: a cloud service's transcript is kept as it is.
+	 */
+	refine_after_meeting?: boolean,
+	/**
+	 *  Ask the cloud service to label who is speaking, on the call and on the microphone, while
+	 *  the meeting is live (only services where [`SttEngine::has_live_speakers`]).
+	 */
+	live_speaker_labels?: boolean,
+	/**
+	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
+	 *  accurate than live labels) and suggest names for voices Margin knows.
+	 */
+	identify_speakers_after_meeting?: boolean,
+	/**
+	 *  Name speakers whose voice sounds like a Saved person, live (with live labels) and after
+	 *  the meeting. Voiceprints stay on this computer.
+	 */
+	recognise_voices?: boolean,
+	cloud?: CloudSttSettings_Deserialize,
 };
 
 export type TranscriptionSettings_Serialize = {
@@ -2196,6 +2323,66 @@ export type TranscriptionSettings_Serialize = {
 	model_id: string,
 	/**  ISO 639-1 code, or `None` to detect. */
 	language: string | null,
+	/**
+	 *  When the meeting ends, transcribe the whole recording again, carefully, with Whisper
+	 *  Large v3 Turbo on this computer (if it is downloaded), replacing the live transcript.
+	 *  Only with the local engine: a cloud service's transcript is kept as it is.
+	 */
+	refine_after_meeting: boolean,
+	/**
+	 *  Ask the cloud service to label who is speaking, on the call and on the microphone, while
+	 *  the meeting is live (only services where [`SttEngine::has_live_speakers`]).
+	 */
+	live_speaker_labels: boolean,
+	/**
+	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
+	 *  accurate than live labels) and suggest names for voices Margin knows.
+	 */
+	identify_speakers_after_meeting: boolean,
+	/**
+	 *  Name speakers whose voice sounds like a Saved person, live (with live labels) and after
+	 *  the meeting. Voiceprints stay on this computer.
+	 */
+	recognise_voices: boolean,
+	cloud: CloudSttSettings_Serialize,
+};
+
+/**
+ *  What came back when the sample clip was streamed to the transcription engine (Settings ›
+ *  Transcription › Test). The clip is public-domain speech, never the person's own audio.
+ */
+export type TranscriptionTest = TranscriptionTest_Serialize | TranscriptionTest_Deserialize;
+
+/**
+ *  What came back when the sample clip was streamed to the transcription engine (Settings ›
+ *  Transcription › Test). The clip is public-domain speech, never the person's own audio.
+ */
+export type TranscriptionTest_Deserialize = {
+	engine: SttEngine,
+	/**  What the engine heard. */
+	text: string,
+	/**  What the clip says, to compare. */
+	expected: string,
+	/**  From the start of the clip to the first words coming back. */
+	first_words_ms?: number | null,
+	/**  The whole test; the clip plays in real time, as a meeting would. */
+	took_ms: number,
+};
+
+/**
+ *  What came back when the sample clip was streamed to the transcription engine (Settings ›
+ *  Transcription › Test). The clip is public-domain speech, never the person's own audio.
+ */
+export type TranscriptionTest_Serialize = {
+	engine: SttEngine,
+	/**  What the engine heard. */
+	text: string,
+	/**  What the clip says, to compare. */
+	expected: string,
+	/**  From the start of the clip to the first words coming back. */
+	first_words_ms: number | null,
+	/**  The whole test; the clip plays in real time, as a meeting would. */
+	took_ms: number,
 };
 
 export type TurnEnd = { type: "completed" } | { type: "cancelled" } | { type: "error"; message: string };

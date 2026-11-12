@@ -1,4 +1,4 @@
-//! Settings, app info, windows (main and Dynamic Island), haptics. Owner: Core agent.
+//! Settings, app info, windows (main, first-run setup and Dynamic Island), haptics. Owner: Core agent.
 //!
 //! Every command here is part of the IPC contract in `src/ipc/bindings.ts`. Keep names, arguments and
 //! return types as they are unless the orchestrator agrees to a change.
@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
 pub use crate::shell::haptics::HapticKind;
-use crate::shell::{self, Shell, island, material};
+use crate::shell::{self, Shell, island, material, onboarding};
 
 /// Facts about this build and machine that the UI needs to pick its chrome.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
@@ -71,10 +71,39 @@ pub async fn get_app_info(app: AppHandle, core: State<'_, Core>) -> AppResult<Ap
 #[tauri::command]
 #[specta::specta]
 pub async fn show_main_window(app: AppHandle) -> AppResult<()> {
+    // First launch: the main window waits behind setup; `finish_onboarding` shows it.
+    if onboarding::is_open(&app) && !app.state::<Shell>().settings().onboarding_done {
+        return Ok(());
+    }
     let window = app.get_webview_window(shell::MAIN).ok_or_else(|| AppError::internal("The main window is missing. Restart Margin."))?;
     window.show().and_then(|_| window.set_focus()).map_err(|e| AppError::internal(format!("Margin could not show its window: {e}")))?;
     app.state::<Shell>().ui_ready();
     Ok(())
+}
+
+/// The setup window starts hidden; its UI calls this after the first paint.
+#[tauri::command]
+#[specta::specta]
+pub async fn show_onboarding_window(app: AppHandle) -> AppResult<()> {
+    onboarding::show(&app)
+}
+
+/// Open Margin from setup: marks setup done, writes the welcome note on the first run, closes
+/// the setup window and shows the main window on that note.
+#[tauri::command]
+#[specta::specta]
+pub async fn finish_onboarding(app: AppHandle) -> AppResult<()> {
+    onboarding::finish(&app).await
+}
+
+/// Settings › General › Run setup again: open the setup window over Margin.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_onboarding(app: AppHandle) -> AppResult<()> {
+    if onboarding::is_open(&app) {
+        return onboarding::show(&app);
+    }
+    onboarding::create(&app).map(|_| ()).map_err(|e| AppError::internal(format!("Margin could not open setup: {e}. Restart Margin and try again.")))
 }
 
 /// The user double-clicked an empty part of the title band: do what the system setting for

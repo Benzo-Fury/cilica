@@ -42,8 +42,9 @@ export function TrafficLightsSpace({ preview = false }: { preview?: boolean }) {
 }
 
 export interface WindowControlsProps {
-  onMinimize: () => void;
-  onToggleMaximize: () => void;
+  /** Left out for windows that cannot be minimised or resized (setup). */
+  onMinimize?: () => void;
+  onToggleMaximize?: () => void;
   onClose: () => void;
   className?: string;
 }
@@ -57,25 +58,29 @@ export function WindowControls({
 }: WindowControlsProps) {
   return (
     <div className={cn("nt-win-caps", className)}>
-      <button type="button" aria-label="Minimise" onClick={onMinimize}>
-        <svg viewBox="0 0 10 10" aria-hidden>
-          <path d="M1 5h8" stroke="currentColor" strokeWidth="1" />
-        </svg>
-      </button>
-      <button type="button" aria-label="Maximise" onClick={onToggleMaximize}>
-        <svg viewBox="0 0 10 10" aria-hidden>
-          <rect
-            x="1.5"
-            y="1.5"
-            width="7"
-            height="7"
-            rx="1.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-        </svg>
-      </button>
+      {onMinimize && (
+        <button type="button" aria-label="Minimise" onClick={onMinimize}>
+          <svg viewBox="0 0 10 10" aria-hidden>
+            <path d="M1 5h8" stroke="currentColor" strokeWidth="1" />
+          </svg>
+        </button>
+      )}
+      {onToggleMaximize && (
+        <button type="button" aria-label="Maximise" onClick={onToggleMaximize}>
+          <svg viewBox="0 0 10 10" aria-hidden>
+            <rect
+              x="1.5"
+              y="1.5"
+              width="7"
+              height="7"
+              rx="1.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+          </svg>
+        </button>
+      )}
       <button type="button" className="close" aria-label="Close" onClick={onClose}>
         <svg viewBox="0 0 10 10" aria-hidden>
           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1" />

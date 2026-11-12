@@ -1,17 +1,17 @@
 /**
  * Saved people (spec › Speakers and Saved people): each with their colour, voice samples and
- * meetings, and rename, recolour, merge and delete. A person's colour shows on their avatar
- * ring in every transcript.
+ * meetings, and rename, recolour, merge, forget voice and delete. "You" is always there and can
+ * only be renamed, recoloured, merged into or have its voice forgotten. A person's colour shows
+ * on their avatar ring in every transcript.
  */
 
-import { Ellipsis, Merge, Palette, PenLine, Trash2 } from "lucide-react";
+import { Ellipsis, Eraser, Merge, Palette, PenLine, Trash2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { ShortcutTip } from "@/app/keybinds";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import type { Person } from "@/ipc/types";
-import { plural } from "@/lib/format";
 import {
   Avatar,
   ConfirmDialog,
@@ -37,17 +37,20 @@ import {
 import { InlineName } from "../sidebar/InlineName";
 import {
   useDeletePerson,
+  useForgetVoice,
   useMergePeople,
   usePeople,
   useRenamePerson,
   useSetPersonColor,
 } from "./hooks";
+import { forgetCopy, voiceLine } from "./model";
 
 const COLORS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const COLOR_NAMES = ["Blue", "Teal", "Green", "Ochre", "Rust", "Rose", "Violet", "Slate"];
 
 type Confirm =
   | { kind: "delete"; person: Person }
+  | { kind: "forget"; person: Person }
   | { kind: "merge"; source: Person; target: Person }
   | null;
 
@@ -59,6 +62,7 @@ export function PeopleView() {
   const rename = useRenamePerson();
   const remove = useDeletePerson();
   const merge = useMergePeople();
+  const forget = useForgetVoice();
 
   return (
     <ViewLayer>
@@ -69,8 +73,8 @@ export function PeopleView() {
             <div>
               <h1 className="t-title">Saved people</h1>
               <p className="t-callout">
-                Margin recognises these voices and suggests them in new meetings. Voiceprints stay
-                on this Mac.
+                Margin recognises these voices in meetings and names them when it's sure. Pick
+                someone for a speaker to teach it their voice. Voiceprints stay on this Mac.
               </p>
             </div>
           </header>
@@ -128,10 +132,7 @@ export function PeopleView() {
                           ) : (
                             <span className="nt-person-label">
                               <span>{person.name}</span>
-                              <span className="nt-list-meta">
-                                {plural(person.sample_count, "voice sample")} ·{" "}
-                                {plural(person.meeting_count, "meeting")}
-                              </span>
+                              <span className="nt-list-meta">{voiceLine(person)}</span>
                             </span>
                           )}
                         </span>
@@ -159,7 +160,7 @@ export function PeopleView() {
                               >
                                 Rename
                               </MenuItem>
-                              {people.length > 1 && (
+                              {people.length > 1 && !person.is_self && (
                                 <MenuSub label="Merge into" icon={Merge}>
                                   {people
                                     .filter((p) => p.id !== person.id)
@@ -175,15 +176,27 @@ export function PeopleView() {
                                     ))}
                                 </MenuSub>
                               )}
-                              <MenuSeparator />
-                              <MenuItem
-                                icon={Trash2}
-                                iconMotion="trash"
-                                danger
-                                onSelect={() => setConfirm({ kind: "delete", person })}
-                              >
-                                Delete
-                              </MenuItem>
+                              {person.sample_count > 0 && (
+                                <MenuItem
+                                  icon={Eraser}
+                                  onSelect={() => setConfirm({ kind: "forget", person })}
+                                >
+                                  Forget voice
+                                </MenuItem>
+                              )}
+                              {!person.is_self && (
+                                <>
+                                  <MenuSeparator />
+                                  <MenuItem
+                                    icon={Trash2}
+                                    iconMotion="trash"
+                                    danger
+                                    onSelect={() => setConfirm({ kind: "delete", person })}
+                                  >
+                                    Delete
+                                  </MenuItem>
+                                </>
+                              )}
                             </MenuContent>
                           </Menu>
                         </>
@@ -199,30 +212,37 @@ export function PeopleView() {
       <ConfirmDialog
         open={confirm !== null}
         onOpenChange={(open) => !open && setConfirm(null)}
-        destructive={confirm?.kind === "delete"}
+        destructive={confirm?.kind === "delete" || confirm?.kind === "forget"}
         title={
           confirm?.kind === "delete"
             ? `Delete ${confirm.person.name}?`
-            : confirm
-              ? `Merge ${confirm.source.name} into ${confirm.target.name}?`
-              : ""
+            : confirm?.kind === "forget"
+              ? forgetCopy(confirm.person).title
+              : confirm
+                ? `Merge ${confirm.source.name} into ${confirm.target.name}?`
+                : ""
         }
         body={
           confirm?.kind === "delete"
             ? "Margin forgets their voice and stops suggesting them. Past meetings keep the speaker's name. This cannot be undone."
-            : confirm
-              ? `${confirm.source.name}'s voice samples and meetings move to ${confirm.target.name}, and ${confirm.source.name} is removed. This cannot be undone.`
-              : ""
+            : confirm?.kind === "forget"
+              ? forgetCopy(confirm.person).body
+              : confirm
+                ? `${confirm.source.name}'s voice samples and meetings move to ${confirm.target.name}, and ${confirm.source.name} is removed. This cannot be undone.`
+                : ""
         }
         confirmLabel={
           confirm?.kind === "delete"
             ? `Delete ${confirm.person.name}`
-            : confirm
-              ? `Merge into ${confirm.target.name}`
-              : ""
+            : confirm?.kind === "forget"
+              ? "Forget voice"
+              : confirm
+                ? `Merge into ${confirm.target.name}`
+                : ""
         }
         onConfirm={() => {
           if (confirm?.kind === "delete") remove.mutate(confirm.person.id);
+          else if (confirm?.kind === "forget") forget.mutate(confirm.person.id);
           else if (confirm)
             merge.mutate({ sourceId: confirm.source.id, targetId: confirm.target.id });
         }}

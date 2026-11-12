@@ -536,12 +536,22 @@ function seedDemo(state: MockState, now: number): void {
 
   state.people = [
     {
+      id: "person_you",
+      name: "You",
+      color_index: 1,
+      sample_count: 4,
+      meeting_count: 12,
+      created_at: ago(now, { days: 120 }),
+      is_self: true,
+    },
+    {
       id: "person_priya",
       name: "Priya Shah",
       color_index: 6,
       sample_count: 23,
       meeting_count: 23,
       created_at: ago(now, { days: 90 }),
+      is_self: false,
     },
     {
       id: "person_marco",
@@ -550,6 +560,7 @@ function seedDemo(state: MockState, now: number): void {
       sample_count: 9,
       meeting_count: 9,
       created_at: ago(now, { days: 60 }),
+      is_self: false,
     },
     {
       id: "person_sam",
@@ -558,6 +569,7 @@ function seedDemo(state: MockState, now: number): void {
       sample_count: 14,
       meeting_count: 14,
       created_at: ago(now, { days: 75 }),
+      is_self: false,
     },
   ];
 
