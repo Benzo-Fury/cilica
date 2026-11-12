@@ -29,6 +29,11 @@ pub const SAMPLE_RATE: u32 = 16_000;
 /// the same synthetic voice across turns scores 0.7–0.9, different voices below 0.4.
 pub const SUGGEST_THRESHOLD: f32 = 0.6;
 
+/// Cosine similarity at or above which Margin names a speaker as a Saved person by itself (still
+/// a guess the person can correct). Stricter than [`SUGGEST_THRESHOLD`]: between the two Margin
+/// only asks.
+pub const RECOGNISE_THRESHOLD: f32 = 0.72;
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiarizeError {
     #[error("The speaker models could not be loaded: {0}. They download with the speech model; try downloading it again in Settings › Transcription.")]

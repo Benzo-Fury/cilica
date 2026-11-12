@@ -7,7 +7,8 @@ use std::sync::Arc;
 use margin_audio::{CaptureSource, MicSource, SystemSource, permissions};
 use margin_diarize::Diarizer;
 use margin_domain::{AppError, AppResult, PermissionKind, PermissionStatus, Settings, SttEngine};
-use margin_stt::{ModelManager, Transcriber, WhisperLocal, WhisperOptions, cloud::CloudTranscriber};
+use margin_stt::cloud::{self, CloudConfig, CloudTranscriber};
+use margin_stt::{ModelManager, Transcriber, WhisperLocal, WhisperOptions};
 
 /// Audio sources and permissions.
 pub trait AudioBackend: Send + Sync {
@@ -49,11 +50,39 @@ pub trait SpeechBackend: Send + Sync {
     }
     /// Fail fast before capture starts when the engine cannot run (model not downloaded).
     fn check(&self, settings: &Settings) -> AppResult<()>;
+    /// The engine for the careful pass after the meeting, when it is turned on and its model is
+    /// on this computer (blocking: loads the model). `None` keeps the live transcript.
+    fn refiner(&self, _settings: &Settings) -> Option<Arc<dyn Transcriber>> {
+        None
+    }
 }
 
-/// Local models from the model manager.
+/// The model the after-meeting pass uses.
+pub const REFINE_MODEL_ID: &str = "large-v3-turbo-q5_0";
+
+/// Reads a cloud provider's key from the OS keychain (the shell provides it; this crate never
+/// touches the keychain).
+pub type SttKeys = Arc<dyn Fn(SttEngine) -> Option<String> + Send + Sync>;
+
+/// Local models from the model manager, and cloud engines with keys from the keychain.
 pub struct LocalModels {
     pub models: Arc<ModelManager>,
+    pub keys: SttKeys,
+}
+
+impl LocalModels {
+    fn cloud_config(&self, settings: &Settings) -> CloudConfig {
+        let engine = settings.transcription.engine;
+        let keys = self.keys.clone();
+        let compatible = engine == SttEngine::OpenAiCompatible;
+        CloudConfig {
+            engine,
+            key: Arc::new(move || keys(engine)),
+            base_url: settings.transcription.cloud.base_url.clone().filter(|_| compatible),
+            model: settings.transcription.cloud.model.clone().filter(|_| compatible),
+            speaker_labels: settings.transcription.live_speakers(),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -64,7 +93,7 @@ impl SpeechBackend for LocalModels {
                 let paths = self.models.speech_paths(&settings.transcription.model_id)?;
                 Ok(Arc::new(WhisperLocal::load(WhisperOptions::new(paths.whisper, paths.vad))?))
             }
-            other => Ok(Arc::new(CloudTranscriber::new(other))),
+            _ => Ok(Arc::new(CloudTranscriber::new(self.cloud_config(settings), self.models.vad_path()))),
         }
     }
 
@@ -78,14 +107,24 @@ impl SpeechBackend for LocalModels {
         }
     }
 
+    fn refiner(&self, settings: &Settings) -> Option<Arc<dyn Transcriber>> {
+        if !settings.transcription.refine_after_meeting {
+            return None;
+        }
+        let paths = self.models.speech_paths(REFINE_MODEL_ID).ok()?;
+        match WhisperLocal::load(WhisperOptions::new(paths.whisper, paths.vad)) {
+            Ok(engine) => Some(Arc::new(engine)),
+            Err(error) => {
+                tracing::warn!(%error, "the after-meeting model could not be loaded; keeping the live transcript");
+                None
+            }
+        }
+    }
+
     fn check(&self, settings: &Settings) -> AppResult<()> {
         match settings.transcription.engine {
             SttEngine::WhisperLocal => self.models.speech_paths(&settings.transcription.model_id).map(|_| ()).map_err(AppError::from),
-            other => {
-                // Cloud engines are not wired yet: say so before anything starts.
-                let t = CloudTranscriber::new(other);
-                t.open_stream(Default::default()).map(|_| ()).map_err(AppError::from)
-            }
+            _ => cloud::check(&self.cloud_config(settings)).map_err(AppError::from),
         }
     }
 }

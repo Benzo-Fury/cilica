@@ -16,6 +16,7 @@
 //! | `swears`      | swear_coins, swear_jar_emptied; reads segments |
 //! | `imports`     | import_runs, import_links                      |
 //! | `links`       | note_links (the link index behind the graph)   |
+//! | `welcome`     | writes the welcome note after setup (none)     |
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -33,12 +34,14 @@ mod settings;
 mod swears;
 mod tasks;
 mod transcripts;
+mod welcome;
 mod written;
 
 pub use imports::{ImportLink, ImportSegment, ImportSpeaker, ImportWrite};
 pub use notes::NewNote;
 pub use swears::week_start;
 pub use sqlx;
+pub use welcome::{ShortcutStyle, WELCOME_TITLE, welcome_body};
 pub use transcripts::{NewSpeaker, OTHERS_LABEL, SELF_LABEL, Voiceprint, blob_to_vec, cosine, normalized, vec_to_blob};
 
 /// How this crate writes ids and timestamps. The schema stores both as TEXT; other modules in this

@@ -23,6 +23,8 @@ pub(crate) enum Stage {
     Recording,
     /// Capture finished and the live transcript is complete.
     Captured,
+    /// The after-meeting pass has redone the transcript (or was not needed).
+    Refined,
     /// The kept audio file is written and recorded on the note.
     Encoded,
     /// Speakers are assigned and the note is reindexed.

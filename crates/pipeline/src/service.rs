@@ -287,6 +287,7 @@ impl RecordingService {
                 meeting_app: meeting_app.clone(),
                 started_at: Some(started_at),
                 auto_stop_at: None,
+                live_speakers: settings.transcription.live_speakers(),
             };
             sh.generation
         };
@@ -497,6 +498,7 @@ impl RecordingService {
                         meeting_app: note.meeting_app.clone(),
                         started_at: Some(sidecar.started_at),
                         auto_stop_at: None,
+                        live_speakers: false,
                     };
                     sh.generation
                 }

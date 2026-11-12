@@ -86,7 +86,10 @@ pub struct Person {
     pub name: String,
     /// 1..=8, maps to the `speaker-N` colour tokens.
     pub color_index: u8,
+    /// Voice samples Margin recognises them by (one per speaker you confirmed as them).
     pub sample_count: u32,
     pub meeting_count: u32,
     pub created_at: Timestamp,
+    /// "You": the app's user. Always there; cannot be deleted or merged away.
+    pub is_self: bool,
 }

@@ -113,7 +113,7 @@ impl ScriptedStream {
                     self.next_id
                 });
                 let (s, e) = ((c.start_sample / 16) as u32, ((c.start_sample + c.samples.len() as u64) / 16) as u32);
-                SttEvent::Final(Utterance { id, start_ms: s, end_ms: e, text: self.text(s, e) })
+                SttEvent::Final(Utterance { id, start_ms: s, end_ms: e, text: self.text(s, e), speaker: None })
             })
             .collect()
     }
@@ -130,7 +130,7 @@ impl TranscriptStream for ScriptedStream {
             self.next_id += 1;
             self.open = Some(self.next_id);
             let (s_ms, e_ms) = ((s / 16) as u32, ((s + audio.len() as u64) / 16) as u32);
-            out.push(SttEvent::Partial(Utterance { id: self.next_id, start_ms: s_ms, end_ms: e_ms, text: "…".into() }));
+            out.push(SttEvent::Partial(Utterance { id: self.next_id, start_ms: s_ms, end_ms: e_ms, text: "…".into(), speaker: None }));
         }
         Ok(out)
     }
@@ -158,11 +158,92 @@ impl Transcriber for ScriptedTranscriber {
 struct FakeSpeech {
     engine: Arc<dyn Transcriber>,
     speaker_models: Option<(PathBuf, PathBuf)>,
+    refiner: Option<Arc<dyn Transcriber>>,
 }
 
 impl FakeSpeech {
     fn scripted() -> Self {
-        Self { engine: Arc::new(ScriptedTranscriber { truth: Arc::new(truth()) }), speaker_models: None }
+        Self { engine: Arc::new(ScriptedTranscriber { truth: Arc::new(truth()) }), speaker_models: None, refiner: None }
+    }
+}
+
+/// The after-meeting engine: one utterance of fixed text for any channel with sound in it.
+struct FixedRefiner {
+    text: &'static str,
+}
+
+impl Transcriber for FixedRefiner {
+    fn engine(&self) -> SttEngine {
+        SttEngine::WhisperLocal
+    }
+    fn open_stream(&self, _options: StreamOptions) -> SttResult<Box<dyn TranscriptStream>> {
+        Err(margin_stt::SttError::EngineUnavailable("live transcription".into()))
+    }
+    fn transcribe_recording(&self, samples: &[f32], _language: Option<&str>) -> SttResult<Vec<Utterance>> {
+        if samples.iter().all(|s| s.abs() < 1e-4) {
+            return Ok(Vec::new());
+        }
+        let end_ms = (samples.len() / 16) as u32;
+        Ok(vec![Utterance { id: 1, start_ms: 0, end_ms, text: self.text.into(), speaker: None }])
+    }
+}
+
+/// A cloud engine whose service refuses every stretch of audio, as with a key it will not take.
+struct RefusingTranscriber;
+
+struct RefusingStream;
+
+impl Transcriber for RefusingTranscriber {
+    fn engine(&self) -> SttEngine {
+        SttEngine::Soniox
+    }
+    fn open_stream(&self, _options: StreamOptions) -> SttResult<Box<dyn TranscriptStream>> {
+        Ok(Box::new(RefusingStream))
+    }
+}
+
+impl TranscriptStream for RefusingStream {
+    fn push(&mut self, _start: u64, _samples: &[f32]) -> SttResult<Vec<SttEvent>> {
+        Err(margin_stt::SttError::Auth("Soniox".into()))
+    }
+    fn finish(&mut self) -> SttResult<Vec<SttEvent>> {
+        Ok(Vec::new())
+    }
+}
+
+/// A cloud engine that labels speakers on both channels: one batch of finals per channel.
+struct LabellingTranscriber;
+
+struct LabellingStream {
+    channel: Option<AudioChannel>,
+    sent: bool,
+}
+
+impl Transcriber for LabellingTranscriber {
+    fn engine(&self) -> SttEngine {
+        SttEngine::Soniox
+    }
+    fn open_stream(&self, options: StreamOptions) -> SttResult<Box<dyn TranscriptStream>> {
+        Ok(Box::new(LabellingStream { channel: options.channel, sent: false }))
+    }
+}
+
+impl TranscriptStream for LabellingStream {
+    fn push(&mut self, _start: u64, _samples: &[f32]) -> SttResult<Vec<SttEvent>> {
+        if std::mem::replace(&mut self.sent, true) {
+            return Ok(Vec::new());
+        }
+        let say = |id: u64, text: &str, speaker: Option<&str>| {
+            let start_ms = id as u32 * 1_000;
+            SttEvent::Final(Utterance { id, start_ms, end_ms: start_ms + 900, text: text.into(), speaker: speaker.map(str::to_owned) })
+        };
+        Ok(match self.channel {
+            Some(AudioChannel::System) => vec![say(1, "Hello everyone.", Some("1")), say(2, "Hi there.", Some("2")), say(3, "Mm.", None), say(4, "Shall we start?", Some("1"))],
+            _ => vec![say(1, "Morning all.", Some("1")), say(2, "Morning! Coffee?", Some("2")), say(3, "Yes please.", Some("1"))],
+        })
+    }
+    fn finish(&mut self) -> SttResult<Vec<SttEvent>> {
+        Ok(Vec::new())
     }
 }
 
@@ -176,6 +257,9 @@ impl SpeechBackend for FakeSpeech {
     }
     fn check(&self, _settings: &Settings) -> AppResult<()> {
         Ok(())
+    }
+    fn refiner(&self, settings: &Settings) -> Option<Arc<dyn Transcriber>> {
+        self.refiner.clone().filter(|_| settings.transcription.refine_after_meeting)
     }
 }
 
@@ -366,7 +450,7 @@ async fn missing_model_is_unavailable() {
         db.clone(),
         Arc::new(NullSink),
         Arc::new(FakeAudio::meeting(1.0)),
-        Arc::new(crate::LocalModels { models }),
+        Arc::new(crate::LocalModels { models, keys: Arc::new(|_| None) }),
         Arc::new(|| Arc::new(FakeSummarizer::default()) as Arc<dyn MeetingSummarizer>),
         ServiceConfig::new(dir.path()),
         tokio::runtime::Handle::current(),
@@ -383,6 +467,90 @@ async fn missing_model_is_unavailable() {
     let err = svc.start(manual(None, None)).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Unavailable);
     assert!(err.message.contains("Deepgram"), "{}", err.message);
+}
+
+/// Both channels fail the same way when a service refuses the key: one warning, not one each.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_refused_key_is_reported_once_for_both_channels() {
+    let speech = FakeSpeech { engine: Arc::new(RefusingTranscriber), ..FakeSpeech::scripted() };
+    let h = harness(FakeAudio::meeting(4.0), speech).await;
+    h.svc.start(manual(None, None)).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(2_500)).await;
+    h.svc.stop().await.unwrap();
+    h.wait_idle(Duration::from_secs(20)).await;
+    let stopped: Vec<_> = h.toasts().into_iter().filter(|t| t.title == "Live transcript stopped").collect();
+    assert_eq!(stopped.len(), 1, "{stopped:?}");
+    assert!(stopped[0].description.as_deref().unwrap_or_default().contains("Soniox"));
+}
+
+/// A service that labels speakers: each label becomes a person, live; the first voice on the mic
+/// is "You", unlabelled call audio stays "Others".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn live_speaker_labels_become_people() {
+    let speech = FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() };
+    let h = harness(FakeAudio::meeting(3.0), speech).await;
+    let mut settings = h.db.get_settings().await.unwrap();
+    settings.transcription.engine = SttEngine::Soniox;
+    h.db.set_settings(&settings).await.unwrap();
+
+    let state = h.svc.start(manual(None, None)).await.unwrap();
+    assert!(state.live_speakers, "Soniox labels speakers live");
+    let note_id = state.note_id.unwrap();
+    tokio::time::sleep(Duration::from_millis(1_500)).await;
+    h.svc.stop().await.unwrap();
+    h.wait_idle(Duration::from_secs(20)).await;
+
+    let transcript = h.db.get_transcript(note_id).await.unwrap();
+    let who = |text: &str| {
+        let segment = transcript.segments.iter().find(|s| s.text == text).unwrap_or_else(|| panic!("no segment {text}"));
+        transcript.speakers.iter().find(|p| Some(p.id) == segment.speaker_id).map(|p| p.label.clone()).unwrap_or_default()
+    };
+    // Numbers follow the order voices are first heard, across both channels.
+    let (call1, call2, room) = (who("Hello everyone."), who("Hi there."), who("Morning! Coffee?"));
+    let mut people = vec![call1.clone(), call2.clone(), room.clone()];
+    people.sort();
+    assert_eq!(people, vec!["Person 1", "Person 2", "Person 3"], "three different people");
+    assert_eq!(who("Shall we start?"), call1, "the same label is the same person");
+    assert_eq!(who("Mm."), "Others");
+    // The first voice on the mic is you; labels are per channel, so mic "1" is not call "1".
+    assert_eq!(who("Morning all."), "You");
+    assert_eq!(who("Yes please."), "You");
+}
+
+/// Live labels off in Settings, or a service without them: speakers wait for the meeting's end.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn live_speakers_follow_the_setting_and_the_service() {
+    let h = harness(FakeAudio::meeting(2.0), FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() }).await;
+    let mut settings = h.db.get_settings().await.unwrap();
+    for (engine, on, expected) in [(SttEngine::Soniox, false, false), (SttEngine::OpenAi, true, false), (SttEngine::WhisperLocal, true, false), (SttEngine::Deepgram, true, true)] {
+        settings.transcription.engine = engine;
+        settings.transcription.live_speaker_labels = on;
+        assert_eq!(settings.transcription.live_speakers(), expected, "{engine:?}, setting {on}");
+    }
+    settings.transcription.engine = SttEngine::Soniox;
+    settings.transcription.live_speaker_labels = false;
+    h.db.set_settings(&settings).await.unwrap();
+    let state = h.svc.start(manual(None, None)).await.unwrap();
+    assert!(!state.live_speakers);
+    h.svc.stop().await.unwrap();
+    h.wait_idle(Duration::from_secs(20)).await;
+}
+
+/// With "Identify speakers after the meeting" off, the step is skipped altogether.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn identifying_speakers_after_the_meeting_can_be_turned_off() {
+    for identify in [true, false] {
+        let h = harness(FakeAudio::meeting(2.0), FakeSpeech::scripted()).await;
+        let mut settings = h.db.get_settings().await.unwrap();
+        settings.transcription.identify_speakers_after_meeting = identify;
+        h.db.set_settings(&settings).await.unwrap();
+        h.svc.start(manual(None, None)).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(1_000)).await;
+        h.svc.stop().await.unwrap();
+        h.wait_idle(Duration::from_secs(20)).await;
+        let diarized = h.events().iter().any(|e| matches!(e, AppEvent::RecordingStateChanged { state } if state.phase == RecordingPhase::Diarizing));
+        assert_eq!(diarized, identify, "identify after the meeting: {identify}");
+    }
 }
 
 /// Two short recordings into one note: the second continues the timeline and the kept audio.
@@ -437,6 +605,71 @@ async fn interrupted_recording_is_finished_at_launch() {
     assert_eq!(*h.summarizer.calls.lock().unwrap(), vec![note.id]);
     assert!(h.toasts().iter().any(|t| t.title == "Finishing an interrupted recording"));
     assert!(h.db.get_note(note.id).await.unwrap().ended_at.is_some());
+}
+
+/// A captured recording whose live transcript is done, finished at launch with an
+/// after-meeting engine that returns `refined` for the call audio.
+async fn finish_with_refiner(refined: &'static str, live: &str) -> (Harness, Id) {
+    finish_with_refiner_on(SttEngine::WhisperLocal, refined, live).await
+}
+
+/// [`finish_with_refiner`], with `engine` as the live transcription engine in Settings.
+async fn finish_with_refiner_on(engine: SttEngine, refined: &'static str, live: &str) -> (Harness, Id) {
+    let speech = FakeSpeech { refiner: Some(Arc::new(FixedRefiner { text: refined })), ..FakeSpeech::scripted() };
+    let h = harness(FakeAudio::meeting(1.0), speech).await;
+    let mut settings = h.db.get_settings().await.unwrap();
+    settings.transcription.engine = engine;
+    h.db.set_settings(&settings).await.unwrap();
+    let note = h.db.create_note(margin_store::NewNote { title: "Call".into(), kind: NoteKind::Meeting, ..Default::default() }).await.unwrap();
+    let files = RecordingFiles::new(h.dir.path(), note.id);
+    files.write_sidecar(&Sidecar { note_id: note.id, started_at: now(), offset_ms: 0, previous_audio: None, stage: Stage::Captured }).unwrap();
+    // Twelve seconds of call audio (the fixture opens quietly), mic silent.
+    let system = mono("meeting_system.wav");
+    let mut w = WavWriter::create(&files.wav(), 2, 16_000).unwrap();
+    let frames: Vec<f32> = system[..16_000 * 12].iter().flat_map(|s| [0.0, *s]).collect();
+    w.write_interleaved(&frames).unwrap();
+    w.finish().unwrap();
+    let (_, others) = h.db.ensure_channel_speakers(note.id).await.unwrap();
+    let segment = Segment {
+        id: new_id(),
+        note_id: note.id,
+        speaker_id: Some(others.id),
+        channel: AudioChannel::System,
+        start_ms: 100,
+        end_ms: 11_900,
+        text: live.into(),
+        is_final: true,
+    };
+    h.db.upsert_segment(&segment).await.unwrap();
+    h.svc.startup().await;
+    (h, note.id)
+}
+
+/// The after-meeting pass replaces the live transcript of the channel it redid.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn after_meeting_pass_replaces_the_live_transcript() {
+    let (h, note_id) = finish_with_refiner("The careful transcript of what was said on the call.", "the careless live text of the call").await;
+    let segments = h.db.get_transcript(note_id).await.unwrap().segments;
+    let texts: Vec<&str> = segments.iter().map(|s| s.text.as_str()).collect();
+    assert_eq!(texts, vec!["The careful transcript of what was said on the call."]);
+    assert_eq!(segments[0].channel, AudioChannel::System);
+}
+
+/// A pass that comes back with far less text than the live transcript went wrong: keep live.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn after_meeting_pass_that_loses_text_keeps_the_live_transcript() {
+    let (h, note_id) = finish_with_refiner("Hm.", "one two three four five six seven eight nine ten").await;
+    let texts: Vec<String> = h.db.get_transcript(note_id).await.unwrap().segments.into_iter().map(|s| s.text).collect();
+    assert_eq!(texts, vec!["one two three four five six seven eight nine ten".to_string()]);
+}
+
+/// A meeting transcribed by a cloud service keeps that transcript: no second pass on this computer.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn after_meeting_pass_is_skipped_for_cloud_engines() {
+    let live = "what the cloud service heard on the call";
+    let (h, note_id) = finish_with_refiner_on(SttEngine::Soniox, "The careful transcript of what was said on the call.", live).await;
+    let texts: Vec<String> = h.db.get_transcript(note_id).await.unwrap().segments.into_iter().map(|s| s.text).collect();
+    assert_eq!(texts, vec![live.to_string()]);
 }
 
 /// Zero the RIFF and data sizes, as a WAV looks when the app dies before the header is rewritten.
@@ -524,7 +757,7 @@ fn wer(reference: &str, hypothesis: &str) -> f32 {
 
 /// The same meeting through Whisper (default: tiny; `MARGIN_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin`
 /// for the default model), Silero VAD, pyannote segmentation and CAM++: accuracy, no echo
-/// duplicates, two people found on the call, and a Saved person suggested (not applied).
+/// duplicates, two people found on the call, and a Saved person recognised (named or suggested).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs Whisper, Silero VAD and the speaker models in target/test-models"]
 async fn whole_meeting_with_real_models() {
@@ -532,7 +765,7 @@ async fn whole_meeting_with_real_models() {
     let whisper = dir.join(std::env::var("MARGIN_TEST_WHISPER").unwrap_or_else(|_| "ggml-tiny.bin".into()));
     let models = (dir.join("pyannote-segmentation-3.0.onnx"), dir.join("campplus-voxceleb.onnx"));
     let engine = margin_stt::WhisperLocal::load(margin_stt::WhisperOptions::new(whisper.clone(), Some(dir.join("silero_vad.onnx")))).unwrap();
-    let h = harness(FakeAudio::meeting(40.0), FakeSpeech { engine: Arc::new(engine), speaker_models: Some(models.clone()) }).await;
+    let h = harness(FakeAudio::meeting(40.0), FakeSpeech { engine: Arc::new(engine), speaker_models: Some(models.clone()), refiner: None }).await;
 
     // Karen is a Saved person from an earlier meeting (her first sentence).
     let system = mono("meeting_system.wav");
@@ -589,11 +822,15 @@ async fn whole_meeting_with_real_models() {
     let karen_ids: Vec<_> = turns.iter().filter(|t| t.speaker == "Karen").flat_map(speaker_of).collect();
     assert!(daniel.iter().all(|s| *s == daniel[0]) && karen_ids.iter().all(|s| *s == karen_ids[0]) && daniel[0] != karen_ids[0]);
 
-    // Karen is suggested for her speaker, never linked silently.
+    // Karen's voice is known: her speaker is named Karen when Margin is sure, suggested when it
+    // is less sure, never both. Learning waits for a confirmation either way.
     let suggestions = h.db.speaker_suggestions(note_id, margin_diarize::SUGGEST_THRESHOLD).await.unwrap();
     println!("suggestions: {suggestions:?}");
-    assert_eq!(suggestions.len(), 1);
-    assert_eq!((Some(suggestions[0].speaker_id), suggestions[0].person_id), (karen_ids[0], karen.id));
-    assert!(transcript.speakers.iter().all(|s| s.person_id.is_none()));
-    assert!(h.toasts().iter().any(|t| t.title == "Margin may know a voice"));
+    let person_of = |id: Option<Id>| transcript.speakers.iter().find(|s| Some(s.id) == id).and_then(|s| s.person_id);
+    let named = person_of(karen_ids[0]) == Some(karen.id);
+    let suggested = suggestions.iter().any(|s| Some(s.speaker_id) == karen_ids[0] && s.person_id == karen.id);
+    assert!(named != suggested, "named {named}, suggested {suggested}");
+    assert_eq!(h.db.get_person(karen.id).await.unwrap().sample_count, 1);
+    // Daniel is nobody Margin knows.
+    assert_eq!(person_of(daniel[0]), None);
 }

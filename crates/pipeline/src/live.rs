@@ -12,8 +12,8 @@
 //! Stopping the capture closes the chain from the left, so every stage drains and finishes on
 //! its own: no audio captured before the stop is lost.
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
@@ -23,13 +23,14 @@ use margin_domain::{
     AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, ToastAction, ToastKind, ToastRequest,
     new_id,
 };
-use margin_store::Db;
-use margin_stt::{StreamOptions, SttEvent, Transcriber};
+use margin_store::{Db, NewSpeaker, OTHERS_LABEL};
+use margin_stt::{StreamOptions, SttError, SttEvent, Transcriber};
 use tokio::sync::mpsc;
 
 use crate::backend::{AudioBackend, SpeechBackend};
 use crate::echo::EchoFilter;
 use crate::files::RecordingFiles;
+use crate::recognise::{Recogniser, VoiceTap};
 
 /// One channel's audio on the recording timeline: (first sample index, 16 kHz mono samples).
 type Chunk = (u64, Vec<f32>);
@@ -111,8 +112,12 @@ impl LiveSession {
         let (stt_tx, stt_rx) = mpsc::unbounded_channel::<SttMsg>();
         let stopping = Arc::new(AtomicBool::new(false));
 
-        let persister = rt.spawn(persist(p.db.clone(), p.events.clone(), p.note_id, p.you, p.others, p.offset_ms, stt_rx));
-        let stt = spawn_stt(p.speech.clone(), p.settings.clone(), p.events.clone(), mic_rx, sys_rx, stt_tx)?;
+        // Saved voices are recognised live only for speakers the service labels.
+        let t = &p.settings.transcription;
+        let tap = (t.recognise_voices && t.live_speakers()).then(|| Arc::new(VoiceTap::default()));
+        let recogniser = tap.clone().map(|tap| Recogniser::start(p.db.clone(), p.events.clone(), p.speech.clone(), p.note_id, tap, &rt));
+        let persister = rt.spawn(persist(p.db.clone(), p.events.clone(), p.note_id, p.you, p.others, p.offset_ms, recogniser, stt_rx));
+        let stt = spawn_stt(p.speech.clone(), p.settings.clone(), p.events.clone(), mic_rx, sys_rx, stt_tx, tap)?;
         let router = {
             let (events, stopping, on_failed) = (p.events.clone(), stopping.clone(), p.on_capture_failed);
             std::thread::Builder::new()
@@ -202,6 +207,18 @@ pub(crate) fn system_audio_missing_toast(events: &Events, permission_denied: boo
     }
 }
 
+/// Warnings shown at most once per recording: both channels usually hit the same problem (a
+/// refused key fails the mic and the call audio alike).
+#[derive(Default)]
+struct Notices(Mutex<HashSet<&'static str>>);
+
+impl Notices {
+    /// True the first time `title` is asked for.
+    fn first(&self, title: &'static str) -> bool {
+        self.0.lock().map(|mut shown| shown.insert(title)).unwrap_or(false)
+    }
+}
+
 /// Load the engine (on its own thread, so capture starts at once and audio queues meanwhile),
 /// then run one transcription thread per channel. The returned thread ends when both have
 /// drained.
@@ -212,6 +229,7 @@ fn spawn_stt(
     mic: Receiver<Chunk>,
     sys: Receiver<Chunk>,
     out: mpsc::UnboundedSender<SttMsg>,
+    tap: Option<Arc<VoiceTap>>,
 ) -> AppResult<JoinHandle<()>> {
     std::thread::Builder::new()
         .name("margin-stt".into())
@@ -229,13 +247,14 @@ fn spawn_stt(
                 }
             };
             let language = settings.transcription.language.clone();
+            let notices = Arc::new(Notices::default());
             let workers: Vec<JoinHandle<()>> = [(AudioChannel::Mic, mic), (AudioChannel::System, sys)]
                 .into_iter()
                 .filter_map(|(channel, rx)| {
-                    let (engine, out, events, language) = (engine.clone(), out.clone(), events.clone(), language.clone());
+                    let (engine, out, events, language, notices, tap) = (engine.clone(), out.clone(), events.clone(), language.clone(), notices.clone(), tap.clone());
                     std::thread::Builder::new()
                         .name(format!("margin-stt-{channel:?}").to_lowercase())
-                        .spawn(move || transcribe_channel(engine, channel, language, rx, out, events))
+                        .spawn(move || transcribe_channel(engine, channel, language, rx, out, events, &notices, tap.as_deref()))
                         .ok()
                 })
                 .collect();
@@ -256,6 +275,8 @@ fn transcribe_channel(
     rx: Receiver<Chunk>,
     out: mpsc::UnboundedSender<SttMsg>,
     events: Events,
+    notices: &Notices,
+    tap: Option<&VoiceTap>,
 ) {
     let Some(engine) = engine else {
         // No engine: keep the queue empty until capture ends.
@@ -265,7 +286,9 @@ fn transcribe_channel(
     let mut stream = match engine.open_stream(StreamOptions { channel: Some(channel), language }) {
         Ok(s) => s,
         Err(error) => {
-            toast(&events, ToastKind::Error, "Live transcript is off", AppError::from(error).message, None);
+            if notices.first("Live transcript is off") {
+                toast(&events, ToastKind::Error, "Live transcript is off", AppError::from(error).message, None);
+            }
             for _ in rx.iter() {}
             return;
         }
@@ -282,6 +305,9 @@ fn transcribe_channel(
             if s == start + buf.len() as u64 {
                 buf.extend_from_slice(&samples);
             } else {
+                if let Some(tap) = tap {
+                    tap.push(channel, start, &buf);
+                }
                 match stream.push(start, &buf) {
                     Ok(evs) => send(evs),
                     Err(error) => tracing::warn!(%error, ?channel, "transcription failed for a stretch of audio"),
@@ -289,12 +315,27 @@ fn transcribe_channel(
                 (start, buf) = (s, samples);
             }
         }
+        if let Some(tap) = tap {
+            tap.push(channel, start, &buf);
+        }
         match stream.push(start, &buf) {
             Ok(evs) => send(evs),
             Err(error) => {
                 failures += 1;
                 tracing::warn!(%error, ?channel, "transcription failed for a stretch of audio");
-                if failures == 3 {
+                // A cloud service that rejects the key or cannot be reached: say so at once.
+                let cloud = matches!(error, SttError::Auth(_) | SttError::NotAllowed(_) | SttError::MissingKey(_) | SttError::Network(_) | SttError::Provider(_));
+                if failures == 1 && cloud {
+                    if notices.first("Live transcript stopped") {
+                        toast(
+                            &events,
+                            ToastKind::Error,
+                            "Live transcript stopped",
+                            AppError::from(error).message,
+                            Some(("Open settings", ToastAction::OpenSettings { page: "transcription".into() })),
+                        );
+                    }
+                } else if failures == 3 && notices.first("Transcription is struggling") {
                     toast(&events, ToastKind::Error, "Transcription is struggling", "Some of this meeting may be missing from the live transcript. The audio is still being recorded.", None);
                 }
             }
@@ -306,9 +347,66 @@ fn transcribe_channel(
     }
 }
 
+/// The people a cloud service told apart, by channel and its label ("1", "A"), as the note's
+/// speakers. Labels are per stream, so "1" on the mic is not "1" on the call. The first voice on
+/// the microphone is "You"; everyone else is "Person N", numbered after the ones the note has.
+struct LiveSpeakers {
+    by_label: HashMap<(AudioChannel, String), Id>,
+    next: usize,
+    mic_has_you: bool,
+}
+
+impl LiveSpeakers {
+    async fn new(db: &Db, note_id: Id) -> Self {
+        let existing = db.list_speakers(note_id).await.map(|all| all.iter().filter(|s| !s.is_self && s.label != OTHERS_LABEL).count()).unwrap_or(0);
+        Self { by_label: HashMap::new(), next: existing + 1, mic_has_you: false }
+    }
+
+    /// The note's speaker for this label, created the first time it is heard.
+    async fn speaker(&mut self, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, label: &str, you: Id) -> Option<Id> {
+        let key = (channel, label.to_string());
+        if let Some(id) = self.by_label.get(&key) {
+            return Some(*id);
+        }
+        // The first voice on the microphone is you; any other is someone in the room (or audio
+        // from another device). The check after the meeting can still change who is who.
+        if channel == AudioChannel::Mic && !self.mic_has_you {
+            self.mic_has_you = true;
+            self.by_label.insert(key, you);
+            return Some(you);
+        }
+        let n = self.next;
+        let new = NewSpeaker { label: format!("Person {n}"), color_index: crate::finalize::person_color(n), is_self: false, embedding: None };
+        match db.create_speaker(note_id, new).await {
+            Ok(speaker) => {
+                self.next += 1;
+                self.by_label.insert(key, speaker.id);
+                events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Transcript], note_id: Some(note_id) });
+                Some(speaker.id)
+            }
+            Err(error) => {
+                tracing::warn!(%error, "could not add a speaker the service heard");
+                None
+            }
+        }
+    }
+}
+
 /// Store and emit segments as they arrive. Partials are upserted in place by id; a final
-/// replaces its partial; an empty final or echo retracts it.
-async fn persist(db: Db, events: Events, note_id: Id, you: Id, others: Id, offset_ms: u32, mut rx: mpsc::UnboundedReceiver<SttMsg>) {
+/// replaces its partial; an empty final or echo retracts it. Audio the service labelled by speaker
+/// goes to that person; the rest is "You" (mic) or "Others" (call).
+#[allow(clippy::too_many_arguments)]
+async fn persist(
+    db: Db,
+    events: Events,
+    note_id: Id,
+    you: Id,
+    others: Id,
+    offset_ms: u32,
+    mut recogniser: Option<Recogniser>,
+    mut rx: mpsc::UnboundedReceiver<SttMsg>,
+) {
+    let mut live_speakers = LiveSpeakers::new(&db, note_id).await;
     let mut ids: HashMap<(AudioChannel, u64), Id> = HashMap::new();
     let mut echo = EchoFilter::default();
     let retract = async |db: &Db, id: Id| {
@@ -351,10 +449,15 @@ async fn persist(db: Db, events: Events, note_id: Id, you: Id, others: Id, offse
                 None => {}
             }
         }
+        let fallback = if channel == AudioChannel::Mic { you } else { others };
+        let speaker_id = match u.speaker.as_deref() {
+            None => fallback,
+            Some(label) => live_speakers.speaker(&db, &events, note_id, channel, label, you).await.unwrap_or(fallback),
+        };
         let segment = Segment {
             id,
             note_id,
-            speaker_id: Some(if channel == AudioChannel::Mic { you } else { others }),
+            speaker_id: Some(speaker_id),
             channel,
             start_ms,
             end_ms,
@@ -365,5 +468,16 @@ async fn persist(db: Db, events: Events, note_id: Id, you: Id, others: Id, offse
             Ok(()) => events.emit(AppEvent::TranscriptSegment { segment }),
             Err(error) => tracing::warn!(%error, "could not store a transcript segment"),
         }
+        // A finished line by someone the service labelled: listen for a voice Margin knows.
+        if is_final
+            && u.speaker.is_some()
+            && speaker_id != you
+            && let Some(r) = recogniser.as_mut()
+        {
+            r.heard(speaker_id, channel, u.start_ms, u.end_ms);
+        }
+    }
+    if let Some(r) = recogniser {
+        r.finish().await;
     }
 }

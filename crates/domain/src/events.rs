@@ -131,6 +131,14 @@ pub enum AppEvent {
     ImportProgress {
         progress: ImportProgress,
     },
+    /// Open this note in the main window (the welcome note when setup finishes).
+    OpenNote {
+        note_id: Id,
+    },
+    /// What the transcription test has heard so far (the whole text, replacing the last).
+    TranscriptionTestProgress {
+        text: String,
+    },
 }
 
 /// How crates talk to the UI without depending on Tauri. Cheap to clone behind an `Arc`.

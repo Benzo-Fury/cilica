@@ -210,7 +210,7 @@ impl FakeNotes {
     }
 
     pub fn add_person(&self, name: &str) -> Person {
-        let person = Person { id: new_id(), name: name.into(), color_index: 1, sample_count: 1, meeting_count: 1, created_at: now() };
+        let person = Person { id: new_id(), name: name.into(), color_index: 1, sample_count: 1, meeting_count: 1, created_at: now(), is_self: false };
         self.state.lock().unwrap().people.push(person.clone());
         person
     }

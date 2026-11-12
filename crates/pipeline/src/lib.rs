@@ -16,9 +16,10 @@ mod echo;
 mod files;
 mod finalize;
 mod live;
+mod recognise;
 mod service;
 
-pub use backend::{AudioBackend, DeviceAudio, LocalModels, SpeechBackend};
+pub use backend::{AudioBackend, DeviceAudio, LocalModels, REFINE_MODEL_ID, SpeechBackend, SttKeys};
 pub use files::RECORDINGS_DIR;
 pub use service::{RecordingService, ServiceConfig, SummarizerProvider, default_title};
 pub use margin_detect::DetectEvent;

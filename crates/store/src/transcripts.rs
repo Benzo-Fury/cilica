@@ -19,7 +19,7 @@ use crate::{Db, StoreError, StoreResult};
 macro_rules! person_select {
     ($tail:literal) => {
         concat!(
-            "SELECT p.id, p.name, p.color_index, p.sample_count, p.created_at, ",
+            "SELECT p.id, p.name, p.color_index, p.sample_count, p.created_at, p.is_self, ",
             "(SELECT count(DISTINCT s.note_id) FROM speakers s JOIN notes n ON n.id = s.note_id ",
             "WHERE s.person_id = p.id AND n.deleted_at IS NULL) AS meeting_count FROM people p",
             $tail
@@ -44,13 +44,25 @@ pub struct NewSpeaker {
     pub embedding: Option<Vec<f32>>,
 }
 
-/// A Saved person's voiceprint, for matching.
+/// A Saved person's voice, for matching: the mean of their samples, and the samples.
 #[derive(Debug, Clone)]
 pub struct Voiceprint {
     pub person_id: Id,
     pub name: String,
     pub vector: Vec<f32>,
+    pub samples: Vec<Vec<f32>>,
 }
+
+impl Voiceprint {
+    /// How much `embedding` sounds like this person: the best of their mean and each sample, so
+    /// a voice that sounds different on a call and in the room is still recognised.
+    pub fn similarity(&self, embedding: &[f32]) -> f32 {
+        self.samples.iter().map(|s| cosine(embedding, s)).fold(cosine(embedding, &self.vector), f32::max)
+    }
+}
+
+/// Name of the Saved person who is the app's user.
+pub const SELF_PERSON_NAME: &str = "You";
 
 impl Db {
     // ── Contract (used by the assistant) ─────────────────────────────────
@@ -134,54 +146,114 @@ impl Db {
         self.get_speaker(speaker_id).await
     }
 
-    /// Link a speaker to a Saved person (folding its embedding into their voiceprint) or unlink with `None`.
-    ///
-    /// Unlinking does not take the embedding back out of the voiceprint (an average cannot be
-    /// reliably unwound once normalised); it only removes the link.
+    /// Link a speaker to a Saved person or unlink it with `None`. This is the person confirming
+    /// who someone is, so it teaches Margin their voice: the speaker's embedding becomes one of
+    /// the person's samples. A sample this speaker gave someone else before is taken back out,
+    /// so a correction ("not Sam, Kim") untrains the wrong person. Confirming the person Margin
+    /// already picked adds the sample too.
     pub async fn link_speaker(&self, speaker_id: Id, person_id: Option<Id>) -> StoreResult<Speaker> {
         let mut tx = self.pool().begin().await?;
-        let row = sqlx::query("SELECT person_id, embedding FROM speakers WHERE id = ?")
+        let row = sqlx::query("SELECT embedding FROM speakers WHERE id = ?")
             .bind(speaker_id.to_string())
             .fetch_optional(&mut *tx)
             .await?
             .ok_or_else(|| StoreError::NotFound("The speaker".into()))?;
-        let current: Option<String> = row.try_get("person_id")?;
         let embedding: Option<Vec<u8>> = row.try_get("embedding")?;
-        let current = current.map(|s| parse_id(&s)).transpose()?;
-
-        if current == person_id {
-            tx.commit().await?;
-            return self.get_speaker(speaker_id).await;
-        }
         if let Some(pid) = person_id {
-            let prow = sqlx::query("SELECT voiceprint, sample_count FROM people WHERE id = ?")
+            sqlx::query("SELECT 1 FROM people WHERE id = ?")
                 .bind(pid.to_string())
                 .fetch_optional(&mut *tx)
                 .await?
                 .ok_or_else(|| StoreError::NotFound("That person".into()))?;
-            if let Some(emb) = embedding.as_deref().map(blob_to_vec) {
-                let old: Option<Vec<u8>> = prow.try_get("voiceprint")?;
-                let count: i64 = prow.try_get("sample_count")?;
-                let (vp, n) = fold_voiceprint(old.as_deref().map(blob_to_vec), count.max(0) as u32, &emb, 1);
-                sqlx::query("UPDATE people SET voiceprint = ?, sample_count = ? WHERE id = ?")
-                    .bind(vec_to_blob(&vp))
-                    .bind(n as i64)
-                    .bind(pid.to_string())
-                    .execute(&mut *tx)
-                    .await?;
-            }
+        }
+        // Take back what this speaker taught anyone before.
+        let before = sqlx::query("SELECT DISTINCT person_id FROM voice_samples WHERE speaker_id = ?")
+            .bind(speaker_id.to_string())
+            .fetch_all(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM voice_samples WHERE speaker_id = ?").bind(speaker_id.to_string()).execute(&mut *tx).await?;
+        let mut touched: Vec<Id> = before.iter().map(|r| r.try_get::<String, _>("person_id").map_err(StoreError::from).and_then(|p| parse_id(&p))).collect::<StoreResult<_>>()?;
+        if let (Some(pid), Some(emb)) = (person_id, embedding) {
+            insert_sample(&mut tx, pid, Some(speaker_id), &blob_to_vec(&emb)).await?;
+            touched.push(pid);
         }
         sqlx::query("UPDATE speakers SET person_id = ? WHERE id = ?")
             .bind(person_id.map(|p| p.to_string()))
             .bind(speaker_id.to_string())
             .execute(&mut *tx)
             .await?;
+        for pid in touched {
+            refresh_voiceprint(&mut tx, pid).await?;
+        }
         tx.commit().await?;
         self.get_speaker(speaker_id).await
     }
 
+    /// Margin's own guess of who a speaker is (a voice it recognised): shown like a link, but it
+    /// teaches nothing until the person confirms it with [`Db::link_speaker`].
+    pub async fn assign_speaker(&self, speaker_id: Id, person_id: Id) -> StoreResult<()> {
+        sqlx::query("UPDATE speakers SET person_id = ? WHERE id = ?")
+            .bind(person_id.to_string())
+            .bind(speaker_id.to_string())
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    /// "You", created the first time it is needed.
+    pub async fn ensure_self_person(&self) -> StoreResult<Person> {
+        let found: Option<(String,)> = sqlx::query_as("SELECT id FROM people WHERE is_self = 1").fetch_optional(self.pool()).await?;
+        if let Some((id,)) = found {
+            return self.get_person(parse_id(&id)?).await;
+        }
+        let id = margin_domain::new_id();
+        // The unique index keeps it to one even if two callers race here.
+        sqlx::query("INSERT OR IGNORE INTO people (id, name, color_index, voiceprint, sample_count, created_at, is_self) VALUES (?, ?, 1, NULL, 0, ?, 1)")
+            .bind(id.to_string())
+            .bind(SELF_PERSON_NAME)
+            .bind(crate::codec::ts(margin_domain::now()))
+            .execute(self.pool())
+            .await?;
+        let (id,): (String,) = sqlx::query_as("SELECT id FROM people WHERE is_self = 1").fetch_one(self.pool()).await?;
+        self.get_person(parse_id(&id)?).await
+    }
+
+    /// Link the note's "You" speakers (the app's user) to the "You" person, without teaching.
+    pub async fn link_self_speakers(&self, note_id: Id) -> StoreResult<()> {
+        let me = self.ensure_self_person().await?;
+        sqlx::query("UPDATE speakers SET person_id = ? WHERE note_id = ? AND is_self = 1 AND person_id IS NULL")
+            .bind(me.id.to_string())
+            .bind(note_id.to_string())
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    /// Forget how a person sounds: their samples go, the person and their links stay.
+    pub async fn forget_voice(&self, person_id: Id) -> StoreResult<Person> {
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("DELETE FROM voice_samples WHERE person_id = ?").bind(person_id.to_string()).execute(&mut *tx).await?;
+        refresh_voiceprint(&mut tx, person_id).await?;
+        tx.commit().await?;
+        self.get_person(person_id).await
+    }
+
+    /// The Saved person `embedding` sounds most like, at or above `threshold`, leaving out
+    /// `exclude` (people already in this meeting). Returns the person and the similarity.
+    pub async fn recognise_voice(&self, embedding: &[f32], threshold: f32, exclude: &HashSet<Id>) -> StoreResult<Option<(Id, f32)>> {
+        let best = self
+            .list_voiceprints()
+            .await?
+            .into_iter()
+            .filter(|v| !exclude.contains(&v.person_id))
+            .map(|v| (v.person_id, v.similarity(embedding)))
+            .filter(|(_, sim)| *sim >= threshold)
+            .max_by(|a, b| a.1.total_cmp(&b.1));
+        Ok(best)
+    }
+
     pub async fn list_people(&self) -> StoreResult<Vec<Person>> {
-        let rows = sqlx::query(person_select!(" GROUP BY p.id ORDER BY p.name COLLATE NOCASE")).fetch_all(self.pool()).await?;
+        let rows = sqlx::query(person_select!(" GROUP BY p.id ORDER BY p.is_self DESC, p.name COLLATE NOCASE")).fetch_all(self.pool()).await?;
         rows.iter().map(person_from_row).collect()
     }
 
@@ -196,6 +268,9 @@ impl Db {
 
     /// Delete a Saved person; their speakers keep their labels but lose the link.
     pub async fn delete_person(&self, person_id: Id) -> StoreResult<()> {
+        if self.get_person(person_id).await?.is_self {
+            return Err(StoreError::Invalid("You are always kept. To start your voice afresh, choose Forget voice.".into()));
+        }
         let mut tx = self.pool().begin().await?;
         // Explicit, so it holds even when foreign keys are off.
         sqlx::query("UPDATE speakers SET person_id = NULL WHERE person_id = ?").bind(person_id.to_string()).execute(&mut *tx).await?;
@@ -247,6 +322,36 @@ impl Db {
         Ok(())
     }
 
+    /// Swap one channel's segments from `from_ms` on for a fresh transcription, in one
+    /// transaction (the after-meeting pass). Earlier recordings in the same note keep theirs.
+    pub async fn replace_channel_segments(&self, note_id: Id, channel: AudioChannel, from_ms: u32, segments: &[Segment]) -> StoreResult<()> {
+        let mut tx = self.begin_write().await?;
+        sqlx::query("DELETE FROM segments WHERE note_id = ? AND channel = ? AND start_ms >= ?")
+            .bind(note_id.to_string())
+            .bind(channel_str(channel))
+            .bind(from_ms as i64)
+            .execute(&mut *tx)
+            .await?;
+        for segment in segments {
+            sqlx::query(
+                "INSERT INTO segments (id, note_id, speaker_id, channel, start_ms, end_ms, text, is_final) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(segment.id.to_string())
+            .bind(segment.note_id.to_string())
+            .bind(segment.speaker_id.map(|s| s.to_string()))
+            .bind(channel_str(segment.channel))
+            .bind(segment.start_ms as i64)
+            .bind(segment.end_ms as i64)
+            .bind(&segment.text)
+            .bind(segment.is_final)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
     /// Remove partial segments left behind (for example after a crash). Returns how many.
     pub async fn delete_partial_segments(&self, note_id: Id) -> StoreResult<u32> {
         let done = sqlx::query("DELETE FROM segments WHERE note_id = ? AND is_final = 0").bind(note_id.to_string()).execute(self.pool()).await?;
@@ -281,10 +386,12 @@ impl Db {
     /// The "You" (mic) and "Others" (system) speakers of a note, created on first use.
     pub async fn ensure_channel_speakers(&self, note_id: Id) -> StoreResult<(Speaker, Speaker)> {
         let speakers = self.list_speakers(note_id).await?;
-        let you = match speakers.iter().find(|s| s.is_self) {
-            Some(s) => s.clone(),
-            None => self.create_speaker(note_id, NewSpeaker { label: SELF_LABEL.into(), color_index: 1, is_self: true, embedding: None }).await?,
-        };
+        if !speakers.iter().any(|s| s.is_self) {
+            self.create_speaker(note_id, NewSpeaker { label: SELF_LABEL.into(), color_index: 1, is_self: true, embedding: None }).await?;
+        }
+        // The mic speaker is the "You" person (a link, not a sample: nothing is learnt from it).
+        self.link_self_speakers(note_id).await?;
+        let you = self.list_speakers(note_id).await?.into_iter().find(|s| s.is_self).ok_or_else(|| StoreError::NotFound("The You speaker".into()))?;
         let others = match speakers.iter().find(|s| !s.is_self && s.label == OTHERS_LABEL) {
             Some(s) => s.clone(),
             None => self.create_speaker(note_id, NewSpeaker { label: OTHERS_LABEL.into(), color_index: 2, is_self: false, embedding: None }).await?,
@@ -309,6 +416,19 @@ impl Db {
             .bind(speaker_id.to_string())
             .execute(self.pool())
             .await?;
+        Ok(())
+    }
+
+    /// Remove the note's speakers that no segment uses and no person is linked to (an "Others"
+    /// left empty once the service labelled everyone on the call).
+    pub async fn drop_unused_speakers(&self, note_id: Id) -> StoreResult<()> {
+        sqlx::query(
+            "DELETE FROM speakers WHERE note_id = ? AND person_id IS NULL \
+             AND NOT EXISTS (SELECT 1 FROM segments g WHERE g.speaker_id = speakers.id)",
+        )
+        .bind(note_id.to_string())
+        .execute(self.pool())
+        .await?;
         Ok(())
     }
 
@@ -396,15 +516,19 @@ impl Db {
         let id = margin_domain::new_id();
         let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM people").fetch_one(self.pool()).await?;
         let color = (count.rem_euclid(COLOR_COUNT as i64) as u8) + 1;
-        sqlx::query("INSERT INTO people (id, name, color_index, voiceprint, sample_count, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("INSERT INTO people (id, name, color_index, voiceprint, sample_count, created_at) VALUES (?, ?, ?, NULL, 0, ?)")
             .bind(id.to_string())
             .bind(name)
             .bind(color as i64)
-            .bind(voiceprint.map(|v| vec_to_blob(&normalized(v))))
-            .bind(if voiceprint.is_some() { 1i64 } else { 0 })
             .bind(crate::codec::ts(margin_domain::now()))
-            .execute(self.pool())
+            .execute(&mut *tx)
             .await?;
+        if let Some(v) = voiceprint {
+            insert_sample(&mut tx, id, None, v).await?;
+            refresh_voiceprint(&mut tx, id).await?;
+        }
+        tx.commit().await?;
         self.get_person(id).await
     }
 
@@ -450,31 +574,17 @@ impl Db {
         if source_id == target_id {
             return Err(StoreError::Invalid("Pick two different people to merge.".into()));
         }
+        if self.get_person(source_id).await?.is_self {
+            return Err(StoreError::Invalid("You are always kept. Merge the other person into You instead.".into()));
+        }
+        self.get_person(target_id).await?;
         let mut tx = self.pool().begin().await?;
-        let mut load = async |id: Id| -> StoreResult<(Option<Vec<f32>>, u32)> {
-            let row = sqlx::query("SELECT voiceprint, sample_count FROM people WHERE id = ?")
-                .bind(id.to_string())
-                .fetch_optional(&mut *tx)
-                .await?
-                .ok_or_else(|| StoreError::NotFound("That person".into()))?;
-            let vp: Option<Vec<u8>> = row.try_get("voiceprint")?;
-            let n: i64 = row.try_get("sample_count")?;
-            Ok((vp.as_deref().map(blob_to_vec), n.max(0) as u32))
-        };
-        let (src_vp, src_n) = load(source_id).await?;
-        let (dst_vp, dst_n) = load(target_id).await?;
-        let (vp, n) = match (dst_vp, src_vp) {
-            (Some(d), Some(s)) => fold_voiceprint(Some(d), dst_n, &s, src_n.max(1)),
-            (Some(d), None) => (d, dst_n),
-            (None, Some(s)) => (s, src_n),
-            (None, None) => (Vec::new(), dst_n + src_n),
-        };
-        sqlx::query("UPDATE people SET voiceprint = ?, sample_count = ? WHERE id = ?")
-            .bind(if vp.is_empty() { None } else { Some(vec_to_blob(&vp)) })
-            .bind(n as i64)
+        sqlx::query("UPDATE voice_samples SET person_id = ? WHERE person_id = ?")
             .bind(target_id.to_string())
+            .bind(source_id.to_string())
             .execute(&mut *tx)
             .await?;
+        refresh_voiceprint(&mut tx, target_id).await?;
         sqlx::query("UPDATE speakers SET person_id = ? WHERE person_id = ?")
             .bind(target_id.to_string())
             .bind(source_id.to_string())
@@ -485,14 +595,20 @@ impl Db {
         self.get_person(target_id).await
     }
 
-    /// Every Saved person that has a voiceprint.
+    /// Every Saved person Margin knows the voice of, with their samples.
     pub async fn list_voiceprints(&self) -> StoreResult<Vec<Voiceprint>> {
         let rows = sqlx::query("SELECT id, name, voiceprint FROM people WHERE voiceprint IS NOT NULL").fetch_all(self.pool()).await?;
+        let mut samples: HashMap<String, Vec<Vec<f32>>> = HashMap::new();
+        for r in sqlx::query("SELECT person_id, embedding FROM voice_samples").fetch_all(self.pool()).await? {
+            let person: String = r.try_get("person_id")?;
+            let blob: Vec<u8> = r.try_get("embedding")?;
+            samples.entry(person).or_default().push(blob_to_vec(&blob));
+        }
         rows.iter()
             .map(|r| {
                 let id: String = r.try_get("id")?;
                 let blob: Vec<u8> = r.try_get("voiceprint")?;
-                Ok(Voiceprint { person_id: parse_id(&id)?, name: r.try_get("name")?, vector: blob_to_vec(&blob) })
+                Ok(Voiceprint { person_id: parse_id(&id)?, name: r.try_get("name")?, vector: blob_to_vec(&blob), samples: samples.remove(&id).unwrap_or_default() })
             })
             .collect()
     }
@@ -525,7 +641,7 @@ impl Db {
         let mut pairs: Vec<(f32, usize, usize)> = Vec::new();
         for (si, (_, emb)) in candidates.iter().enumerate() {
             for (pi, vp) in prints.iter().enumerate() {
-                let sim = cosine(emb, &vp.vector);
+                let sim = vp.similarity(emb);
                 if sim >= threshold {
                     pairs.push((sim, si, pi));
                 }
@@ -652,6 +768,7 @@ fn person_from_row(r: &SqliteRow) -> StoreResult<Person> {
         sample_count: samples.clamp(0, u32::MAX as i64) as u32,
         meeting_count: meetings.clamp(0, u32::MAX as i64) as u32,
         created_at: parse_ts(&created)?,
+        is_self: r.try_get("is_self")?,
     })
 }
 
@@ -685,18 +802,40 @@ pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
     if na <= f32::EPSILON || nb <= f32::EPSILON { 0.0 } else { dot / (na.sqrt() * nb.sqrt()) }
 }
 
-/// Weighted average of a voiceprint (`n` samples) and a new embedding (`m` samples), normalised.
-/// A dimension mismatch (a different embedding model) restarts the voiceprint from the new sample.
-fn fold_voiceprint(old: Option<Vec<f32>>, n: u32, new: &[f32], m: u32) -> (Vec<f32>, u32) {
-    let new = normalized(new);
-    match old {
-        Some(old) if old.len() == new.len() && n > 0 => {
-            let (wn, wm) = (n as f32, m as f32);
-            let avg: Vec<f32> = old.iter().zip(&new).map(|(a, b)| a * wn + b * wm).collect();
-            (normalized(&avg), n + m)
+/// Add one voice sample (normalised) for a person.
+async fn insert_sample(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, person_id: Id, speaker_id: Option<Id>, embedding: &[f32]) -> StoreResult<()> {
+    sqlx::query("INSERT INTO voice_samples (id, person_id, speaker_id, embedding, created_at) VALUES (?, ?, ?, ?, ?)")
+        .bind(margin_domain::new_id().to_string())
+        .bind(person_id.to_string())
+        .bind(speaker_id.map(|s| s.to_string()))
+        .bind(vec_to_blob(&normalized(embedding)))
+        .bind(crate::codec::ts(margin_domain::now()))
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+/// Recompute a person's voiceprint (the normalised mean of their samples) and sample count.
+async fn refresh_voiceprint(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, person_id: Id) -> StoreResult<()> {
+    let rows = sqlx::query("SELECT embedding FROM voice_samples WHERE person_id = ?").bind(person_id.to_string()).fetch_all(&mut **tx).await?;
+    let samples: Vec<Vec<f32>> = rows.iter().map(|r| r.try_get::<Vec<u8>, _>("embedding").map(|b| blob_to_vec(&b))).collect::<Result<_, _>>()?;
+    let dim = samples.first().map(Vec::len).unwrap_or(0);
+    let mean: Option<Vec<f32>> = (dim > 0).then(|| {
+        let mut sum = vec![0.0f32; dim];
+        for v in samples.iter().filter(|v| v.len() == dim) {
+            for (a, b) in sum.iter_mut().zip(v) {
+                *a += b;
+            }
         }
-        _ => (new, m),
-    }
+        normalized(&sum)
+    });
+    sqlx::query("UPDATE people SET voiceprint = ?, sample_count = ? WHERE id = ?")
+        .bind(mean.map(|m| vec_to_blob(&m)))
+        .bind(samples.len() as i64)
+        .bind(person_id.to_string())
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -719,6 +858,99 @@ mod tests {
 
     fn seg(note_id: Id, speaker: Option<Id>, channel: AudioChannel, start: u32, text: &str) -> Segment {
         Segment { id: new_id(), note_id, speaker_id: speaker, channel, start_ms: start, end_ms: start + 1500, text: text.into(), is_final: true }
+    }
+
+    fn voice(label: &str, embedding: &[f32]) -> NewSpeaker {
+        NewSpeaker { label: label.into(), color_index: 3, is_self: false, embedding: Some(embedding.to_vec()) }
+    }
+
+    /// Confirming teaches, correcting untrains: each confirmed speaker is one sample.
+    #[tokio::test]
+    async fn corrections_move_voice_samples() {
+        let db = Db::open_in_memory().await.unwrap();
+        let n = note(&db).await;
+        let sam = db.create_person("Sam", None).await.unwrap();
+        let kim = db.create_person("Kim", None).await.unwrap();
+        let s = db.create_speaker(n, voice("Person 1", &[1.0, 0.0])).await.unwrap();
+
+        db.link_speaker(s.id, Some(sam.id)).await.unwrap();
+        assert_eq!(db.get_person(sam.id).await.unwrap().sample_count, 1);
+        // Not Sam after all: the sample moves to Kim.
+        db.link_speaker(s.id, Some(kim.id)).await.unwrap();
+        assert_eq!(db.get_person(sam.id).await.unwrap().sample_count, 0);
+        assert_eq!(db.get_person(kim.id).await.unwrap().sample_count, 1);
+        assert!(db.list_voiceprints().await.unwrap().iter().all(|v| v.person_id == kim.id));
+        // Confirming again does not count twice; unlinking takes it back.
+        db.link_speaker(s.id, Some(kim.id)).await.unwrap();
+        assert_eq!(db.get_person(kim.id).await.unwrap().sample_count, 1);
+        db.link_speaker(s.id, None).await.unwrap();
+        assert_eq!(db.get_person(kim.id).await.unwrap().sample_count, 0);
+    }
+
+    /// Margin's own guesses link without teaching; recognition picks the closest sample.
+    #[tokio::test]
+    async fn recognition_uses_every_sample_and_guesses_teach_nothing() {
+        let db = Db::open_in_memory().await.unwrap();
+        let n = note(&db).await;
+        let sam = db.create_person("Sam", None).await.unwrap();
+        // Sam on a call and in the room: two different-sounding samples.
+        for e in [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]] {
+            let s = db.create_speaker(n, voice("Person", &e)).await.unwrap();
+            db.link_speaker(s.id, Some(sam.id)).await.unwrap();
+        }
+        let none = HashSet::new();
+        // Close to the second sample only, far from the mean.
+        let hit = db.recognise_voice(&[0.05, 1.0, 0.0], 0.9, &none).await.unwrap();
+        assert_eq!(hit.map(|(p, _)| p), Some(sam.id));
+        assert!(db.recognise_voice(&[0.0, 0.0, 1.0], 0.5, &none).await.unwrap().is_none());
+        assert!(db.recognise_voice(&[0.05, 1.0, 0.0], 0.9, &HashSet::from([sam.id])).await.unwrap().is_none(), "already in the meeting");
+
+        let guess = db.create_speaker(n, voice("Person 3", &[0.0, 1.0, 0.0])).await.unwrap();
+        db.assign_speaker(guess.id, sam.id).await.unwrap();
+        assert_eq!(db.get_speaker(guess.id).await.unwrap().person_id, Some(sam.id));
+        assert_eq!(db.get_person(sam.id).await.unwrap().sample_count, 2, "a guess is not a sample");
+    }
+
+    /// "You" is a Saved person that is always there, and the mic speaker is linked to it.
+    #[tokio::test]
+    async fn you_are_always_a_saved_person() {
+        let db = Db::open_in_memory().await.unwrap();
+        let n = note(&db).await;
+        let (you_speaker, _) = db.ensure_channel_speakers(n).await.unwrap();
+        let me = db.ensure_self_person().await.unwrap();
+        assert!(me.is_self);
+        assert_eq!(me.name, SELF_PERSON_NAME);
+        assert_eq!(db.ensure_self_person().await.unwrap().id, me.id, "only one");
+        assert_eq!(you_speaker.person_id, Some(me.id));
+        assert_eq!(db.get_person(me.id).await.unwrap().sample_count, 0, "linking the mic teaches nothing");
+
+        assert!(matches!(db.delete_person(me.id).await, Err(StoreError::Invalid(_))));
+        let other = db.create_person("Sam", Some(&[1.0, 0.0])).await.unwrap();
+        assert!(matches!(db.merge_people(me.id, other.id).await, Err(StoreError::Invalid(_))));
+        // Merging someone into You keeps You, with their samples.
+        let me = db.merge_people(other.id, me.id).await.unwrap();
+        assert_eq!(me.sample_count, 1);
+        let me = db.forget_voice(me.id).await.unwrap();
+        assert_eq!(me.sample_count, 0);
+        assert!(db.list_voiceprints().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn unused_speakers_are_dropped_unless_linked() {
+        let db = Db::open_in_memory().await.unwrap();
+        let n = note(&db).await;
+        let (you, others) = db.ensure_channel_speakers(n).await.unwrap();
+        let person1 = db.create_speaker(n, NewSpeaker { label: "Person 1".into(), color_index: 3, is_self: false, embedding: None }).await.unwrap();
+        let linked = db.create_speaker(n, NewSpeaker { label: "Person 2".into(), color_index: 4, is_self: false, embedding: None }).await.unwrap();
+        let karen = db.create_person("Karen", None).await.unwrap();
+        db.link_speaker(linked.id, Some(karen.id)).await.unwrap();
+        db.upsert_segment(&seg(n, Some(you.id), AudioChannel::Mic, 0, "Hello.")).await.unwrap();
+        db.upsert_segment(&seg(n, Some(person1.id), AudioChannel::System, 2000, "Hi.")).await.unwrap();
+
+        db.drop_unused_speakers(n).await.unwrap();
+        let left: Vec<Id> = db.list_speakers(n).await.unwrap().into_iter().map(|s| s.id).collect();
+        assert!(left.contains(&you.id) && left.contains(&person1.id) && left.contains(&linked.id));
+        assert!(!left.contains(&others.id), "Others had nothing said");
     }
 
     #[tokio::test]

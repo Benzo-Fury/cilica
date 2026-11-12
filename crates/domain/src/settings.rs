@@ -141,6 +141,31 @@ pub enum SttEngine {
     Deepgram,
     Soniox,
     AssemblyAi,
+    OpenAi,
+    /// Any service with an OpenAI-compatible `/audio/transcriptions` endpoint.
+    OpenAiCompatible,
+}
+
+impl SttEngine {
+    /// Audio goes to a third party.
+    pub fn is_cloud(self) -> bool {
+        self != SttEngine::WhisperLocal
+    }
+
+    /// The service can say who is speaking while the meeting is live.
+    pub fn has_live_speakers(self) -> bool {
+        matches!(self, SttEngine::Soniox | SttEngine::Deepgram | SttEngine::AssemblyAi)
+    }
+}
+
+/// Settings for cloud engines that need more than a key.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct CloudSttSettings {
+    /// Base URL of an OpenAI-compatible service, e.g. "https://api.groq.com/openai/v1".
+    pub base_url: Option<String>,
+    /// Model name for the OpenAI-compatible service (other providers use their own default).
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -151,11 +176,41 @@ pub struct TranscriptionSettings {
     pub model_id: String,
     /// ISO 639-1 code, or `None` to detect.
     pub language: Option<String>,
+    /// When the meeting ends, transcribe the whole recording again, carefully, with Whisper
+    /// Large v3 Turbo on this computer (if it is downloaded), replacing the live transcript.
+    /// Only with the local engine: a cloud service's transcript is kept as it is.
+    pub refine_after_meeting: bool,
+    /// Ask the cloud service to label who is speaking, on the call and on the microphone, while
+    /// the meeting is live (only services where [`SttEngine::has_live_speakers`]).
+    pub live_speaker_labels: bool,
+    /// When the meeting ends, tell speakers apart on this computer from their voices (more
+    /// accurate than live labels) and suggest names for voices Margin knows.
+    pub identify_speakers_after_meeting: bool,
+    /// Name speakers whose voice sounds like a Saved person, live (with live labels) and after
+    /// the meeting. Voiceprints stay on this computer.
+    pub recognise_voices: bool,
+    pub cloud: CloudSttSettings,
+}
+
+impl TranscriptionSettings {
+    /// The engine will be asked to label speakers on the call as the meeting goes.
+    pub fn live_speakers(&self) -> bool {
+        self.live_speaker_labels && self.engine.has_live_speakers()
+    }
 }
 
 impl Default for TranscriptionSettings {
     fn default() -> Self {
-        Self { engine: SttEngine::WhisperLocal, model_id: "large-v3-turbo-q5_0".into(), language: None }
+        Self {
+            engine: SttEngine::WhisperLocal,
+            model_id: "large-v3-turbo-q5_0".into(),
+            language: None,
+            refine_after_meeting: true,
+            live_speaker_labels: true,
+            identify_speakers_after_meeting: true,
+            recognise_voices: true,
+            cloud: CloudSttSettings::default(),
+        }
     }
 }
 

@@ -1,4 +1,5 @@
-//! After capture: finish the transcript, keep the audio, find the speakers, write the summary.
+//! After capture: finish the transcript, redo it carefully, keep the audio, find the speakers,
+//! write the summary.
 //! Each step is recorded in the sidecar so a recording interrupted by a quit or crash resumes at
 //! the first step it had not finished (see [`crate::files::Stage`]).
 
@@ -6,13 +7,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use margin_audio::{SAMPLE_RATE, WavWriter, read_wav_16k, read_wav_channel_16k, recover_wav};
-use margin_diarize::{Diarization, SUGGEST_THRESHOLD, assign_segments, cosine};
+use margin_diarize::{Diarization, RECOGNISE_THRESHOLD, SUGGEST_THRESHOLD, assign_segments, cosine};
 use margin_domain::{
     AppError, AppResult, AudioChannel, DataScope, ErrorCode, Id, RecordingPhase, Segment, ToastAction, ToastKind,
     ToastRequest, Timestamp,
 };
 use margin_store::{NewSpeaker, SELF_LABEL};
 
+use crate::echo::EchoFilter;
 use crate::files::{RecordingFiles, Sidecar, Stage, kept_audio};
 use crate::live::Draining;
 use crate::service::Inner;
@@ -57,6 +59,13 @@ pub(crate) async fn finalize(inner: &Arc<Inner>, epoch: u64, mut job: Job) {
         inner.data_changed(&[DataScope::Notes, DataScope::Transcript], note_id);
     }
 
+    if job.sidecar.stage < Stage::Refined {
+        if refine(inner, &job).await {
+            inner.data_changed(&[DataScope::Transcript], note_id);
+        }
+        advance(&job.files, &mut job.sidecar, Stage::Refined);
+    }
+
     let audio = audio_for_analysis(&job);
     if job.sidecar.stage < Stage::Encoded {
         match keep_audio(inner, &job).await {
@@ -70,12 +79,20 @@ pub(crate) async fn finalize(inner: &Arc<Inner>, epoch: u64, mut job: Job) {
     }
 
     if job.sidecar.stage < Stage::Diarized {
-        inner.set_phase(epoch, RecordingPhase::Diarizing);
-        if let Some(wav) = audio.as_deref() {
-            match diarize(inner, note_id, wav).await {
-                Ok(_) => {}
-                Err(error) => tracing::warn!(message = %error.message, "speaker detection failed; keeping You / Others"),
+        let identify = inner.db.get_settings().await.map(|s| s.transcription.identify_speakers_after_meeting).unwrap_or(true);
+        if identify {
+            inner.set_phase(epoch, RecordingPhase::Diarizing);
+            if let Some(wav) = audio.as_deref() {
+                match diarize(inner, note_id, wav).await {
+                    Ok(_) => {}
+                    Err(error) => tracing::warn!(message = %error.message, "speaker detection failed; keeping the live speakers"),
+                }
             }
+        }
+        // Without the check (turned off, or it could not run) the live labels stay: drop any
+        // speaker left with nothing said, such as "Others" once the service labelled everyone.
+        if let Err(error) = inner.db.drop_unused_speakers(note_id).await {
+            tracing::warn!(%error, "could not tidy the note's speakers");
         }
         if let Err(error) = inner.db.reindex_note(note_id).await {
             tracing::warn!(%error, "could not reindex the note");
@@ -130,7 +147,11 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
     };
     let speech = inner.speech.clone();
     let result = tokio::task::spawn_blocking(move || -> AppResult<Vec<Segment>> {
-        let engine = speech.transcriber(&settings)?;
+        // Never send a whole interrupted recording to a cloud service unasked: use the local
+        // model (if it is not downloaded, the tail stays untranscribed).
+        let mut local = settings.clone();
+        local.transcription.engine = margin_domain::SttEngine::WhisperLocal;
+        let engine = speech.transcriber(&local)?;
         let mut out = Vec::new();
         for (index, channel, speaker) in [(0, AudioChannel::Mic, you), (1, AudioChannel::System, others)] {
             let done_ms = finals.iter().filter(|s| s.channel == channel).map(|s| s.end_ms).max().unwrap_or(0).saturating_sub(offset);
@@ -167,6 +188,100 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
         Ok(Err(error)) => tracing::warn!(message = %error.message, "could not transcribe the rest of an interrupted recording"),
         Err(_) => {}
     }
+}
+
+// ── After-meeting pass ───────────────────────────────────────────────────
+
+/// A careful pass that returns less than this share of the live transcript's words for a
+/// channel went wrong; that channel keeps its live text.
+const REFINE_MIN_WORD_SHARE: f32 = 0.5;
+
+/// Transcribe this recording again with the careful engine and swap the result in for the live
+/// transcript, channel by channel. Returns whether anything changed. Any failure keeps the live
+/// text.
+async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
+    let wav = job.files.wav();
+    if !wav.exists() {
+        return false;
+    }
+    let Ok(settings) = inner.db.get_settings().await else { return false };
+    // A cloud service already gives a good transcript; redoing it on this computer would only
+    // cost time.
+    if !settings.transcription.refine_after_meeting || settings.transcription.engine.is_cloud() {
+        return false;
+    }
+    let note_id = job.sidecar.note_id;
+    let offset = job.sidecar.offset_ms;
+    let (you, others) = match inner.db.ensure_channel_speakers(note_id).await {
+        Ok((y, o)) => (y.id, o.id),
+        Err(_) => return false,
+    };
+    let speech = inner.speech.clone();
+    let started = std::time::Instant::now();
+    let result = tokio::task::spawn_blocking(move || -> AppResult<Option<Vec<Segment>>> {
+        let Some(engine) = speech.refiner(&settings) else { return Ok(None) };
+        let language = settings.transcription.language.clone();
+        let mut segments = Vec::new();
+        for (index, channel, speaker) in [(0, AudioChannel::Mic, you), (1, AudioChannel::System, others)] {
+            let audio = read_wav_channel_16k(&wav, index).map_err(AppError::from)?;
+            for u in engine.transcribe_recording(&audio, language.as_deref()).map_err(AppError::from)? {
+                segments.push(Segment {
+                    id: margin_domain::new_id(),
+                    note_id,
+                    speaker_id: Some(speaker),
+                    channel,
+                    start_ms: u.start_ms + offset,
+                    end_ms: u.end_ms + offset,
+                    text: u.text,
+                    is_final: true,
+                });
+            }
+        }
+        Ok(Some(drop_echo(segments)))
+    })
+    .await;
+    let segments = match result {
+        Ok(Ok(Some(segments))) => segments,
+        Ok(Ok(None)) => return false,
+        Ok(Err(error)) => {
+            tracing::warn!(message = %error.message, "the after-meeting pass failed; keeping the live transcript");
+            return false;
+        }
+        Err(_) => return false,
+    };
+    let live = inner.db.list_segments(note_id).await.unwrap_or_default();
+    let mut changed = false;
+    for channel in [AudioChannel::Mic, AudioChannel::System] {
+        let words = |list: &mut dyn Iterator<Item = &Segment>| list.map(|s| s.text.split_whitespace().count()).sum::<usize>();
+        let live_words = words(&mut live.iter().filter(|s| s.channel == channel && s.start_ms >= offset));
+        let mine: Vec<Segment> = segments.iter().filter(|s| s.channel == channel).cloned().collect();
+        let new_words = words(&mut mine.iter());
+        if (new_words as f32) < live_words as f32 * REFINE_MIN_WORD_SHARE {
+            tracing::warn!(?channel, live_words, new_words, "the after-meeting pass lost too much text; keeping the live transcript");
+            continue;
+        }
+        match inner.db.replace_channel_segments(note_id, channel, offset, &mine).await {
+            Ok(()) => changed = true,
+            Err(error) => tracing::warn!(%error, "could not store the after-meeting transcript"),
+        }
+    }
+    tracing::info!(took = ?started.elapsed(), changed, "after-meeting pass");
+    changed
+}
+
+/// Drop mic segments that repeat what the call audio said at the same time (speaker echo).
+fn drop_echo(mut segments: Vec<Segment>) -> Vec<Segment> {
+    segments.sort_by_key(|s| (s.end_ms, s.start_ms));
+    let mut filter = EchoFilter::default();
+    let mut echo = std::collections::HashSet::new();
+    for s in &segments {
+        if let Some(id) = filter.on_final(s.channel, s.id, s.start_ms, s.end_ms, &s.text) {
+            echo.insert(id);
+        }
+    }
+    segments.retain(|s| !echo.contains(&s.id));
+    segments.sort_by_key(|s| (s.start_ms, s.end_ms));
+    segments
 }
 
 // ── Audio ────────────────────────────────────────────────────────────────
@@ -263,7 +378,7 @@ fn decode_previous(_path: &Path) -> margin_audio::AudioResult<Vec<Vec<f32>>> {
 // ── Speakers ─────────────────────────────────────────────────────────────
 
 /// Colour of "Person n" (1-based): `speaker-2` onwards, wrapping; `speaker-1` is You.
-fn person_color(n: usize) -> u8 {
+pub(crate) fn person_color(n: usize) -> u8 {
     (n % 8) as u8 + 1
 }
 
@@ -300,6 +415,9 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
     let spans = |ch: AudioChannel| -> Vec<(Id, u32, u32)> {
         segments.iter().filter(|s| s.channel == ch).map(|s| (s.id, s.start_ms, s.end_ms)).collect()
     };
+    let recognise_on = inner.db.get_settings().await.map(|s| s.transcription.recognise_voices).unwrap_or(true);
+    let me_person = inner.db.ensure_self_person().await?;
+    let my_voice = if recognise_on { inner.db.list_voiceprints().await?.into_iter().find(|v| v.person_id == me_person.id) } else { None };
     let mut people = 0;
     if let Some(sys) = system.as_ref().filter(|d| !d.speakers.is_empty()) {
         let speakers = sys
@@ -313,7 +431,12 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
     }
     if let Some(mic) = mic.as_ref().filter(|d| !d.speakers.is_empty()) {
         let call: Vec<&[f32]> = system.iter().flat_map(|d| d.speakers.iter().map(|s| s.embedding.as_slice())).collect();
-        let me = mic.speakers.iter().max_by_key(|s| s.speech_ms).map(|s| s.index).unwrap_or(0);
+        // You: the voice that sounds most like your saved voice, or, until Margin knows it, the
+        // one that talked most.
+        let by_voice = my_voice.as_ref().and_then(|v| {
+            mic.speakers.iter().map(|s| (s.index, v.similarity(&s.embedding))).filter(|(_, sim)| *sim >= SUGGEST_THRESHOLD).max_by(|a, b| a.1.total_cmp(&b.1)).map(|(i, _)| i)
+        });
+        let me = by_voice.unwrap_or_else(|| mic.speakers.iter().max_by_key(|s| s.speech_ms).map(|s| s.index).unwrap_or(0));
         let room: Vec<usize> = mic
             .speakers
             .iter()
@@ -340,8 +463,12 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
             people += room.len();
         }
     }
+    inner.db.link_self_speakers(note_id).await?;
+    if recognise_on {
+        name_known_voices(inner, note_id).await?;
+    }
 
-    // Suggestions only: the person confirms each one in the transcript.
+    // Less sure: suggestions only, which the person confirms in the transcript.
     let suggestions = inner.db.speaker_suggestions(note_id, SUGGEST_THRESHOLD).await?;
     if let Some(first) = suggestions.first() {
         let label = inner.db.get_speaker(first.speaker_id).await.map(|s| s.label).unwrap_or_else(|_| "a speaker".into());
@@ -354,6 +481,27 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
         );
     }
     Ok(people)
+}
+
+/// Name the speakers whose voice clearly belongs to a Saved person (one speaker per person, the
+/// closest first). These are guesses: nothing is learnt until the person confirms them.
+async fn name_known_voices(inner: &Arc<Inner>, note_id: Id) -> AppResult<()> {
+    let speakers = inner.db.list_speakers(note_id).await?;
+    let mut taken: std::collections::HashSet<Id> = speakers.iter().filter_map(|s| s.person_id).collect();
+    let mut matches = Vec::new();
+    for s in speakers.iter().filter(|s| s.person_id.is_none() && !s.is_self) {
+        let Some(embedding) = inner.db.speaker_embedding(s.id).await? else { continue };
+        if let Some((person, similarity)) = inner.db.recognise_voice(&embedding, RECOGNISE_THRESHOLD, &taken).await? {
+            matches.push((similarity, s.id, person));
+        }
+    }
+    matches.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (_, speaker, person) in matches {
+        if taken.insert(person) {
+            inner.db.assign_speaker(speaker, person).await?;
+        }
+    }
+    Ok(())
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────

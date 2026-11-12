@@ -25,11 +25,15 @@ pub struct RecordingState {
     pub started_at: Option<Timestamp>,
     /// Set while a detected meeting has ended and recording will stop unless the user keeps it.
     pub auto_stop_at: Option<Timestamp>,
+    /// The engine labels who is speaking as the meeting goes. When false, speakers are only
+    /// known once the meeting is finished, so the live transcript does not show them.
+    #[serde(default)]
+    pub live_speakers: bool,
 }
 
 impl RecordingState {
     pub fn idle() -> Self {
-        Self { phase: RecordingPhase::Idle, note_id: None, meeting_app: None, started_at: None, auto_stop_at: None }
+        Self { phase: RecordingPhase::Idle, note_id: None, meeting_app: None, started_at: None, auto_stop_at: None, live_speakers: false }
     }
 }
 
@@ -109,6 +113,43 @@ pub struct SttModel {
     pub multilingual: bool,
     pub recommended: bool,
     pub downloaded: bool,
+}
+
+/// Whether a cloud speech service is set up. Never carries the key itself.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct SttProviderStatus {
+    pub engine: crate::SttEngine,
+    /// A key is stored in the OS keychain.
+    pub has_key: bool,
+    /// What is wrong, written for people (for example the key could not be checked).
+    pub problem: Option<String>,
+}
+
+/// What came back when the sample clip was streamed to the transcription engine (Settings ›
+/// Transcription › Test). The clip is public-domain speech, never the person's own audio.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TranscriptionTest {
+    pub engine: crate::SttEngine,
+    /// What the engine heard.
+    pub text: String,
+    /// What the clip says, to compare.
+    pub expected: String,
+    /// From the start of the clip to the first words coming back.
+    pub first_words_ms: Option<u32>,
+    /// The whole test; the clip plays in real time, as a meeting would.
+    pub took_ms: u32,
+}
+
+/// What this computer can run, for recommending a speech model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct HardwareProfile {
+    /// Logical CPU cores.
+    pub cores: u32,
+    /// Installed memory, whole gigabytes.
+    pub ram_gb: u32,
+    pub apple_silicon: bool,
+    /// Too slow for good local transcription: suggest a cloud service.
+    pub suggest_cloud: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
