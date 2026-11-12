@@ -218,8 +218,6 @@ export const events = {
 };
 
 /* Types */
-export type AccentPreset = "amber" | "lime" | "mint" | "sky" | "indigo" | "violet" | "rose" | "graphite";
-
 /**  One tool call by the assistant: the audit-log row. */
 export type AiAction = AiAction_Serialize | AiAction_Deserialize;
 
@@ -366,7 +364,6 @@ export type AppearanceSettings = AppearanceSettings_Serialize | AppearanceSettin
 
 export type AppearanceSettings_Deserialize = {
 	theme?: ThemeMode,
-	accent?: AccentPreset,
 	/**  When false every glass layer paints its opaque ground. */
 	transparency?: boolean,
 	note_font?: NoteFont,
@@ -376,7 +373,6 @@ export type AppearanceSettings_Deserialize = {
 
 export type AppearanceSettings_Serialize = {
 	theme: ThemeMode,
-	accent: AccentPreset,
 	/**  When false every glass layer paints its opaque ground. */
 	transparency: boolean,
 	note_font: NoteFont,

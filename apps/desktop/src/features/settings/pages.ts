@@ -45,7 +45,7 @@ export const SETTINGS_PAGES: readonly SettingsPageDef[] = [
     id: "appearance",
     label: "Appearance",
     icon: Palette,
-    keywords: ["theme", "dark", "light", "accent", "colour", "color", "font", "transparency"],
+    keywords: ["theme", "dark", "light", "font", "transparency"],
     component: AppearancePage,
   },
   {

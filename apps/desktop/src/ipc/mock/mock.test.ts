@@ -209,7 +209,6 @@ describe("settings", () => {
     });
     expect(next.appearance).toEqual({
       theme: "dark",
-      accent: "amber",
       transparency: true,
       note_font: "sans",
       margin_placement: "side_panel",

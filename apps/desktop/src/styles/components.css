@@ -370,7 +370,7 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 .nt-palette-group { font: 600 11px/14px var(--font-sans); letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3); padding: var(--space-2) var(--space-2) var(--space-1); }
 .nt-prow { position: relative; z-index: 1; display: flex; align-items: center; gap: var(--space-3); height: 36px; padding: 0 var(--space-2); border-radius: calc(var(--radius-sm) * var(--sq)); color: var(--ink); }
 .nt-prow .lucide { color: var(--ink-2); }
-.nt-prow[data-selected] .lucide { color: var(--preset-graphite); }
+.nt-prow[data-selected] .lucide { color: var(--accent); }
 .nt-prow-hint { margin-left: auto; color: var(--ink-3); font-size: 12px; }
 .nt-prow-sel { position: absolute; z-index: 0; left: var(--space-3); right: var(--space-3); height: 36px; border-radius: calc(var(--radius-sm) * var(--sq)); background: var(--fill-press); transition: transform 140ms var(--ease-out); }
 .nt-palette-foot { display: flex; gap: var(--space-4); align-items: center; padding: var(--space-2) var(--space-4); border-top: 0.5px solid var(--line); color: var(--ink-3); font-size: 12px; }

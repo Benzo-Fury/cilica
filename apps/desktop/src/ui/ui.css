@@ -269,7 +269,7 @@ mark {
   white-space: nowrap;
 }
 
-/* Swatches (accent presets) */
+/* Swatches (speaker colours) */
 .nt-swatch {
   width: 22px;
   height: 22px;
@@ -1575,9 +1575,8 @@ mark {
   border-radius: inherit;
   background: var(--fill-press);
 }
-/* The palette's icons never take the accent: selected ones use Graphite, the monochrome preset. */
 .nt-prow[data-selected="true"] .lucide {
-  color: var(--preset-graphite);
+  color: var(--accent);
 }
 .nt-prow-label {
   flex: 1;

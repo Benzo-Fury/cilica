@@ -16,20 +16,6 @@ pub enum ThemeMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-pub enum AccentPreset {
-    #[default]
-    Amber,
-    Lime,
-    Mint,
-    Sky,
-    Indigo,
-    Violet,
-    Rose,
-    Graphite,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
 pub enum NoteFont {
     #[default]
     Sans,
@@ -87,7 +73,6 @@ pub enum HomeFace {
 #[serde(default)]
 pub struct AppearanceSettings {
     pub theme: ThemeMode,
-    pub accent: AccentPreset,
     /// When false every glass layer paints its opaque ground.
     pub transparency: bool,
     pub note_font: NoteFont,
@@ -99,7 +84,6 @@ impl Default for AppearanceSettings {
     fn default() -> Self {
         Self {
             theme: ThemeMode::System,
-            accent: AccentPreset::Amber,
             transparency: true,
             note_font: NoteFont::Sans,
             margin_placement: MarginPlacement::SidePanel,

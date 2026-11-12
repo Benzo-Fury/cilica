@@ -1,6 +1,6 @@
 /**
  * Applies appearance settings to <html>: `data-theme` (light / dark, absent for system),
- * the accent preset's regenerated tokens, `data-material="opaque"` (Reduce transparency or the
+ * `data-material="opaque"` (Reduce transparency or the
  * browser preview: floating glass turns opaque), the note font and the OS.
  * Also mirrors `settings.keybinds` into the keybind store.
  */
@@ -9,9 +9,6 @@ import { useSettings } from "@/features/settings/hooks";
 import { isTauri } from "@/ipc/client";
 import { useKeybindStore } from "../keybinds";
 import { os } from "../platform";
-import { accentStylesheet } from "./accent";
-
-const STYLE_ID = "margin-accent";
 
 export function ThemeController() {
   const { data: settings } = useSettings();
@@ -38,16 +35,6 @@ export function ThemeController() {
   useLayoutEffect(() => {
     document.documentElement.dataset.noteFont = appearance?.note_font ?? "sans";
   }, [appearance?.note_font]);
-
-  useLayoutEffect(() => {
-    let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-    if (!style) {
-      style = document.createElement("style");
-      style.id = STYLE_ID;
-      document.head.appendChild(style);
-    }
-    style.textContent = accentStylesheet(appearance?.accent ?? "amber");
-  }, [appearance?.accent]);
 
   const keybinds = settings?.keybinds;
   useLayoutEffect(() => {

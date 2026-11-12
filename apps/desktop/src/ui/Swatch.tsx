@@ -1,13 +1,13 @@
 import { cn } from "./cn";
 
-/** A round colour swatch (accent presets). The selected one gets the focus-style ring. */
+/** A round colour swatch (speaker colours). The selected one gets the focus-style ring. */
 export function Swatch({
   color,
   label,
   selected,
   onSelect,
 }: {
-  /** A CSS colour, normally `var(--preset-*)`. */
+  /** A CSS colour, such as `var(--speaker-*)`. */
   color: string;
   label: string;
   selected: boolean;

@@ -1,5 +1,4 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import { ACCENT_LABELS, ACCENT_PRESETS } from "@/app/theme/accent";
 import { HomeFacePreview } from "@/features/home/HomeFacePreview";
 import type { HomeFace, NoteFont, ThemeMode } from "@/ipc/types";
 import {
@@ -8,7 +7,6 @@ import {
   SettingsGroup,
   SettingsPage,
   SettingsRow,
-  Swatch,
   Switch,
 } from "@/ui";
 import { useSettings, useUpdateSettings } from "../hooks";
@@ -69,22 +67,6 @@ export function AppearancePage() {
             />
           }
         />
-        <SettingsRow
-          label="Accent colour"
-          description="Used for the main button on each screen, selection and focus."
-        >
-          <div className="nt-swatches" role="radiogroup" aria-label="Accent colour">
-            {ACCENT_PRESETS.map((preset) => (
-              <Swatch
-                key={preset}
-                color={`var(--preset-${preset})`}
-                label={ACCENT_LABELS[preset]}
-                selected={a.accent === preset}
-                onSelect={() => patch("appearance", { accent: preset })}
-              />
-            ))}
-          </div>
-        </SettingsRow>
         <SettingsRow
           id="transparency-label"
           label="Frosted controls"

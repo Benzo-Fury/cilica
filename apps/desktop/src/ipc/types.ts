@@ -67,7 +67,6 @@ import type {
 } from "./bindings";
 
 export type {
-  AccentPreset,
   AiActionStatus,
   AppError,
   AppInfo,

@@ -73,7 +73,6 @@ export function defaultSettings(onboardingDone: boolean): Settings {
   return {
     appearance: {
       theme: "system",
-      accent: "amber",
       transparency: true,
       note_font: "sans",
       margin_placement: "side_panel",

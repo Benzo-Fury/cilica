@@ -158,7 +158,7 @@ fn keep_unknown_fields(stored: Value, new: Value, template: &Value) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::{AccentPreset, ThemeMode};
+    use margin_domain::ThemeMode;
     use serde_json::json;
 
     use super::*;
@@ -230,7 +230,6 @@ mod tests {
         .unwrap();
         let settings = db.get_settings().await.unwrap();
         assert_eq!(settings.appearance.theme, ThemeMode::Dark);
-        assert_eq!(settings.appearance.accent, AccentPreset::Amber);
         assert!(settings.appearance.transparency);
         assert!(!settings.recording.auto_detect);
         assert_eq!(settings.recording.audio_retention_days, 30);
