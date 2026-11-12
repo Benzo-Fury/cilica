@@ -1,8 +1,6 @@
 [workspace]
 resolver = "3"
 members = ["apps/desktop/src-tauri", "crates/*"]
-# Standalone benchmark runner with its own [workspace], lockfile and target dir.
-exclude = ["tools/stt-bench/margin-runner"]
 
 [workspace.package]
 version = "0.1.0"
