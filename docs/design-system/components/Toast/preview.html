@@ -1,0 +1,27 @@
+<!-- @dsCard group="Feedback" height=260 subtitle="Bottom-right stack. Hover to fan it out. The undo ring counts down five seconds." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+
+<div style="padding:24px 20px;display:flex;justify-content:center">
+ <div class="nt-toasts" id="ts">
+  <div class="nt-toast nt-glass-strong" style="height:64px;box-sizing:border-box;transform:translateY(-16px) scale(.92);opacity:.6"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check nt-ico" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><div class="nt-toast-body"><div class="nt-toast-title">Copied</div></div></div>
+  <div class="nt-toast nt-glass-strong" style="height:64px;box-sizing:border-box;transform:translateY(-8px) scale(.96);opacity:.85"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles nt-ico" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg><div class="nt-toast-body"><div class="nt-toast-title">Notes ready</div></div></div>
+  <div class="nt-toast nt-glass-strong" data-enter>
+   <span style="color:var(--success);display:grid"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check nt-ico" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+   <div class="nt-toast-body"><div class="nt-toast-title">Moved 3 notes to Trash</div><div class="nt-toast-desc">They stay there for 30 days.</div></div>
+   <button class="nt-btn nt-btn-ghost nt-btn-sm nt-anim" style="color:var(--accent-text)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo-2 nt-ico nt-i-undo nt-ico-sm" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Undo</button>
+   <span class="nt-ring" aria-hidden="true"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="12"/></svg></span>
+  </div>
+ </div>
+</div>
+
+
+<script>
+var ts=document.getElementById('ts'),t=[].slice.call(ts.children);
+ts.onmouseenter=function(){t[0].style.transform='translateY(-128px)';t[0].style.opacity=1;t[1].style.transform='translateY(-64px)';t[1].style.opacity=1;};
+ts.onmouseleave=function(){t[0].style.transform='translateY(-16px) scale(.92)';t[0].style.opacity=.6;t[1].style.transform='translateY(-8px) scale(.96)';t[1].style.opacity=.85;};
+</script>
+</body>
+</html>

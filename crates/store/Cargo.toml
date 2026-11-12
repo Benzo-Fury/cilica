@@ -1,0 +1,18 @@
+[package]
+name = "margin-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = "0.4.45"
+margin-domain = { version = "0.1.0", path = "../domain" }
+serde = "1.0.229"
+serde_json = "1.0.154"
+similar = "3.2.1"
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "migrate", "chrono", "uuid", "json"] }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+tracing = "0.1.44"
+uuid = "1.29.2"

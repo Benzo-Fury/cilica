@@ -1,0 +1,15 @@
+<!-- @dsCard group="Inputs" height=110 subtitle="The tick draws itself in." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+
+<div class="nt-stack" style="padding:20px">
+ <label style="display:flex;gap:10px;align-items:center"><button class="nt-check" role="checkbox" aria-checked="true" aria-label="done"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.3 2.3 4.7-5"/></svg></button>Send pricing deck to Marco</label>
+ <label style="display:flex;gap:10px;align-items:center"><button class="nt-check" role="checkbox" aria-checked="false" aria-label="done"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5l2.3 2.3 4.7-5"/></svg></button>Book usability sessions for step 3</label>
+</div>
+
+
+<script>document.querySelectorAll('.nt-check').forEach(function(s){s.onclick=function(){s.setAttribute('aria-checked',s.getAttribute('aria-checked')!=='true');};});</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["apps/desktop/src-tauri", "crates/*"]
+# Standalone benchmark runner with its own [workspace], lockfile and target dir.
+exclude = ["tools/stt-bench/margin-runner"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[profile.dev]
+# Keep our own code debuggable but make heavy deps (whisper, resampling, onnx) fast enough for live audio.
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

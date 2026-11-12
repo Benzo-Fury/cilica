@@ -1,0 +1,22 @@
+<!-- @dsCard group="AI" height=300 subtitle="Every AI edit to an existing note arrives as a proposal. Accept collapses the card and toasts Undo." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+
+<div style="padding:20px;max-width:520px">
+ <div class="nt-diff" id="dc">
+  <div class="nt-diff-head"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-line nt-ico nt-ico-sm" aria-hidden="true"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/><path d="m15 5 3 3"/></svg><strong>Edit</strong> Q3 planning sync · Action items<span style="margin-left:auto" class="nt-faint">1 of 2</span></div>
+  <div class="nt-diff-body">Book <del>usability sessions</del> <ins>five usability sessions for step 3 before Thursday</ins>. <ins>Priya to share the rollout plan on Thursday.</ins></div>
+  <div class="nt-diff-foot"><span class="nt-faint" style="font-size:12px;margin-right:auto">Tier: edit · needs your review</span>
+   <button class="nt-btn nt-btn-ghost nt-btn-sm">Reject <span class="nt-kbd-group"><kbd class="nt-kbd">⌘</kbd><kbd class="nt-kbd">⌫</kbd></span></button>
+   <button class="nt-btn nt-btn-primary nt-btn-sm nt-anim" id="acc"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check nt-ico nt-i-check nt-ico-sm" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Accept <span class="nt-kbd-group"><kbd class="nt-kbd" style="background:rgb(0 0 0 / .1);color:inherit;box-shadow:none">⌘</kbd><kbd class="nt-kbd" style="background:rgb(0 0 0 / .1);color:inherit;box-shadow:none">↩</kbd></span></button></div>
+ </div>
+</div>
+
+
+<script>
+var d=document.getElementById('dc');document.getElementById('acc').onclick=function(){d.setAttribute('data-state','applied');setTimeout(function(){d.removeAttribute('data-state')},1600);};
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+[package]
+name = "margin-desktop"
+version.workspace = true
+description = "Margin: private meeting notes"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "margin_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset", "tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-specta = { version = "=2.0.0-rc.28", features = ["derive", "typescript"] }
+specta = "=2.0.0-rc.28"
+specta-typescript = "0.0.15"
+window-vibrancy = "0.8.1"
+keyring = "4.2.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+thiserror = "2.0.21"
+chrono = "0.4.45"
+uuid = "1.29.2"
+tokio = { version = "1.54.1", features = ["full"] }
+tauri-plugin-global-shortcut = "2.4.1"
+tauri-plugin-single-instance = "2.5.5"
+tauri-plugin-updater = "2.14.1"
+tauri-plugin-window-state = "2.5.0"
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-os = "2.4.0"
+tauri-plugin-process = "2.4.0"
+margin-domain = { version = "0.1.0", path = "../../../crates/domain" }
+margin-store = { version = "0.1.0", path = "../../../crates/store" }
+margin-audio = { version = "0.1.0", path = "../../../crates/audio" }
+margin-detect = { version = "0.1.0", path = "../../../crates/detect" }
+margin-stt = { version = "0.1.0", path = "../../../crates/stt" }
+margin-diarize = { version = "0.1.0", path = "../../../crates/diarize" }
+margin-llm = { version = "0.1.0", path = "../../../crates/llm" }
+margin-agent = { version = "0.1.0", path = "../../../crates/agent" }
+margin-scheduler = { version = "0.1.0", path = "../../../crates/scheduler" }
+margin-mcp = { version = "0.1.0", path = "../../../crates/mcp" }
+margin-pipeline = { version = "0.1.0", path = "../../../crates/pipeline" }
+async-trait = "0.1.92"
+futures = "0.3.34"
+margin-import = { version = "0.1.0", path = "../../../crates/import" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSHapticFeedback", "NSWorkspace", "NSAccessibility", "NSScreen", "NSWindow", "NSResponder", "NSGraphics"] }
+objc2-foundation = "0.3"
+
+[target."cfg(windows)".dependencies]
+windows-registry = "0.6"
+
+

@@ -1,0 +1,26 @@
+[
+ {
+  "speaker": "A",
+  "start_ms": 300,
+  "end_ms": 3519,
+  "text": "Good morning everyone. Let's review the quarterly budget."
+ },
+ {
+  "speaker": "B",
+  "start_ms": 4119,
+  "end_ms": 7444,
+  "text": "Thanks. Revenue grew by twelve percent this quarter."
+ },
+ {
+  "speaker": "A",
+  "start_ms": 8044,
+  "end_ms": 10956,
+  "text": "That is great news. What about marketing costs?"
+ },
+ {
+  "speaker": "B",
+  "start_ms": 11556,
+  "end_ms": 14671,
+  "text": "Marketing spending stayed flat compared to last year."
+ }
+]

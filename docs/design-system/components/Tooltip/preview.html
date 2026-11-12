@@ -1,0 +1,25 @@
+<!-- @dsCard group="Navigation" height=110 subtitle="Hover the buttons: 500ms first delay, instant while moving between neighbours." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+
+<div class="nt-pad" style="padding-top:56px;position:relative" id="tt">
+ <button class="nt-iconbtn nt-anim" data-tip="New note" data-k="⌘ N"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen nt-ico nt-i-folder" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg></button>
+ <button class="nt-iconbtn nt-anim" data-tip="Search" data-k="⌘ P"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search nt-ico nt-i-search" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+ <button class="nt-iconbtn nt-anim" data-tip="Assistant" data-k="⌘ J"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle nt-ico nt-i-check" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></button>
+ <button class="nt-iconbtn nt-anim" data-tip="Settings" data-k="⌘ ,"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings nt-ico nt-i-gear" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+</div>
+
+
+<script>
+var host=document.getElementById('tt'),tip=null,timer=null,warm=0;
+function show(b){hide();tip=document.createElement('div');tip.className='nt-tip';tip.style.position='absolute';
+tip.innerHTML=b.dataset.tip+' <span class="nt-kbd-group">'+b.dataset.k.split(' ').map(function(k){return '<kbd class="nt-kbd">'+k+'</kbd>'}).join('')+'</span>';
+host.appendChild(tip);tip.style.left=Math.max(8,b.offsetLeft+b.offsetWidth/2-tip.offsetWidth/2)+'px';tip.style.top=(b.offsetTop-34)+'px';}
+function hide(){if(tip){tip.remove();tip=null}}
+show(host.querySelectorAll('button')[1]);
+host.querySelectorAll('button').forEach(function(b){b.onmouseenter=function(){clearTimeout(timer);timer=setTimeout(function(){show(b)},Date.now()-warm<300?0:500)};b.onmouseleave=function(){clearTimeout(timer);if(tip)warm=Date.now();hide()};});
+</script>
+</body>
+</html>

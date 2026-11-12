@@ -1,0 +1,54 @@
+<!-- @dsCard group="Mockups" page width=1280 height=800 subtitle="Recording in the background: a generic video-call app is in front and Margin's Dynamic Island sits at the top of the screen, expanded on hover." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+<style>
+html,body{margin:0}
+.mk-desk{position:relative;width:1280px;height:800px;overflow:hidden;background: radial-gradient(60% 70% at 15% 20%, color-mix(in oklab, var(--speaker-1) 70%, transparent), transparent 70%), radial-gradient(50% 60% at 85% 30%, color-mix(in oklab, var(--accent) 65%, transparent), transparent 70%), radial-gradient(60% 60% at 60% 95%, color-mix(in oklab, var(--speaker-7) 60%, transparent), transparent 70%), radial-gradient(40% 50% at 35% 75%, color-mix(in oklab, var(--speaker-2) 55%, transparent), transparent 70%), var(--bg-window);}
+.mk-win{position:absolute;left:40px;top:40px;width:1200px;height:720px;border-radius:calc(var(--radius-window) * var(--sq));overflow:hidden;
+  display:grid;grid-template-columns:var(--size-sidebar) 1fr var(--mk-asst, var(--size-assistant));
+  box-shadow:0 0 0 .5px var(--glass-edge), var(--shadow-overlay);}
+.mk-side,.mk-asst{background:var(--material-sidebar);-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);display:flex;flex-direction:column;min-width:0;min-height:0}
+.mk-side{padding:0 8px 8px}
+.mk-band{height:var(--size-titlebar);display:flex;align-items:center;gap:6px;flex:none}
+.mk-lights{display:inline-flex;gap:8px;margin:0 auto 0 12px}
+.mk-lights i{width:12px;height:12px;border-radius:50%;display:block}
+.mk-main{position:relative;margin:8px 0 8px;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg-canvas);border-radius:calc(var(--radius-lg) * var(--sq));box-shadow:0 0 0 .5px var(--line), var(--shadow-sm);overflow:hidden}
+.mk-main-band{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px 0 16px}
+.mk-crumb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:13px}
+.mk-crumb b{color:var(--ink);font-weight:550}
+.mk-scroll{flex:1;min-height:0;overflow:hidden;position:relative}
+.mk-scroll .nt-note{margin:0 auto;padding-top:20px}
+.mk-capsule{position:absolute;left:50%;bottom:20px;transform:translateX(-50%)}
+.mk-asst{padding:0 12px 12px}
+.mk-asst-head{display:flex;align-items:center;gap:4px}
+.mk-asst-head b{font:600 15px/20px var(--font-sans);margin-right:auto}
+.mk-thread{flex:1;min-height:0;overflow:hidden;padding:4px 4px 12px;display:flex;flex-direction:column;justify-content:flex-end}
+.mk-ai-wash{background:var(--accent-soft);border-radius:4px;box-shadow:0 0 0 2px var(--accent-soft)}
+.mk-overlay{position:absolute;inset:0;display:grid;justify-items:center;align-content:start;padding-top:110px}
+</style>
+<div class="mk-desk">
+ <div style="position:absolute;inset:0 0 auto;height:28px;background:var(--glass-fill);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);display:flex;align-items:center;gap:18px;padding:0 16px;font:550 13px/1 var(--font-sans);color:var(--ink)"><b>Call</b><span class="nt-muted">File</span><span class="nt-muted">View</span><span class="nt-muted">Window</span><span style="margin-left:auto" class="nt-muted nt-mono">Tue 10:12</span></div>
+ <div style="position:absolute;left:50%;top:36px;transform:translateX(-50%);z-index:3">
+  <div class="nt-island" data-expanded>
+   <div class="nt-island-compact"><span class="nt-rec-dot"></span><span class="nt-wave"><i style="--h:40%"></i><i style="--h:80%"></i><i style="--h:55%"></i><i style="--h:90%"></i><i style="--h:45%"></i></span><span class="nt-mono" style="margin-left:auto">12:04</span></div>
+   <div class="nt-island-full"><span class="nt-rec-dot" style="width:10px;height:10px"></span><div style="flex:1;min-width:0"><div style="font:600 14px/18px var(--font-sans)">Q3 planning sync</div><div style="font:450 12px/16px var(--font-mono);opacity:.65">Recording · 12:04 · Margin</div></div>
+    <button class="nt-iconbtn" style="color:#f5f3f1;border-radius:50%;width:34px;height:34px;background:rgb(255 255 255 / .12)" aria-label="Pause"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pause nt-ico" aria-hidden="true"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg></button><button class="nt-stop" style="width:34px;height:34px" aria-label="Stop"></button></div>
+  </div>
+ </div>
+ <div style="position:absolute;left:120px;top:130px;width:1040px;height:620px;border-radius:14px;overflow:hidden;background:#141312;box-shadow:var(--shadow-overlay);display:grid;grid-template-rows:40px 1fr 64px">
+  <div style="display:flex;align-items:center;padding:0 14px;gap:8px"><span class="mk-lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span style="color:#cfccc8;font:550 13px/1 var(--font-sans);margin-right:auto">Weekly product sync</span></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:0 12px"><div style="border-radius:14px;background:color-mix(in oklab, var(--speaker-6) 22%, #1b1a19);display:grid;place-items:center;position:relative"><span class="nt-avatar" style="--c:var(--speaker-6);--s:var(--speaker-6-soft);width:72px;height:72px;font-size:22px">PS</span><span style="position:absolute;left:12px;bottom:10px;font:550 12px/16px var(--font-sans);color:#f5f3f1">Priya Shah</span></div><div style="border-radius:14px;background:color-mix(in oklab, var(--speaker-2) 22%, #1b1a19);display:grid;place-items:center;position:relative"><span class="nt-avatar" style="--c:var(--speaker-2);--s:var(--speaker-2-soft);width:72px;height:72px;font-size:22px">MD</span><span style="position:absolute;left:12px;bottom:10px;font:550 12px/16px var(--font-sans);color:#f5f3f1">Marco Diaz</span></div><div style="border-radius:14px;background:color-mix(in oklab, var(--speaker-8) 22%, #1b1a19);display:grid;place-items:center;position:relative"><span class="nt-avatar" style="--c:var(--speaker-8);--s:var(--speaker-8-soft);width:72px;height:72px;font-size:22px">SL</span><span style="position:absolute;left:12px;bottom:10px;font:550 12px/16px var(--font-sans);color:#f5f3f1">Sam Lee</span></div><div style="border-radius:14px;background:color-mix(in oklab, var(--speaker-1) 22%, #1b1a19);display:grid;place-items:center;position:relative"><span class="nt-avatar" style="--c:var(--speaker-1);--s:var(--speaker-1-soft);width:72px;height:72px;font-size:22px">AK</span><span style="position:absolute;left:12px;bottom:10px;font:550 12px/16px var(--font-sans);color:#f5f3f1">You</span></div></div>
+  <div style="display:flex;justify-content:center;align-items:center;gap:12px">
+   <span style="width:40px;height:40px;border-radius:50%;background:#2a2826;display:grid;place-items:center;color:#f5f3f1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mic nt-ico" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+   <span style="width:40px;height:40px;border-radius:50%;background:#2a2826;display:grid;place-items:center;color:#f5f3f1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-video nt-ico" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></span>
+   <span style="width:56px;height:40px;border-radius:20px;background:#e5484d;display:grid;place-items:center;color:#fff"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-phone-off nt-ico" aria-hidden="true"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" x2="2" y1="2" y2="22"/></svg></span>
+  </div>
+ </div>
+</div>
+
+
+
+</body>
+</html>

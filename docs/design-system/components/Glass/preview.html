@@ -1,0 +1,17 @@
+<!-- @dsCard group="Foundations" height=320 page subtitle="Material layers over a busy backdrop. Move the pointer across the controls." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+
+<div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;background: radial-gradient(circle at 20% 30%, var(--speaker-1) 0 18%, transparent 19%), radial-gradient(circle at 70% 60%, var(--accent) 0 22%, transparent 23%), radial-gradient(circle at 45% 90%, var(--speaker-3) 0 14%, transparent 15%), var(--bg-sunken);">
+ <div class="nt-glass nt-specular" style="border-radius:20px;padding:16px;min-height:110px"><div style="font:600 13px/18px var(--font-sans)">glass</div><div class="nt-muted" style="font-size:12px">glass-fill · blur-glass · saturate 180%. Capsule, toasts, toolbars.</div></div>
+ <div class="nt-glass-strong nt-specular" style="border-radius:20px;padding:16px;min-height:110px"><div style="font:600 13px/18px var(--font-sans)">glass-strong</div><div class="nt-muted" style="font-size:12px">glass-fill-strong · blur-glass-strong. Menus, palette, popovers.</div></div>
+ <div style="border-radius:20px;padding:16px;min-height:110px;background:var(--material-sidebar);-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);box-shadow:inset 0 0 0 .5px var(--glass-edge)"><div style="font:600 13px/18px var(--font-sans)">window material</div><div class="nt-muted" style="font-size:12px">material-sidebar over native vibrancy (macOS glass, Windows Mica).</div></div>
+ <div style="border-radius:20px;padding:16px;min-height:110px;background:var(--bg-canvas);box-shadow:var(--shadow-sm)"><div style="font:600 13px/18px var(--font-sans)">canvas</div><div class="nt-muted" style="font-size:12px">bg-canvas. Content is always opaque. Never glass under reading text.</div></div>
+</div>
+
+
+<script>document.querySelectorAll('.nt-btn-glass,.nt-specular').forEach(function(el){el.addEventListener('pointermove',function(e){var r=el.getBoundingClientRect();el.style.setProperty('--mx',(e.clientX-r.left)+'px');el.style.setProperty('--my',(e.clientY-r.top)+'px');});});</script>
+</body>
+</html>

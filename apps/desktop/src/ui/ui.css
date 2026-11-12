@@ -1,0 +1,6227 @@
+/* App additions to the design-system classes (components.css is the reference bundle).
+   Tokens only: colours, radii, spacing and shadows come from tokens.css; motion from the
+   --spring-* / --dur-* variables. Loaded in the `components` layer after components.css. */
+
+/* ───────── Base ───────── */
+.nt-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Chrome is not selectable; content and inputs are. The note page itself is not: a drag across it
+   would paint the title, chips and body as one web-page selection. The title and body select
+   within themselves. */
+.nt-selectable,
+input,
+textarea,
+[contenteditable="true"],
+.nt-diff-body,
+.nt-list-meta mark {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: auto;
+}
+input,
+textarea {
+  cursor: text;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--fill-press);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--line-strong);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1.5px var(--accent-soft);
+}
+@keyframes nt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes nt-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+@keyframes nt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes nt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ───────── Materials ───────── */
+/* Reduce transparency (OS or Settings › Appearance) and the browser preview:
+   every floating glass layer becomes its opaque ground with the same edges and shadows. */
+:root[data-material="opaque"] .nt-glass,
+:root[data-material="opaque"] .nt-glass-strong,
+:root[data-material="opaque"] .nt-btn-glass {
+  background: var(--bg-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-material="opaque"] .nt-scrim {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nt-glass,
+  .nt-glass-strong,
+  .nt-btn-glass {
+    background: var(--bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ───────── Controls ───────── */
+.nt-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.75px solid currentColor;
+  border-right-color: transparent;
+  opacity: 0.8;
+  animation: nt-spin 700ms linear infinite;
+  flex: none;
+}
+.nt-btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-btn-label-hidden {
+  opacity: 0;
+}
+.nt-btn-spinner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.nt-btn .nt-kbd-group {
+  margin-left: var(--space-1);
+}
+.nt-btn-danger-solid {
+  background: var(--danger);
+  color: var(--bg-canvas);
+}
+.nt-btn-danger-solid:hover {
+  background: var(--danger);
+  filter: brightness(1.06);
+}
+.nt-btn:focus-visible,
+.nt-iconbtn:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-btn-primary:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-kbd-on-accent .nt-kbd {
+  background: color-mix(in oklab, var(--on-accent) 12%, transparent);
+  color: inherit;
+  box-shadow: none;
+}
+.nt-iconbtn[disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.nt-iconbtn-sm {
+  width: 22px;
+  height: 22px;
+  --r: calc(var(--radius-xs) * var(--sq));
+}
+.nt-iconbtn-sm .nt-ico {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+.nt-iconbtn[data-state="open"] {
+  background: var(--fill-press);
+  color: var(--ink);
+}
+.nt-chip:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-chip-badge {
+  height: 20px;
+  padding: 0 var(--space-1-5);
+  font-variant-numeric: tabular-nums;
+}
+.nt-rec-dot-sm {
+  width: 6px;
+  height: 6px;
+}
+.nt-rec-dot-still {
+  animation: none;
+}
+.nt-avatar-xs {
+  width: 18px;
+  height: 18px;
+  font-size: 8px;
+}
+.nt-avatar-sm {
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+}
+.nt-switch:focus-visible,
+.nt-check:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-switch[disabled],
+.nt-check[disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.nt-tip-layer {
+  z-index: var(--z-overlay);
+  max-width: 280px;
+}
+.nt-tip-layer[data-state="closed"] {
+  animation: nt-fade-out var(--dur-fast) var(--ease-in) both;
+}
+
+/* Fields */
+.nt-field-wrap {
+  display: grid;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+.nt-field-sm {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-2);
+  gap: var(--space-1-5);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-field-sm input {
+  font-size: 13px;
+}
+.nt-field-msg {
+  margin: 0;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-field input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* Segmented control: the thumb is a shared-layout element inside the selected segment.
+   Track and thumb are full pills. */
+.nt-seg {
+  border-radius: var(--radius-pill);
+  corner-shape: round;
+}
+.nt-seg button {
+  isolation: isolate;
+  border-radius: var(--radius-pill);
+  corner-shape: round;
+}
+.nt-seg button:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-seg button:hover:not([aria-selected="true"]) {
+  color: var(--ink);
+}
+.nt-seg-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--bg-raised);
+  box-shadow:
+    var(--shadow-xs),
+    inset 0 0 0 0.5px var(--line);
+}
+.nt-seg-wide {
+  grid-auto-columns: 112px;
+}
+.nt-seg button > span:not(.nt-seg-pill) {
+  white-space: nowrap;
+}
+
+/* Swatches (accent presets) */
+.nt-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  transition:
+    transform var(--spring-snappy-dur) var(--spring-snappy),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.nt-swatch:hover {
+  transform: scale(1.1);
+}
+.nt-swatch:active {
+  transform: scale(0.92);
+  transition-duration: var(--dur-instant);
+}
+.nt-swatch[aria-checked="true"] {
+  box-shadow:
+    0 0 0 2px var(--bg-raised),
+    0 0 0 4px var(--ink-3);
+}
+.nt-swatch:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* ───────── Menus ───────── */
+.nt-menu-layer {
+  z-index: var(--z-popover);
+  outline: none;
+  max-height: var(--radix-dropdown-menu-content-available-height, 70vh);
+  overflow-y: auto;
+}
+.nt-menu[data-state="closed"] {
+  animation: nt-pop-out var(--dur-fast) var(--ease-in) both;
+}
+.nt-menu-item {
+  outline: none;
+  user-select: none;
+}
+.nt-menu-item[data-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.nt-menu-item:focus-visible {
+  background: var(--fill-press);
+}
+.nt-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-menu-gap {
+  width: 16px;
+  flex: none;
+}
+.nt-menu-heading {
+  padding: var(--space-1-5) var(--space-2) var(--space-1);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-menu-subtrigger::after {
+  content: "›";
+  color: var(--ink-3);
+  margin-left: var(--space-2);
+}
+.nt-menu-subtrigger[data-state="open"] {
+  background: var(--fill-press);
+}
+
+/* ───────── Overlays (dialog, palette, cheat sheet) ───────── */
+.nt-overlay-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  animation: nt-fade-in var(--dur-base) var(--ease-out) both;
+}
+.nt-overlay-scrim[data-state="closed"] {
+  animation: nt-fade-out var(--dur-fast) var(--ease-in) both;
+}
+.nt-overlay-frame {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  pointer-events: none;
+}
+.nt-overlay-frame-top {
+  align-items: start;
+  padding-top: 14vh;
+}
+.nt-overlay-surface {
+  pointer-events: auto;
+  outline: none;
+  max-height: min(640px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+}
+.nt-overlay-surface[data-state="closed"] {
+  animation: nt-pop-out var(--dur-fast) var(--ease-in) both;
+}
+.nt-dialog.nt-overlay-surface {
+  display: block;
+}
+
+/* ───────── Skeleton / empty ───────── */
+.nt-skel {
+  display: block;
+}
+.nt-skel-title {
+  height: 22px;
+  border-radius: 8px;
+  width: 60%;
+}
+.nt-skel-text {
+  display: grid;
+  gap: var(--space-3);
+}
+.nt-skel-short {
+  width: 62%;
+}
+.nt-empty-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.nt-empty h3 {
+  color: var(--ink);
+}
+
+/* ───────── Window, panels, canvas ───────── */
+.nt-window {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  /* One sheet: the sidebar sits on the sunken ground, the note and the assistant on the canvas. */
+  background: var(--bg-sunken);
+}
+.nt-panel-col {
+  position: relative;
+  flex: none;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+}
+.nt-panel-col-left {
+  justify-content: flex-end;
+}
+.nt-panel-col-right {
+  justify-content: flex-start;
+  background: var(--bg-canvas);
+  /* The canvas's own hairline is painted over by this panel, so the panel draws the divider. */
+  box-shadow: inset 0.5px 0 0 var(--line-strong);
+}
+.nt-panel {
+  flex: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.nt-panel-left {
+  padding: 0 var(--space-2) var(--space-2);
+}
+.nt-panel-right {
+  padding: 0 var(--space-3) var(--space-3);
+}
+.nt-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: var(--z-sticky);
+  cursor: col-resize;
+  outline: none;
+}
+.nt-resize::after {
+  content: "";
+  position: absolute;
+  top: var(--space-12);
+  bottom: var(--space-12);
+  left: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent-text);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-resize:hover::after,
+.nt-resize:focus-visible::after,
+.nt-resize:active::after {
+  opacity: 0.5;
+}
+.nt-resize-left {
+  left: 0;
+}
+.nt-resize-right {
+  right: 0;
+}
+.nt-canvas-col {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* The sheet runs flush to the panels, split from them by hairlines. */
+.nt-canvas-shadow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  box-shadow:
+    -0.5px 0 0 var(--line-strong),
+    0.5px 0 0 var(--line-strong);
+}
+.nt-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* clip, not hidden: hidden still lets scrollIntoView/focus scroll the canvas
+     (e.g. by the parked swear jar's overflow), pushing the band out of view. */
+  overflow: clip;
+  background: var(--bg-canvas);
+}
+.nt-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scroll-padding-bottom: var(--space-16);
+}
+
+/* Title bands */
+.nt-band {
+  height: var(--size-titlebar);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+.nt-band-canvas {
+  padding: 0 10px 0 var(--space-4);
+  gap: var(--space-2);
+  position: relative;
+  z-index: var(--z-sticky);
+}
+.nt-band-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+.nt-band-start,
+.nt-band-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  height: 100%;
+}
+.nt-band-start {
+  justify-self: stretch;
+}
+.nt-band-end {
+  justify-content: flex-end;
+}
+.nt-band-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+/* The band measures itself so its controls can shrink to icons when it gets narrow. */
+.nt-band-canvas {
+  container: band / inline-size;
+}
+
+/* Record control in the note's band (RecordButton). */
+.nt-recbtn {
+  gap: var(--space-1-5);
+  padding: 0 var(--space-2);
+}
+.nt-recbtn[aria-disabled="true"] {
+  cursor: default;
+}
+.nt-recbtn-text {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.nt-recbtn-stop {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 2.5px;
+  background: var(--rec);
+  animation: nt-breathe 1.6s var(--ease-in-out) infinite;
+}
+.nt-recbtn-live {
+  background: var(--rec-soft);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--rec) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-recbtn-stop {
+    animation: none;
+  }
+}
+/* Narrow band: first the record control, then the Notes / Transcript switch, drop to icons.
+   The labels stay in the accessibility tree. */
+@container band (max-width: 640px) {
+  .nt-recbtn {
+    width: var(--size-control-sm);
+    padding: 0;
+  }
+  .nt-recbtn-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@container band (max-width: 520px) {
+  .nt-seg-wide {
+    grid-auto-columns: 40px;
+  }
+  .nt-seg-wide button {
+    padding: 0;
+  }
+  .nt-seg-wide button > span:not(.nt-seg-pill) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+.nt-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.nt-band-spacer {
+  flex: 1;
+  align-self: stretch;
+  min-width: var(--space-4);
+}
+.nt-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 70px;
+  height: 100%;
+  flex: none;
+  padding-left: 10px;
+}
+.nt-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
+}
+.nt-light-close {
+  background: #ff5f57;
+}
+.nt-light-min {
+  background: #febc2e;
+}
+.nt-light-max {
+  background: #28c840;
+}
+.nt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+.nt-crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  color: var(--ink-3);
+  font: 450 13px / 18px var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.nt-crumb > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+.nt-crumb .nt-ico {
+  width: 14px;
+  height: 14px;
+}
+.nt-crumb-current {
+  color: var(--ink);
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-crumb-sep {
+  color: var(--ink-4);
+}
+.nt-win-caps {
+  align-self: stretch;
+  height: var(--size-titlebar);
+}
+.nt-win-caps button:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-text);
+}
+
+/* ───────── Sidebar ───────── */
+.nt-row {
+  outline: none;
+}
+.nt-row:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-row > .nt-row-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--fill-press);
+}
+.nt-row {
+  isolation: isolate;
+}
+.nt-row[aria-current="page"]:hover {
+  background: transparent;
+}
+.nt-row[aria-current="page"] > .nt-row-pill + * {
+  color: inherit;
+}
+.nt-row-dimmed {
+  opacity: 0.4;
+}
+.nt-row .nt-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+.nt-row .nt-row-meta .nt-ico {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+}
+.nt-row-label input {
+  all: unset;
+  width: 100%;
+  color: var(--ink);
+  cursor: text;
+}
+.nt-row-editing,
+.nt-row-editing:hover {
+  color: var(--ink);
+}
+/* Renaming in place: an input laid over a hidden copy of its own text, so it is exactly as wide
+   as the name, with an amber underline. No box. */
+.nt-inline-name {
+  display: inline-grid;
+  max-width: 100%;
+  vertical-align: bottom;
+  box-shadow: 0 1.5px 0 var(--accent);
+}
+.nt-inline-name::after {
+  content: attr(data-value) " ";
+  grid-area: 1 / 1;
+  visibility: hidden;
+  white-space: pre;
+  overflow: hidden;
+}
+.nt-inline-name > input {
+  all: unset;
+  grid-area: 1 / 1;
+  min-width: 0;
+  width: 100%;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--ink);
+  caret-color: var(--accent-text);
+}
+.nt-inline-name > input::placeholder {
+  color: var(--ink-4);
+}
+.nt-inline-name > input::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+.nt-row-drag-overlay {
+  cursor: grabbing;
+}
+.nt-drop-line-indent {
+  margin-left: 34px;
+}
+.nt-drop-line-abs {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  top: -2px;
+  margin: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.nt-row-indent > .nt-drop-line-abs {
+  left: 34px;
+}
+.nt-drop-line-after {
+  top: auto;
+  bottom: -2px;
+}
+.nt-row-dragging {
+  position: relative;
+  display: flex;
+  cursor: grabbing;
+}
+.nt-roll {
+  display: inline-grid;
+  overflow: hidden;
+  height: 16px;
+}
+.nt-roll > span {
+  grid-area: 1 / 1;
+}
+.nt-side-label .nt-iconbtn {
+  margin: -6px -4px -6px 0;
+}
+.nt-side-label {
+  user-select: none;
+}
+.nt-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 calc(var(--space-1) * -1);
+  padding: 0 var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nt-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nt-sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: var(--space-2);
+}
+.nt-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.nt-sidebar-band {
+  padding-right: 0;
+}
+.nt-sidebar-actions {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 0 var(--space-2);
+  align-items: center;
+}
+.nt-grow {
+  flex: 1;
+  min-width: 0;
+}
+.nt-iconbtn-rec,
+.nt-iconbtn-rec[aria-pressed="true"] {
+  color: var(--rec);
+}
+.nt-row-dot {
+  width: 18px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.nt-sidebar-search {
+  padding: 0 0 var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+.nt-side-label-target {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-sidebar-hint {
+  padding: 0 var(--space-2) var(--space-1);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-sidebar-loading {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+}
+.nt-tip-preview {
+  display: grid;
+  gap: 2px;
+  max-width: 240px;
+  white-space: normal;
+}
+.nt-tip-preview b {
+  font-weight: 600;
+}
+.nt-tip-preview span {
+  opacity: 0.8;
+  font-weight: 450;
+}
+.nt-search-hit-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.nt-search-hit-title .nt-ico {
+  color: var(--ink-3);
+  width: 14px;
+  height: 14px;
+}
+.nt-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1) 0 var(--space-2);
+}
+.nt-search-hit {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  color: var(--ink-2);
+  cursor: default;
+  outline: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-search-hit:hover,
+.nt-search-hit[data-active] {
+  background: var(--fill-hover);
+  color: var(--ink);
+}
+.nt-search-hit:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-search-hit-title {
+  font: 550 13px / 18px var(--font-sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-search-hit-excerpt {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nt-search-empty {
+  padding: var(--space-2);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-level {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  color: var(--rec);
+}
+.nt-level i {
+  width: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  height: var(--h, 20%);
+  min-height: 2px;
+  transition: height 90ms linear;
+}
+
+/* ───────── Note page ───────── */
+.nt-page {
+  width: 100%;
+  max-width: var(--size-measure);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-10) var(--space-16);
+}
+.nt-note {
+  margin: 0 auto;
+  width: 100%;
+  padding-top: var(--space-5);
+}
+.nt-title-input {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+}
+.nt-title-input::placeholder {
+  color: var(--ink-4);
+}
+.nt-note .ProseMirror {
+  outline: none;
+  min-height: 240px;
+  caret-color: var(--accent-text);
+}
+.nt-note .ProseMirror > :first-child {
+  margin-top: 0;
+}
+.nt-note h1 {
+  font: 640 22px / 28px var(--font-sans);
+  letter-spacing: -0.017em;
+  margin: var(--space-8) 0 var(--space-2);
+  text-wrap: balance;
+}
+.nt-note h2,
+.nt-note h3 {
+  text-wrap: balance;
+}
+.nt-note h4,
+.nt-note h5,
+.nt-note h6 {
+  font: 600 15px / 22px var(--font-sans);
+  letter-spacing: -0.006em;
+  margin: var(--space-5) 0 var(--space-1-5);
+}
+.nt-note ul {
+  list-style: disc;
+}
+.nt-note ol {
+  list-style: decimal;
+  margin: 0 0 var(--space-3);
+  padding-left: 24px;
+}
+.nt-note ol li::marker {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.nt-note li > p {
+  margin: 0;
+}
+.nt-note li + li {
+  margin-top: 2px;
+}
+.nt-note :is(ul, ol) :is(ul, ol) {
+  margin: 2px 0 0;
+}
+.nt-note a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--accent-text) 40%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.nt-note a:hover {
+  text-decoration-color: var(--accent-text);
+}
+.nt-note strong {
+  font-weight: 640;
+}
+.nt-note hr {
+  border: 0;
+  height: 0.5px;
+  background: var(--line-strong);
+  margin: var(--space-6) 0;
+}
+.nt-note pre {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  overflow-x: auto;
+}
+.nt-note pre code {
+  background: none;
+  padding: 0;
+  box-shadow: none;
+  font: 400 13px / 20px var(--font-mono);
+}
+.nt-note table {
+  border-collapse: collapse;
+  margin: 0 0 var(--space-4);
+  width: 100%;
+  font: 420 14px / 20px var(--font-sans);
+}
+.nt-note th,
+.nt-note td {
+  border: 0.5px solid var(--line-strong);
+  padding: var(--space-1-5) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+  min-width: 48px;
+}
+.nt-note th {
+  background: var(--bg-sunken);
+  font-weight: 600;
+}
+.nt-note td > p,
+.nt-note th > p {
+  margin: 0;
+  font: inherit;
+}
+.nt-note .selectedCell {
+  background: var(--accent-soft);
+}
+.nt-note .tableWrapper {
+  overflow-x: auto;
+}
+.nt-note .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent-text);
+  pointer-events: none;
+}
+:root[data-note-font="serif"] .nt-note :is(p, li, td) {
+  font: 400 17px / 27px var(--font-serif);
+  letter-spacing: 0;
+}
+:root[data-note-font="mono"] .nt-note :is(p, li, td) {
+  font: 400 14px / 22px var(--font-mono);
+  letter-spacing: 0;
+}
+.nt-note p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--ink-4);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+/* Task lists: TipTap renders li[data-checked] > label > input + a visually hidden span, then a div.
+   The input itself is drawn as the design-system checkbox; the tick draws itself in when checked. */
+.nt-note ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.nt-note ul[data-type="taskList"] > li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.nt-note ul[data-type="taskList"] > li > label {
+  flex: none;
+  margin-top: 4px;
+  display: grid;
+  user-select: none;
+}
+.nt-note ul[data-type="taskList"] > li > label > input {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  position: relative;
+  cursor: pointer;
+  border-radius: calc(var(--radius-xs) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-note ul[data-type="taskList"] > li > label > input::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: var(--on-accent);
+  -webkit-mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.5l2.3 2.3 4.7-5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.5l2.3 2.3 4.7-5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--dur-base) var(--ease-out);
+}
+.nt-note ul[data-type="taskList"] > li > label > input:hover {
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+}
+.nt-note ul[data-type="taskList"] > li > label > input:active {
+  transform: scale(0.88);
+  transition-duration: var(--dur-instant);
+}
+.nt-note ul[data-type="taskList"] > li > label > input:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-note ul[data-type="taskList"] > li > label > input:checked {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.nt-note ul[data-type="taskList"] > li > label > input:checked::after {
+  clip-path: inset(0 0 0 0);
+  transition-delay: 40ms;
+}
+.nt-note ul[data-type="taskList"] > li > div {
+  flex: 1;
+  min-width: 0;
+}
+.nt-note ul[data-type="taskList"] > li[data-checked="true"] > div {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-4);
+}
+/* Find in note */
+.nt-find-match {
+  background: var(--accent-soft);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1.5px var(--accent-soft);
+}
+.nt-find-current {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+.nt-findbar {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-4);
+  z-index: var(--z-capsule);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 40px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+}
+.nt-findbar input {
+  all: unset;
+  width: 180px;
+  font: 450 14px / 20px var(--font-sans);
+  color: var(--ink);
+  cursor: text;
+}
+.nt-findbar input::placeholder {
+  color: var(--ink-4);
+}
+.nt-findbar-count {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
+  margin-right: var(--space-1);
+}
+/* Words streaming in from Margin */
+.nt-note[data-streaming] .ProseMirror {
+  caret-color: transparent;
+}
+.nt-ai-wash {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  transition:
+    background-color 2s var(--ease-out),
+    box-shadow 2s var(--ease-out);
+}
+.nt-streaming-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-note-meta {
+  align-items: center;
+}
+
+/* ───────── Pages and lists ───────── */
+.nt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nt-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  transition: background-color var(--dur-fast) var(--ease-out);
+  outline: none;
+}
+.nt-list-item:hover {
+  background: var(--fill-hover);
+}
+.nt-list-item-selected,
+.nt-list-item-selected:hover {
+  background: var(--fill-press);
+}
+.nt-list-item:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-list-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-list-title {
+  font: 550 14px / 20px var(--font-sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-list-meta {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-list-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-list-item:hover .nt-list-actions,
+.nt-list-item:focus-within .nt-list-actions,
+.nt-list-item-selected .nt-list-actions {
+  opacity: 1;
+}
+.nt-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+}
+.nt-page-head p {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-2);
+}
+
+/* History */
+.nt-history {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+.nt-history-list {
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-2) var(--space-4) var(--space-3);
+  box-shadow: inset -0.5px 0 0 var(--line);
+}
+.nt-history-main {
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-8) var(--space-16);
+}
+.nt-diff-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 420 14px / 22px var(--font-sans);
+  color: var(--ink);
+}
+.nt-diff-text del {
+  text-decoration-thickness: 1.5px;
+}
+.nt-diff .nt-diff-head .nt-ico {
+  color: var(--ink-3);
+}
+.nt-diff-legend {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+  font: 450 12px / 16px var(--font-sans);
+}
+
+/* ───────── Settings ───────── */
+.nt-settings {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  container: settings / inline-size;
+}
+.nt-settings-nav {
+  width: 200px;
+  padding: var(--space-3) var(--space-2) var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  box-shadow: inset -0.5px 0 0 var(--line);
+}
+.nt-settings-body {
+  overflow-y: auto;
+  position: relative;
+  /* Short pages have no scrollbar; reserving its gutter stops the page shifting sideways. */
+  scrollbar-gutter: stable;
+}
+.nt-settings-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8) var(--space-16);
+}
+.nt-settings-head {
+  margin-bottom: var(--space-6);
+}
+.nt-settings-head h1 {
+  margin: 0;
+  color: var(--ink);
+}
+.nt-settings-head p {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-2);
+}
+.nt-settings-group {
+  margin: 0 0 var(--space-6);
+}
+.nt-settings-group-title {
+  margin: 0 0 var(--space-2) var(--space-1);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-settings-card {
+  overflow: hidden;
+}
+.nt-settings-row {
+  padding: var(--space-3) var(--space-4);
+}
+.nt-settings-row + .nt-settings-row {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.nt-settings-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-control);
+}
+.nt-settings-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-settings-label {
+  font: 550 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-settings-desc {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.nt-settings-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nt-settings-foot {
+  margin: var(--space-2) var(--space-1) 0;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+/* Narrow windows: the page list keeps only its icons (labels stay for screen readers and
+   tooltips) and the page gutter tightens, so rows keep their controls beside the text. */
+@container settings (max-width: 720px) {
+  .nt-settings-nav {
+    width: calc(var(--size-control) + var(--space-6));
+    padding: var(--space-3) var(--space-2) var(--space-4);
+  }
+  .nt-settings-nav .nt-row {
+    justify-content: center;
+  }
+  .nt-settings-nav .nt-row-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .nt-settings-nav .nt-settings-nav-label {
+    height: 1px;
+    margin: var(--space-2) var(--space-1);
+    padding: 0;
+    overflow: hidden;
+    color: transparent;
+    box-shadow: inset 0 0.5px 0 var(--line);
+  }
+  .nt-settings-page {
+    padding: var(--space-5) var(--space-5) var(--space-12);
+  }
+}
+@container settings (max-width: 480px) {
+  .nt-settings-page {
+    padding: var(--space-4) var(--space-3) var(--space-12);
+  }
+  .nt-settings-row {
+    padding: var(--space-3);
+  }
+}
+.nt-swatches {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.nt-settings-row > .nt-swatches {
+  margin-top: var(--space-2);
+}
+.nt-kbd-capture {
+  min-width: 120px;
+  justify-content: center;
+}
+.nt-kbd-capture[data-capturing] {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-text),
+    0 0 0 3px var(--accent-soft);
+  background: var(--bg-raised);
+}
+.nt-conflict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--warning-soft);
+  color: var(--warning);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-conflict .nt-btn {
+  margin-left: auto;
+}
+
+/* ───────── Command palette (cmdk) ───────── */
+.nt-palette {
+  display: flex;
+  flex-direction: column;
+}
+.nt-palette [cmdk-root] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.nt-palette-input input {
+  cursor: text;
+}
+.nt-palette-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: min(420px, calc(100vh - 260px));
+  scroll-padding: var(--space-2) 0;
+}
+.nt-palette-grp [cmdk-group-heading] {
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+.nt-palette-grp[hidden] {
+  display: none;
+}
+.nt-prow {
+  isolation: isolate;
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+.nt-prow-hl {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--fill-press);
+}
+/* The palette's icons never take the accent: selected ones use Graphite, the monochrome preset. */
+.nt-prow[data-selected="true"] .lucide {
+  color: var(--preset-graphite);
+}
+.nt-prow-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-prow-label b {
+  font-weight: 650;
+}
+.nt-prow-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-prow-sub {
+  display: block;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-prow-tall {
+  height: 48px;
+}
+.nt-palette-empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.nt-palette-note {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+.nt-palette-phrase {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.08em;
+  color: var(--ink);
+}
+
+/* ───────── Cheat sheet ───────── */
+.nt-cheats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-2) var(--space-5) var(--space-5);
+  overflow-y: auto;
+}
+.nt-cheats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+.nt-cheats-head h2 {
+  margin: 0;
+  font: 620 17px / 24px var(--font-sans);
+  letter-spacing: -0.012em;
+}
+.nt-cheat-group h3 {
+  margin: var(--space-3) 0 var(--space-1);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-cheat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: 30px;
+  font-size: 13px;
+  color: var(--ink-2);
+  box-shadow: inset 0 -0.5px 0 var(--line);
+}
+
+/* ───────── Assistant placeholder ───────── */
+.nt-assistant {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.nt-assistant-head {
+  gap: var(--space-1);
+}
+.nt-assistant-head strong {
+  font: 600 15px / 20px var(--font-sans);
+  margin-right: auto;
+  padding-left: var(--space-1);
+}
+.nt-assistant-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1) var(--space-1) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.nt-context-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  padding: 0 var(--space-1) var(--space-2);
+}
+.nt-chip-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-swatch,
+  .nt-note ul[data-type="taskList"] > li > label > input {
+    transition-duration: var(--dur-fast) !important;
+    transition-timing-function: linear !important;
+  }
+  .nt-spinner {
+    animation: nt-spin 1.4s linear infinite !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ───────── Dynamic Island window (placeholder) ───────── */
+:root[data-window="island"],
+:root[data-window="island"] body {
+  background: transparent;
+}
+.nt-island-host {
+  height: 100%;
+  display: grid;
+  place-items: start center;
+}
+.nt-island-compact {
+  justify-content: center;
+}
+
+/* ───────── Note view extras ───────── */
+.nt-note-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.nt-crumb-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+.nt-band-title {
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--ink);
+}
+.nt-findbar-wrap {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-4);
+  z-index: var(--z-capsule);
+  transform-origin: top right;
+}
+.nt-findbar-wrap .nt-findbar {
+  position: static;
+}
+.nt-version-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+.nt-version-title .nt-ico {
+  color: var(--ink-3);
+}
+.nt-diff-foot-note {
+  margin-right: auto;
+  font-size: 12px;
+}
+.nt-skel-gap {
+  height: var(--space-6);
+}
+.nt-editor {
+  display: block;
+}
+.nt-stream-new {
+  animation: nt-word-in var(--dur-slow) var(--ease-out) both;
+  background: var(--accent-soft);
+  border-radius: 3px;
+}
+.nt-ai-settle {
+  animation: nt-settle 2s var(--ease-out) both;
+  border-radius: 3px;
+}
+@keyframes nt-settle {
+  from {
+    background-color: var(--accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.nt-empty-page {
+  padding-top: 14vh;
+}
+.nt-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  margin-top: var(--space-2);
+}
+.nt-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.nt-font-sample {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink);
+  font: 420 15px / 24px var(--font-sans);
+}
+.nt-font-sample[data-font="serif"] {
+  font: 400 17px / 27px var(--font-serif);
+}
+.nt-font-sample[data-font="mono"] {
+  font: 400 14px / 22px var(--font-mono);
+}
+.nt-palette-dialog {
+  width: min(640px, 100%);
+}
+.nt-cheatsheet {
+  width: min(720px, 100%);
+}
+.nt-field .nt-iconbtn {
+  margin-right: calc(var(--space-1) * -1);
+}
+@supports (corner-shape: squircle) {
+  .nt-note ul[data-type="taskList"] > li > label > input,
+  .nt-list-item,
+  .nt-search-hit,
+  .nt-findbar,
+  .nt-settings-card {
+    corner-shape: squircle;
+  }
+}
+/* Panel scrollbars appear only while the pointer is over them. */
+.nt-sidebar-scroll::-webkit-scrollbar-thumb,
+.nt-settings-nav::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+.nt-sidebar-scroll:hover::-webkit-scrollbar-thumb,
+.nt-settings-nav:hover::-webkit-scrollbar-thumb {
+  background-color: var(--fill-press);
+}
+.nt-sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.nt-band-grid {
+  column-gap: var(--space-3);
+}
+.nt-crumb > span {
+  flex: none;
+}
+.nt-crumb > .nt-crumb-current {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.nt-crumb-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.nt-settings-row-main {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+/* A row's control only drops under its text once the text would be squeezed below this. */
+.nt-settings-text {
+  flex: 1 1 160px;
+}
+/* Text surfaces show their own focus treatment (caret, field halo), not the ring. */
+.nt-title-input:focus-visible,
+.nt-note .ProseMirror:focus-visible,
+.nt-field input:focus-visible,
+.nt-findbar input:focus-visible,
+.nt-palette-input input:focus-visible,
+.nt-row-label input:focus-visible {
+  box-shadow: none;
+}
+.nt-crash {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-canvas);
+}
+/* WebKit gives inputs an intrinsic width that can push trailing buttons out of a field. */
+.nt-field input {
+  width: 0;
+  flex: 1 1 0;
+}
+.nt-field {
+  min-width: 0;
+}
+
+/* ═════════════════════════ Phase 2 ═════════════════════════ */
+
+/* ───────── Recorder capsule ───────── */
+.nt-capsule-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--space-6);
+  z-index: var(--z-capsule);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.nt-capsule-dock > * {
+  pointer-events: auto;
+}
+.nt-capsule-app {
+  position: relative;
+  overflow: hidden;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  transition: none;
+}
+.nt-capsule-content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+  white-space: nowrap;
+}
+.nt-capsule-app-idle {
+  padding: 0;
+}
+.nt-capsule-start {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font: 550 14px / 1 var(--font-sans);
+  color: var(--ink);
+}
+.nt-capsule-start:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-capsule-start .nt-kbd-group {
+  margin-left: var(--space-1-5);
+}
+.nt-capsule-start:active {
+  transform: scale(0.97);
+  transition: transform var(--dur-instant) var(--ease-out);
+}
+.nt-capsule-label {
+  font: 550 14px / 1 var(--font-sans);
+  color: var(--ink);
+  padding-right: var(--space-3);
+}
+.nt-capsule-hint {
+  font: 450 13px / 1 var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-timer {
+  font-size: 13px;
+  min-width: 44px;
+}
+.nt-capsule-live .nt-wave {
+  color: var(--ink);
+}
+.nt-capsule .nt-btn-sm {
+  border-radius: var(--radius-pill);
+}
+/* Stop: the white square shrinks away as a drawn tick takes its place. */
+.nt-stop-app {
+  position: relative;
+  flex: none;
+}
+.nt-stop-app::before {
+  transition:
+    transform var(--spring-snappy-dur) var(--spring-snappy),
+    opacity var(--dur-fast) var(--ease-out);
+}
+.nt-stop-check {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  transition: stroke-dashoffset var(--dur-base) var(--ease-out);
+}
+.nt-stop-done,
+.nt-stop-done:hover {
+  background: var(--fill-press);
+  color: var(--ink);
+  transform: none;
+  box-shadow: none;
+  cursor: default;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+.nt-stop-done::before {
+  transform: scale(0);
+  opacity: 0;
+}
+.nt-stop-done .nt-stop-check {
+  stroke-dashoffset: 0;
+  transition-delay: 80ms;
+}
+.nt-stop:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-stop-lg {
+  width: 34px;
+  height: 34px;
+}
+.nt-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 450 13px / 1 var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-countdown .nt-ring {
+  width: 22px;
+  height: 22px;
+}
+.nt-countdown .nt-ring svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ───────── Dynamic Island window ───────── */
+.nt-island-app {
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+.nt-island-app:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--rec),
+    0 8px 24px -8px rgb(0 0 0 / 0.5);
+}
+.nt-island-app .nt-island-compact {
+  justify-content: flex-start;
+}
+.nt-island-app .nt-mono {
+  font-variant-numeric: tabular-nums;
+}
+.nt-island-title {
+  font: 600 14px / 18px var(--font-sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-island-status {
+  font: 450 12px / 16px var(--font-mono);
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+.nt-island-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-island-btn {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #f5f3f1;
+  background: rgb(255 255 255 / 0.12);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-island-btn:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+.nt-island-btn:active {
+  transform: scale(0.92);
+}
+.nt-island-btn:focus-visible,
+.nt-island-app .nt-stop:focus-visible {
+  box-shadow: 0 0 0 2px #f5f3f1;
+}
+.nt-island-host {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+:root[data-window="island"] .nt-island-host[data-preview] {
+  padding-top: var(--space-6);
+}
+
+/* ───────── Playback ───────── */
+.nt-playback {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: var(--space-1);
+}
+.nt-playback .nt-play {
+  margin: 0 var(--space-0-5);
+  width: 32px;
+  height: 32px;
+}
+.nt-play-glyph {
+  transform: translateX(1px);
+}
+.nt-playback-time {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 0 var(--space-2) 0 var(--space-1);
+  min-width: 92px;
+}
+.nt-scrub {
+  position: relative;
+  width: 160px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  border-radius: var(--radius-sm);
+}
+.nt-scrub::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-press);
+}
+.nt-scrub-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--p));
+}
+.nt-scrub-knob {
+  position: absolute;
+  left: calc(var(--p) * 100%);
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  box-shadow:
+    var(--shadow-xs),
+    0 0 0 0.5px var(--line-strong);
+  transform: scale(0.6);
+  opacity: 0;
+  transition:
+    transform var(--spring-snappy-dur) var(--spring-snappy),
+    opacity var(--dur-fast) var(--ease-out);
+}
+.nt-scrub:hover .nt-scrub-knob,
+.nt-scrub:focus-visible .nt-scrub-knob,
+.nt-scrub[data-scrubbing] .nt-scrub-knob {
+  transform: scale(1);
+  opacity: 1;
+}
+.nt-scrub:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-speed {
+  background: transparent;
+  min-width: 40px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────── Composer ───────── */
+/* One row: [leading] field [send]. Controls sit on the field's last line; a single line centres on
+   the 28px Send because the field's 20px line has 4px of margin above and below. */
+.nt-composer-app {
+  flex: none;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-sm);
+  isolation: isolate;
+}
+.nt-composer-app textarea {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  min-height: 20px;
+  max-height: 160px;
+  margin: var(--space-1) 0;
+  overflow-y: auto;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.nt-composer-app textarea:focus-visible {
+  box-shadow: none;
+}
+.nt-composer-app textarea:disabled {
+  opacity: 0.6;
+}
+.nt-composer-lead {
+  flex: none;
+  display: inline-flex;
+  margin-left: calc(var(--space-1) * -1);
+}
+.nt-send-slot {
+  flex: none;
+  display: inline-grid;
+}
+.nt-send-slot .nt-send {
+  margin-left: 0;
+}
+
+.nt-send:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-send-stop,
+.nt-send-stop:hover {
+  background: var(--ink);
+  color: var(--bg-canvas);
+}
+.nt-send-square {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+/* ───────── Thread ───────── */
+.nt-ai-app {
+  font: 430 14px / 21px var(--font-sans);
+  overflow-wrap: anywhere;
+}
+.nt-bubble {
+  font: 430 14px / 20px var(--font-sans);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.nt-step button[disabled] {
+  cursor: default;
+}
+.nt-step button:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-step-details {
+  margin: 0 0 var(--space-2) 22px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  font: 400 12px / 18px var(--font-mono);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.nt-step-failed .nt-step {
+  color: var(--danger);
+}
+.nt-thread-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-thread-notice .nt-ico {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ink-3);
+}
+.nt-thread-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.nt-thread-notice-body p {
+  margin: 0;
+  text-wrap: pretty;
+}
+.nt-thread-notice-action {
+  display: flex;
+  align-items: center;
+}
+.nt-thread-notice-action .nt-cite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+/* Danger: a tinted card with readable ink; only the icon carries the red. */
+.nt-thread-notice-danger {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--ink);
+}
+.nt-thread-notice-danger .nt-ico {
+  color: var(--danger);
+}
+
+/* Markdown in replies */
+.nt-md > * {
+  margin: 0 0 var(--space-2);
+}
+.nt-md > :last-child {
+  margin-bottom: 0;
+}
+.nt-md .nt-md-h {
+  font: 600 14px / 20px var(--font-sans);
+  margin-top: var(--space-3);
+}
+.nt-md ul,
+.nt-md ol {
+  padding-left: 20px;
+}
+.nt-md ul {
+  list-style: disc;
+}
+.nt-md ol {
+  list-style: decimal;
+}
+.nt-md li + li {
+  margin-top: 2px;
+}
+.nt-md li::marker {
+  color: var(--ink-3);
+}
+.nt-md ul.nt-md-tasks {
+  list-style: none;
+  padding-left: 0;
+}
+.nt-md-task {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.nt-md-box,
+.nt-pd-box {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  margin-top: 4px;
+  /* A small square that stays square: the checkbox radius scaled to a 13px box. */
+  border-radius: calc(var(--radius-xs) * 0.6);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--bg-raised);
+}
+.nt-md-done .nt-md-box,
+.nt-pd-box-done {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.nt-md-done > span:last-child {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.nt-md code {
+  font: 400 12.5px / 18px var(--font-mono);
+  background: var(--bg-sunken);
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+}
+.nt-md-pre {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  overflow-x: auto;
+}
+.nt-md-pre code {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.nt-md blockquote {
+  padding-left: var(--space-3);
+  color: var(--ink-2);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+.nt-md hr {
+  border: 0;
+  height: 0.5px;
+  background: var(--line-strong);
+}
+.nt-md-table {
+  display: grid;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.nt-md-link,
+.nt-cite {
+  all: unset;
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--accent-text) 40%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: text-decoration-color var(--dur-fast) var(--ease-out);
+}
+.nt-md-link:hover,
+.nt-cite:hover {
+  text-decoration-color: var(--accent-text);
+}
+.nt-md-link:focus-visible,
+.nt-cite:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-cite {
+  font-size: 13px;
+}
+
+/* ───────── Popover, select, forms ───────── */
+.nt-popover {
+  min-width: 260px;
+  max-width: 320px;
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+.nt-popover[data-state="closed"] {
+  animation: nt-pop-out var(--dur-fast) var(--ease-in) both;
+}
+.nt-popover-title {
+  padding: var(--space-1) var(--space-1) var(--space-1-5);
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--ink);
+}
+.nt-popover .nt-menu-heading {
+  padding-left: var(--space-1);
+}
+.nt-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1-5);
+  padding-top: var(--space-1);
+}
+.nt-select {
+  gap: var(--space-1-5);
+  max-width: 280px;
+  justify-content: space-between;
+}
+.nt-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.nt-select-item {
+  height: auto;
+  min-height: 30px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.nt-select-check {
+  width: 16px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+}
+.nt-select-check .nt-ico {
+  color: var(--accent-text);
+}
+.nt-select-hint {
+  display: block;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  white-space: normal;
+}
+.nt-textarea {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--bg-sunken);
+  color: var(--ink);
+  font: 430 14px / 20px var(--font-sans);
+  resize: vertical;
+  outline: none;
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  transition:
+    box-shadow var(--dur-base) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.nt-textarea:hover {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.nt-textarea:focus,
+.nt-textarea:focus-visible {
+  background: var(--bg-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-text),
+    0 0 0 3px var(--accent-soft);
+}
+.nt-textarea::placeholder {
+  color: var(--ink-4);
+}
+.nt-form-field {
+  display: grid;
+  gap: var(--space-1-5);
+}
+.nt-form-label {
+  font: 550 13px / 18px var(--font-sans);
+  color: var(--ink);
+}
+.nt-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+.nt-form-row .nt-field-wrap {
+  width: 88px;
+}
+.nt-form-inline-label {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+
+/* ───────── Status, progress, steps ───────── */
+.nt-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-block;
+}
+.nt-status-success {
+  background: var(--success);
+}
+.nt-status-warning {
+  background: var(--warning);
+}
+.nt-status-danger {
+  background: var(--danger);
+}
+.nt-status-neutral {
+  background: var(--ink-4);
+}
+.nt-status-running {
+  background: var(--accent-text);
+  animation: nt-breathe 1.6s var(--ease-in-out) infinite;
+}
+.nt-progress {
+  position: relative;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  overflow: hidden;
+}
+.nt-progress > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--p));
+  transition: transform 250ms linear;
+}
+.nt-progress-indeterminate > span {
+  animation: nt-indeterminate 1.4s linear infinite;
+}
+@keyframes nt-indeterminate {
+  from {
+    transform: translateX(-100%) scaleX(0.3);
+  }
+  to {
+    transform: translateX(100%) scaleX(0.3);
+  }
+}
+.nt-steps {
+  display: flex;
+  gap: var(--space-1-5);
+  align-items: center;
+}
+.nt-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fill-press);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  transition:
+    transform var(--spring-bouncy-dur) var(--spring-bouncy),
+    background-color var(--dur-base) var(--ease-out);
+}
+.nt-step-dot-done {
+  background: var(--ink-3);
+}
+.nt-step-dot-current {
+  background: var(--accent-text);
+  transform: scale(1.35);
+}
+
+/* ───────── Transcript ───────── */
+.nt-utt-app {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+.nt-utt-app .nt-utt-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nt-utt-app:hover {
+  background: transparent;
+}
+.nt-utt-hit {
+  animation: nt-settle 2.4s var(--ease-out) both;
+}
+.nt-utt-head {
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+.nt-speaker-btn {
+  all: unset;
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 0 var(--space-1);
+  margin: 0 calc(var(--space-1) * -1);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-speaker-btn:hover,
+.nt-speaker-btn[data-state="open"] {
+  background: var(--fill-hover);
+}
+.nt-speaker-btn:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-time-btn {
+  all: unset;
+  font: 450 12px / 16px var(--font-mono);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-time-btn:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.nt-time-btn:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-seg-text {
+  border-radius: 3px;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    color var(--dur-slow) var(--ease-out);
+}
+.nt-seg-seek {
+  cursor: pointer;
+}
+.nt-seg-seek:hover {
+  background: var(--fill-hover);
+  box-shadow: 0 0 0 2px var(--fill-hover);
+}
+.nt-seg-playing,
+.nt-seg-playing:hover {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.nt-transcript {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-transcript-scroll {
+  scroll-padding-bottom: 120px;
+}
+.nt-transcript-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-4);
+}
+.nt-transcript-list {
+  position: relative;
+  width: 100%;
+}
+.nt-transcript-list > [data-index] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+.nt-transcript-page {
+  padding-bottom: 140px;
+}
+.nt-jump-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 84px;
+  z-index: var(--z-capsule);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.nt-jump {
+  pointer-events: auto;
+  border-radius: var(--radius-pill);
+}
+.nt-inline-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1) 0 var(--space-2);
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 550 12px / 16px var(--font-sans);
+}
+.nt-inline-prompt .nt-btn {
+  height: 18px;
+  padding: 0 var(--space-1-5);
+  font-size: 12px;
+  border-radius: var(--radius-pill);
+  color: var(--accent-text);
+}
+.nt-inline-prompt .nt-btn:hover {
+  background: color-mix(in oklab, var(--accent-text) 12%, transparent);
+  color: var(--accent-text);
+}
+.nt-name-chip {
+  height: 20px;
+}
+.nt-person-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ───────── Prose diff (cards and history) ───────── */
+.nt-pd {
+  display: grid;
+  gap: 3px;
+  font: 420 14px / 22px var(--font-sans);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.nt-pd-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  min-width: 0;
+}
+.nt-pd-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+.nt-pd-heading {
+  font-weight: 620;
+  margin-top: var(--space-2);
+}
+.nt-pd-heading:first-child {
+  margin-top: 0;
+}
+.nt-pd-h1 {
+  font-size: 17px;
+  line-height: 24px;
+}
+.nt-pd-h2 {
+  font-size: 16px;
+  line-height: 24px;
+}
+.nt-pd-marker {
+  width: 14px;
+  flex: none;
+  color: var(--ink-3);
+  text-align: center;
+}
+.nt-pd-quote .nt-pd-text {
+  color: var(--ink-2);
+  padding-left: var(--space-3);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+.nt-pd-code .nt-pd-text,
+.nt-pd-table .nt-pd-text {
+  font: 400 13px / 20px var(--font-mono);
+}
+.nt-pd-row hr {
+  flex: 1;
+  border: 0;
+  height: 0.5px;
+  background: var(--line-strong);
+  margin: var(--space-2) 0;
+}
+.nt-pd-same {
+  color: var(--ink-3);
+}
+.nt-pd-same .nt-pd-box {
+  opacity: 0.6;
+}
+.nt-pd ins {
+  text-decoration: none;
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1.5px var(--accent-soft);
+}
+.nt-pd del {
+  color: var(--danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background: var(--danger-soft);
+  border-radius: 3px;
+}
+.nt-diff[data-state="resolved"] {
+  opacity: 0.72;
+}
+.nt-diff[data-state="resolved"] .nt-diff-foot {
+  background: transparent;
+}
+.nt-capsule-source {
+  background: transparent;
+}
+.nt-consent-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  margin-bottom: var(--space-3);
+}
+.nt-consent-body p {
+  margin: 0 0 var(--space-3);
+}
+.nt-consent-body p:last-child {
+  margin-bottom: var(--space-5);
+}
+.nt-popover button.nt-menu-item {
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: default;
+}
+.nt-popover button.nt-menu-item:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.nt-popover-list {
+  display: grid;
+  gap: 1px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.nt-accent-ico {
+  color: var(--accent-text);
+  margin-left: auto;
+}
+.nt-capsule-playback {
+  padding: 0 var(--space-1);
+}
+.nt-menu-item .nt-accent-ico {
+  color: var(--accent-text);
+}
+.nt-field .nt-findbar-count {
+  margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* ───────── Proposal cards ───────── */
+.nt-proposal .nt-diff-head {
+  min-width: 0;
+}
+.nt-proposal-subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-proposal-count {
+  margin-left: auto;
+  flex: none;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.nt-proposal .nt-diff-body {
+  display: grid;
+  gap: var(--space-2);
+}
+.nt-proposal .nt-diff-foot {
+  flex-wrap: wrap;
+}
+.nt-proposal-reason,
+.nt-proposal-note-line {
+  margin: 0;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-proposal-reason {
+  color: var(--ink-3);
+}
+.nt-proposal-warn {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--warning-soft);
+  color: var(--warning);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-proposal-warn .nt-ico {
+  margin-top: 1px;
+}
+.nt-hunks {
+  display: grid;
+  gap: var(--space-3);
+}
+.nt-hunk {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-hunk > .nt-check {
+  margin-top: 4px;
+}
+.nt-hunk[data-off] {
+  opacity: 0.45;
+}
+.nt-hunk-body {
+  flex: 1;
+  min-width: 0;
+}
+.nt-hunk-section {
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: var(--space-1);
+}
+.nt-proposal-rename {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font: 550 14px / 22px var(--font-sans);
+}
+.nt-proposal-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+.nt-proposal-note {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  font: 500 13px / 18px var(--font-sans);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-proposal-note > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-proposal-note .nt-ico {
+  color: var(--ink-3);
+}
+.nt-proposal-note:hover {
+  background: var(--fill-hover);
+}
+.nt-proposal-note:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-proposal-preview {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  font: 420 13px / 20px var(--font-sans);
+}
+.nt-proposal-preview-title {
+  font: 620 14px / 20px var(--font-sans);
+  margin-bottom: var(--space-1-5);
+}
+.nt-proposal-done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-proposal-done .nt-ico {
+  color: var(--ink-3);
+}
+.nt-proposal-skel {
+  height: 120px;
+  border-radius: calc(var(--radius-lg) * var(--sq));
+}
+@supports (corner-shape: squircle) {
+  .nt-proposal-warn,
+  .nt-proposal-preview,
+  .nt-proposal-note,
+  .nt-textarea {
+    corner-shape: squircle;
+  }
+}
+
+/* ───────── Assistant panel ───────── */
+.nt-assistant-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-context-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-context-line .nt-ico {
+  flex: none;
+}
+.nt-assistant-scroll {
+  justify-content: flex-start;
+  overscroll-behavior: contain;
+}
+.nt-assistant-scroll > .nt-thread {
+  margin-top: auto;
+}
+.nt-thread > * {
+  min-width: 0;
+}
+.nt-msg-user {
+  display: flex;
+  justify-content: flex-end;
+}
+.nt-msg-pending {
+  opacity: 0.7;
+}
+.nt-thread-menu {
+  width: 300px;
+}
+.nt-thread-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.nt-thread-item > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-thread-item > span:last-child {
+  flex: none;
+  font-size: 12px;
+}
+.nt-assistant-empty {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-2);
+}
+.nt-assistant-empty-title {
+  margin: 0;
+  font: 620 17px / 24px var(--font-sans);
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.nt-assistant-empty-text {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-2);
+  font: 450 13px / 19px var(--font-sans);
+}
+.nt-prompt-chip {
+  height: auto;
+  min-height: 28px;
+  padding: var(--space-1) var(--space-3);
+  white-space: normal;
+  text-align: left;
+  font-size: 13px;
+  line-height: 18px;
+}
+.nt-chip-skel {
+  width: 160px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+}
+.nt-chip-skel:nth-child(2) {
+  width: 200px;
+}
+.nt-chip-skel:nth-child(3) {
+  width: 130px;
+}
+.nt-assistant .nt-empty {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+/* ───────── Conversation list (no conversation open) ───────── */
+.nt-conv-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) 0 var(--space-3);
+}
+.nt-conv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nt-conv-caption {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-2);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-conv-row {
+  position: relative;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-conv-row:hover {
+  background: var(--fill-hover);
+}
+.nt-conv-open {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) 40px var(--space-2) var(--space-2);
+  border-radius: inherit;
+  cursor: default;
+}
+.nt-conv-open:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-conv-title {
+  font: 500 14px / 20px var(--font-sans);
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-conv-meta {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-conv-row-inline .nt-conv-open {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-block: var(--space-1-5);
+}
+.nt-conv-row-inline .nt-conv-title {
+  flex: 1;
+}
+.nt-conv-row-inline .nt-conv-meta {
+  flex: none;
+}
+.nt-conv-delete {
+  position: absolute;
+  right: var(--space-1-5);
+  top: 50%;
+  translate: 0 -50%;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-conv-row:hover .nt-conv-delete,
+.nt-conv-row:focus-within .nt-conv-delete {
+  opacity: 1;
+}
+.nt-conv-delete:hover {
+  color: var(--danger);
+}
+.nt-conv-footnote {
+  margin: 0;
+  padding: var(--space-1) var(--space-2) 0;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+/* The swapping area between the header and the composer (list ⇄ conversation). */
+.nt-assistant-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-assistant-bar .nt-assistant-view {
+  flex: none;
+}
+/* Retention line under the composer, in every state. */
+.nt-assistant > .nt-conv-footnote {
+  padding: var(--space-2) var(--space-2) 0;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+}
+.nt-conv-footnote .nt-cite {
+  font: inherit;
+}
+/* No conversation open: the list scrolls above; the intro stays just above the composer. */
+.nt-assistant-home-intro {
+  flex: none;
+  padding: var(--space-3) var(--space-1);
+}
+.nt-assistant-bar .nt-conv-list {
+  flex: none;
+  max-height: 260px;
+  gap: 2px;
+  padding: var(--space-1) 0 var(--space-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-conv-delete {
+    transition: none;
+  }
+}
+
+/* ───────── Lists in pages (activity, people, tasks) ───────── */
+.nt-virtual {
+  position: relative;
+  width: 100%;
+}
+.nt-virtual > [data-index] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+.nt-list-more {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  color: var(--ink-3);
+}
+.nt-dialog-wide {
+  width: min(560px, 100%);
+}
+.nt-dialog-wide .nt-diff {
+  margin-top: var(--space-3);
+}
+.nt-activity-row {
+  border-radius: calc(var(--radius-md) * var(--sq));
+  transition: background-color var(--dur-fast) var(--ease-out);
+  margin-bottom: 1px;
+}
+.nt-activity-row:hover,
+.nt-activity-row[data-open] {
+  background: var(--fill-hover);
+}
+.nt-activity-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+}
+.nt-activity-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--fill-press);
+  color: var(--ink-2);
+}
+.nt-activity-toggle {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  cursor: pointer;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-activity-toggle:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-activity-toggle .nt-chevron {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-activity-row:hover .nt-chevron,
+.nt-activity-toggle:focus-visible .nt-chevron,
+.nt-activity-toggle[aria-expanded="true"] .nt-chevron {
+  opacity: 1;
+}
+.nt-activity-toggle[aria-expanded="true"] .nt-chevron {
+  transform: rotate(90deg);
+}
+.nt-activity-summary {
+  font: 550 14px / 20px var(--font-sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-activity-meta {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-activity-tags {
+  display: flex;
+  gap: var(--space-1);
+  flex: none;
+}
+.nt-tier-chip {
+  background: transparent;
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
+.nt-activity-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: none;
+  min-width: 0;
+}
+.nt-activity-args {
+  margin: 0 var(--space-3) var(--space-3) 52px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  font: 400 12px / 18px var(--font-mono);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.nt-person-row .nt-list-title {
+  overflow: visible;
+}
+.nt-person-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.nt-person-label {
+  display: grid;
+  min-width: 0;
+}
+.nt-person-label > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-person-rename {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  height: var(--size-control-sm);
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-text),
+    0 0 0 3px var(--accent-soft);
+}
+.nt-person-rename input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font: 550 14px / 20px var(--font-sans);
+  color: var(--ink);
+  cursor: text;
+}
+.nt-color-pop {
+  min-width: 0;
+}
+.nt-color-pop .nt-swatches {
+  padding: var(--space-1);
+}
+
+/* ───────── Tasks ───────── */
+.nt-task-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nt-task-item > .nt-list-item {
+  flex: 1;
+  min-width: 0;
+}
+.nt-task-switch {
+  flex: none;
+  padding-right: var(--space-3);
+  display: inline-flex;
+}
+.nt-task-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.nt-task-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-task-row .nt-list-title {
+  overflow: visible;
+}
+.nt-badge-btn {
+  all: unset;
+  display: inline-flex;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-badge-btn:hover {
+  transform: translateY(-1px);
+}
+.nt-badge-btn:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-task-dialog {
+  width: min(560px, 100%);
+}
+.nt-task-dialog .nt-overlay-surface,
+.nt-task-dialog {
+  overflow-y: auto;
+}
+.nt-task-form {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+.nt-task-form .nt-form-row .nt-field-wrap {
+  width: 96px;
+}
+.nt-form-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nt-field-msg-error {
+  color: var(--danger);
+}
+.nt-report-head {
+  margin-bottom: var(--space-4);
+}
+.nt-report-group {
+  margin: var(--space-6) 0 0;
+}
+.nt-report-group .nt-settings-group-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin-bottom: var(--space-1);
+}
+.nt-report-count {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+.nt-report-hint {
+  margin: 0 0 var(--space-3) var(--space-1);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-report-cards {
+  display: grid;
+  gap: var(--space-3);
+}
+.nt-confirm-body p {
+  margin: 0 0 var(--space-3);
+}
+.nt-confirm-list {
+  margin: 0 0 var(--space-5);
+  padding-left: 18px;
+  display: grid;
+  gap: var(--space-1-5);
+  color: var(--ink);
+  font: 450 13px / 19px var(--font-sans);
+}
+
+/* ───────── Settings (phase 2) ───────── */
+.nt-app-chips {
+  margin-top: var(--space-3);
+}
+.nt-app-chip {
+  padding-right: 2px;
+}
+.nt-chip-x {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.nt-chip-x .nt-ico {
+  width: 12px;
+  height: 12px;
+}
+.nt-chip-x:hover {
+  background: var(--line-strong);
+  color: var(--ink);
+}
+.nt-chip-x:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-app-add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.nt-app-add .nt-field-wrap {
+  flex: 1;
+  max-width: 280px;
+}
+.nt-settings-perms {
+  padding: var(--space-3);
+}
+.nt-perm-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.nt-settings-perms .nt-perm {
+  box-shadow: none;
+  background: transparent;
+  padding: var(--space-2) var(--space-1);
+}
+.nt-perm-status {
+  display: inline-flex;
+  flex: none;
+}
+.nt-perm-app {
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+.nt-model-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nt-model-name .nt-chip {
+  height: 20px;
+}
+.nt-model-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.nt-model-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 450 12px / 16px var(--font-sans);
+}
+.nt-model-progress .nt-progress {
+  width: 120px;
+}
+.nt-model-progress .nt-faint {
+  min-width: 34px;
+  text-align: right;
+}
+.nt-setting-field {
+  width: 240px;
+  max-width: 100%;
+}
+.nt-key-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+/* The row's control column sizes to its content, so the field needs a real basis:
+   with an auto width it collapses to the icon and the typed key is hidden. */
+.nt-key-control > .nt-setting-field {
+  flex: 0 1 240px;
+  min-width: 160px;
+}
+.nt-key-ok,
+.nt-key-bad {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1-5);
+}
+.nt-key-ok {
+  color: var(--success);
+}
+.nt-key-bad {
+  color: var(--danger);
+}
+.nt-key-ok .nt-ico,
+.nt-key-bad .nt-ico {
+  margin-top: 1px;
+}
+.nt-confirm-body .nt-policy {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--warning-soft);
+  color: var(--ink);
+}
+.nt-policy .nt-ico {
+  color: var(--warning);
+  margin-top: 2px;
+}
+.nt-confirm-body code {
+  font: 400 13px / 18px var(--font-mono);
+}
+
+/* ───────── Onboarding ───────── */
+.nt-onboarding {
+  width: min(560px, 100%);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  overflow: hidden;
+}
+.nt-dialog.nt-onboarding {
+  display: flex;
+  flex-direction: column;
+}
+.nt-onb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--size-control-sm);
+  margin-bottom: var(--space-4);
+}
+.nt-onb-stage {
+  position: relative;
+  min-height: 360px;
+  display: grid;
+}
+.nt-onb-step {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.nt-onb-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  margin-bottom: var(--space-4);
+}
+.nt-dialog .nt-onb-title {
+  font: 640 22px / 28px var(--font-sans);
+  letter-spacing: -0.017em;
+  margin: 0 0 var(--space-2);
+  text-wrap: balance;
+}
+.nt-onb-body {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+.nt-dialog .nt-onb-lead {
+  margin: 0 0 var(--space-1);
+  color: var(--ink-2);
+  font: 450 14px / 21px var(--font-sans);
+}
+.nt-onb-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+.nt-promises,
+.nt-onb-keys {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.nt-promises li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font: 450 14px / 20px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-promises b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.nt-promises .nt-ico {
+  color: var(--accent-text);
+  margin-top: 2px;
+}
+.nt-onb-keys li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  box-shadow: inset 0 -0.5px 0 var(--line);
+  font: 450 14px / 20px var(--font-sans);
+}
+.nt-onb-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
+.nt-onb-card-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.nt-onb-card .nt-perm-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nt-onb-card .nt-chip {
+  height: 20px;
+}
+.nt-onb-progress {
+  margin-top: var(--space-2);
+}
+.nt-onb-progress .nt-progress {
+  flex: 1;
+  width: auto;
+}
+.nt-dialog .nt-onb-note {
+  margin: 0;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-onb-key {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.nt-onb-key .nt-field-wrap {
+  flex: 1;
+}
+.nt-dialog p.nt-key-ok,
+.nt-dialog p.nt-key-bad {
+  margin: 0;
+  font: 450 13px / 18px var(--font-sans);
+}
+@supports (corner-shape: squircle) {
+  .nt-onb-card,
+  .nt-policy {
+    corner-shape: squircle;
+  }
+}
+.nt-island-time {
+  margin-left: auto;
+}
+.nt-island-dot {
+  width: 10px;
+  height: 10px;
+}
+.nt-island-app .nt-island-full {
+  gap: var(--space-2);
+}
+.nt-island-app .nt-island-full .nt-island-text {
+  margin-right: var(--space-1);
+}
+.nt-island-btn .nt-ico {
+  width: 16px;
+  height: 16px;
+}
+:root[data-window="island"] .nt-island-host[data-preview] {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      60% 70% at 15% 20%,
+      color-mix(in oklab, var(--speaker-1) 60%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 60% at 85% 30%,
+      color-mix(in oklab, var(--accent) 55%, transparent),
+      transparent 70%
+    ),
+    var(--bg-window);
+}
+ol.nt-transcript-list,
+ul.nt-virtual {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nt-perm-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-dialog .nt-field-msg,
+.nt-dialog .nt-form-field p {
+  margin: 0;
+}
+.nt-task-form .nt-form-row .nt-time-field {
+  width: 72px;
+}
+
+/* ───────── Margin as a floating bar (MarginBar) ───────── */
+.nt-marginbar-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--space-16);
+  bottom: var(--space-4);
+  z-index: var(--z-capsule);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.nt-marginbar-dock[hidden] {
+  display: none;
+}
+/* A capsule (playback, the auto-stop countdown) keeps the bottom edge; the bar sits above it. */
+.nt-canvas:has(.nt-capsule-dock) .nt-marginbar-dock {
+  bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
+}
+.nt-marginbar {
+  position: relative;
+  flex: none;
+  pointer-events: auto;
+  box-sizing: border-box;
+  /* clip, not hidden: a hidden box can still be scrolled (focus, the working glow below the
+     composer), which would slide the header out of view. */
+  overflow: clip;
+  border-radius: calc(var(--radius-xl) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 0.5px var(--line-strong),
+    var(--shadow-float);
+}
+/* Both faces stay mounted and cross-fade: the pill's label on top of the resting shape, the
+   open content pinned to the bottom at its final width so the growing shape reveals it. */
+.nt-marginbar-rest {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) 0 var(--space-5);
+  cursor: pointer;
+  font: 450 14px / 20px var(--font-sans);
+  letter-spacing: -0.006em;
+  color: var(--ink-2);
+  white-space: nowrap;
+  border-radius: inherit;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-base) var(--ease-out) var(--dur-fast);
+}
+.nt-marginbar[data-open] .nt-marginbar-rest {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-marginbar-rest:hover {
+  color: var(--ink);
+}
+.nt-marginbar-rest:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-marginbar-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-marginbar-open {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s linear var(--dur-fast);
+}
+.nt-marginbar[data-open] .nt-marginbar-open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--dur-base) var(--ease-out) var(--dur-fast);
+}
+.nt-assistant-bar {
+  padding: 0 var(--space-2) var(--space-2);
+}
+.nt-assistant-bar[data-compact] {
+  gap: var(--space-1);
+}
+.nt-marginbar-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding-left: var(--space-2);
+}
+.nt-marginbar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-1) 0;
+}
+.nt-assistant-bar .nt-assistant-body {
+  padding-inline: var(--space-2);
+}
+/* The bar is already a raised surface: the composer inside it loses its own card. */
+.nt-assistant-bar .nt-composer,
+.nt-assistant-bar .nt-composer:focus-within {
+  background: transparent;
+  box-shadow: none;
+}
+.nt-assistant-bar:not([data-compact]) .nt-composer {
+  box-shadow: inset 0 0.5px 0 var(--line-strong);
+  border-radius: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-marginbar-rest,
+  .nt-marginbar-open,
+  .nt-marginbar[data-open] .nt-marginbar-rest,
+  .nt-marginbar[data-open] .nt-marginbar-open {
+    transition-delay: 0s;
+  }
+}
+
+/* ───────── Sidebar: quiet rows under small headings ───────── */
+/* A group heading (Notes, each category): smaller and fainter than a note, chevron after the name. */
+.nt-row-heading {
+  height: 28px;
+  margin-top: var(--space-3);
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.nt-row-heading:hover {
+  background: transparent;
+  color: var(--ink-2);
+}
+.nt-row-heading.nt-drop-target {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.nt-heading-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+}
+.nt-heading-label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-heading-label .nt-chevron {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: inherit;
+}
+[aria-expanded="true"] .nt-heading-label .nt-chevron {
+  transform: rotate(90deg);
+}
+/* The fold: quick both ways. The content fades with the height so closing reads as a motion,
+   not a disappearance. */
+.nt-sidebar-scroll .nt-collapse {
+  transition:
+    grid-template-rows 200ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+}
+.nt-sidebar-scroll .nt-collapse[data-closed] {
+  transition:
+    grid-template-rows 160ms var(--ease-out),
+    opacity 160ms linear;
+}
+.nt-sidebar-dropzone {
+  margin-bottom: var(--space-1);
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+/* The sidebar's search: a field-shaped button that opens the palette. */
+.nt-sidebar-searchbtn {
+  all: unset;
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-sm);
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-1-5) 0 var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--fill-hover);
+  color: var(--ink-3);
+  font: 450 13px / 18px var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-sidebar-searchbtn > span:first-of-type {
+  flex: 1;
+}
+.nt-sidebar-searchbtn:hover {
+  background: var(--fill-press);
+  color: var(--ink-2);
+}
+.nt-sidebar-searchbtn:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-settings-nav-label {
+  padding: var(--space-4) var(--space-2) var(--space-1);
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+/* Notes: images and coloured code. */
+.nt-note img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-note img.ProseMirror-selectednode {
+  box-shadow: var(--focus);
+}
+.nt-note h5,
+.nt-note h6 {
+  font-size: 14px;
+  line-height: 20px;
+}
+.nt-note h6 {
+  color: var(--ink-2);
+}
+.nt-note pre .hljs-comment,
+.nt-note pre .hljs-quote {
+  color: var(--ink-3);
+  font-style: italic;
+}
+.nt-note pre .hljs-keyword,
+.nt-note pre .hljs-selector-tag,
+.nt-note pre .hljs-built_in,
+.nt-note pre .hljs-meta {
+  color: var(--accent-text);
+}
+.nt-note pre .hljs-string,
+.nt-note pre .hljs-regexp,
+.nt-note pre .hljs-addition {
+  color: var(--speaker-2);
+}
+.nt-note pre .hljs-number,
+.nt-note pre .hljs-literal,
+.nt-note pre .hljs-symbol {
+  color: var(--speaker-5);
+}
+.nt-note pre .hljs-title,
+.nt-note pre .hljs-section,
+.nt-note pre .hljs-name {
+  color: var(--speaker-1);
+}
+.nt-note pre .hljs-attr,
+.nt-note pre .hljs-attribute,
+.nt-note pre .hljs-type,
+.nt-note pre .hljs-variable {
+  color: var(--speaker-4);
+}
+.nt-note pre .hljs-deletion {
+  color: var(--danger);
+}
+/* A note row is its title; the date appears on the row you point at or focus. */
+.nt-note-row .nt-row-meta {
+  display: none;
+}
+.nt-note-row:hover .nt-row-meta,
+.nt-note-row:focus-visible .nt-row-meta {
+  display: inline;
+}
+
+/* ───────── The recording's player in the note's title band (BandPlayer) ───────── */
+.nt-band-slot:empty {
+  display: none;
+}
+.nt-band-slot,
+.nt-band-player {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.nt-band-play {
+  gap: var(--space-1-5);
+  padding: 0 var(--space-2);
+}
+.nt-band-player-time {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.nt-recinfo {
+  width: 340px;
+  max-width: calc(100vw - var(--space-8));
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.nt-recinfo-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-recinfo-list dt {
+  color: var(--ink-3);
+}
+.nt-recinfo-list dd {
+  margin: 0;
+  color: var(--ink);
+}
+.nt-recinfo-speakers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+.nt-recinfo-speakers b {
+  font-weight: 600;
+}
+@container band (max-width: 760px) {
+  .nt-band-player-time {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .nt-band-play {
+    width: var(--size-control-sm);
+    padding: 0;
+  }
+}
+/* ───────── Margin without a model: a notice above the composer ───────── */
+.nt-margin-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-3);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-margin-notice > span {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+}
+.nt-assistant-bar .nt-margin-notice {
+  margin: 0 var(--space-1) var(--space-1);
+}
+
+/* A quiet field: the same look as the sidebar's search, for find-in-place. */
+.nt-field.nt-field-quiet {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-1-5) 0 var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: var(--fill-hover);
+  box-shadow: none;
+  color: var(--ink-3);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-field.nt-field-quiet:hover {
+  background: var(--fill-press);
+  box-shadow: none;
+}
+.nt-field.nt-field-quiet:focus-within {
+  background: var(--fill-press);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
+.nt-field.nt-field-quiet input {
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-field.nt-field-quiet input::placeholder {
+  color: var(--ink-3);
+}
+
+/* ───────── Margin's glow: a band of light along the panel's bottom edge while it works ─────────
+   One fixed electric blue (`--margin-glow`, not the accent), no outline: the text box itself never
+   changes. The light sits in the gap under
+   the composer, so it is never behind words. */
+.nt-assistant {
+  position: relative;
+}
+.nt-assistant > :not(.nt-margin-glow) {
+  position: relative;
+  z-index: 1;
+}
+.nt-margin-glow {
+  position: absolute;
+  z-index: 0;
+  left: 12%;
+  right: 12%;
+  bottom: calc(var(--space-3) * -1);
+  height: var(--space-4);
+  border-radius: 50%;
+  background: var(--margin-glow);
+  filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-assistant[data-working] .nt-margin-glow {
+  opacity: 0.6;
+  animation: nt-margin-glow 2.6s ease-in-out infinite alternate;
+}
+@keyframes nt-margin-glow {
+  from {
+    opacity: 0.25;
+    transform: scaleX(0.7);
+  }
+  to {
+    opacity: 0.7;
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-assistant[data-working] .nt-margin-glow {
+    animation: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nt-margin-glow {
+    display: none;
+  }
+}
+
+/* A receipt: the moment an answer came from, as a small time chip. */
+.nt-receipt {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1-5) 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 500 11px / 16px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-receipt .lucide {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+}
+.nt-receipt:hover {
+  background: color-mix(in oklab, var(--accent) 26%, var(--accent-soft));
+}
+.nt-receipt:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* ───────── Lines Margin kept, under a transcript ───────── */
+.nt-quotes {
+  display: grid;
+  gap: var(--space-5);
+  margin: var(--space-8) 0 var(--space-6);
+  padding-top: var(--space-5);
+  box-shadow: inset 0 0.5px 0 var(--line-strong);
+}
+.nt-quotes-label {
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-quote {
+  all: unset;
+  display: grid;
+  gap: var(--space-1-5);
+  cursor: pointer;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-quote:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-quote-text {
+  font:
+    italic 500 22px / 29px "Playfair Display Variable",
+    var(--font-serif);
+  letter-spacing: -0.004em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.nt-quote:hover .nt-quote-text {
+  color: var(--accent-text);
+}
+.nt-quote-by {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 550 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-quote-by time {
+  font: 450 12px / 16px var(--font-mono);
+  color: var(--ink-3);
+}
+
+/* ───────── Empty screens: one thing to learn, and a line from the week ───────── */
+.nt-empty-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-empty .nt-week-line {
+  display: block;
+  max-width: 28ch;
+  font: italic 500 22px / 30px var(--font-serif);
+  letter-spacing: 0;
+  color: var(--ink);
+  text-wrap: balance;
+}
+/* Home teaches with the keys on a line of their own, under the words. */
+.nt-home .nt-empty-tip {
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.nt-home .nt-empty p {
+  margin: 0;
+}
+
+/* ───────── Home glance: word of the week, overheard, doodle ───────── */
+.nt-glance {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6);
+}
+.nt-glance-stat {
+  font: 450 13px / 18px var(--font-mono);
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+.nt-countup {
+  font-variant-numeric: tabular-nums;
+}
+.nt-outline-word {
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: italic 400 clamp(64px, 11vw, 120px) / 1.05 var(--font-serif);
+  letter-spacing: -0.02em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--ink-2);
+  border-radius: calc(var(--radius-md) * var(--sq));
+}
+.nt-outline-word span {
+  display: inline-block;
+  transition:
+    transform var(--spring-snappy-dur) var(--spring-snappy),
+    color var(--dur-fast) var(--ease-out),
+    -webkit-text-stroke-color var(--dur-fast) var(--ease-out);
+}
+.nt-outline-word span[data-hot] {
+  color: var(--accent);
+  -webkit-text-stroke-color: var(--accent);
+}
+.nt-outline-word:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nt-pullquote {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+}
+.nt-pullquote-text {
+  border: 0;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  cursor: pointer;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  color: var(--ink);
+}
+.nt-pullquote-text:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nt-pullquote blockquote {
+  margin: 0;
+  max-width: 30ch;
+  font: italic 400 26px / 34px var(--font-serif);
+  text-wrap: balance;
+}
+.nt-pullquote blockquote span {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  animation: nt-word-in var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: calc(var(--i) * 40ms);
+}
+@keyframes nt-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.nt-pullquote-text:hover blockquote {
+  color: var(--accent-text);
+}
+.nt-pullquote figcaption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-pullquote figcaption time {
+  font-family: var(--font-mono);
+}
+
+.nt-doodle {
+  position: absolute;
+  inset: 0;
+  color: var(--ink-3);
+}
+.nt-doodle canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.nt-doodle-content {
+  position: relative;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-hourdots-dot,
+  .nt-linelist li {
+    animation: none;
+  }
+  .nt-pullquote blockquote span {
+    animation: none;
+    opacity: 1;
+  }
+  .nt-outline-word span {
+    transition: none;
+  }
+}
+
+/* Home glance: talk share, pace, longest silence */
+.nt-glance-line {
+  margin: 0;
+  max-width: 24ch;
+  font: italic 400 26px / 34px var(--font-serif);
+  color: var(--ink);
+  text-wrap: balance;
+}
+/* A line set upright, for faces whose drawing already carries the emphasis. */
+.nt-glance-line[data-upright] {
+  font-style: normal;
+}
+/* The word a face is about: the punchline, in the face's accent. */
+.nt-glance-line .nt-glance-hot {
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+.nt-glance-line b {
+  font: 620 24px / 34px var(--font-sans);
+  font-style: normal;
+  letter-spacing: -0.015em;
+}
+.nt-glance-eyebrow {
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-glance-caption {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-talkbar {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  width: min(440px, 100%);
+}
+.nt-talkbar-track {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  height: 14px;
+}
+.nt-talkbar-track button {
+  min-width: 4px;
+  padding: 0;
+  border: 0;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--c);
+  transform-origin: left;
+  animation: nt-slice-in var(--spring-gentle-dur) var(--spring-gentle) both;
+  animation-delay: calc(var(--i) * 24ms);
+  cursor: default;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-talkbar-track:hover button:not(:hover) {
+  opacity: 0.45;
+}
+.nt-talkbar-track button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nt-hourdots {
+  width: min(400px, 100%);
+  height: auto;
+  overflow: visible;
+}
+.nt-hourdots-rule {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.nt-hourdots-dot {
+  fill: var(--ink-3);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nt-hourdots-in var(--spring-gentle-dur) var(--spring-gentle) both;
+  animation-delay: calc(min(var(--i), 60) * 10ms);
+}
+.nt-hourdots-dot[data-peak] {
+  fill: var(--accent);
+}
+.nt-hourdots-label,
+.nt-hourdots-peak {
+  font: 450 10.5px var(--font-mono);
+  fill: var(--ink-3);
+}
+.nt-hourdots-peak {
+  font-weight: 500;
+  fill: var(--accent-text);
+}
+@keyframes nt-hourdots-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.nt-linelist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 420px;
+  text-align: left;
+}
+.nt-linelist li {
+  animation: nt-word-in var(--spring-gentle-dur) var(--spring-gentle) both;
+  animation-delay: calc(var(--i) * 80ms);
+}
+.nt-linelist button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: 0;
+  color: inherit;
+}
+.nt-linelist button:hover .nt-linelist-text {
+  color: var(--accent-text);
+}
+.nt-linelist button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+.nt-linelist-text {
+  font: italic 400 19px / 26px var(--font-serif);
+  color: var(--ink);
+  text-wrap: pretty;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-linelist-meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+@keyframes nt-slice-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.nt-talkbar-caption {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.nt-gauge {
+  width: 236px;
+  height: 124px;
+  overflow: visible;
+}
+.nt-gauge-arc {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.nt-gauge-label {
+  font: 500 10px var(--font-mono);
+  fill: var(--ink-3);
+}
+.nt-gauge-last {
+  stroke: var(--ink-4);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.nt-gauge-needle {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transform-origin: 0 0;
+  transition: transform var(--spring-bouncy-dur) var(--spring-bouncy);
+}
+.nt-gauge-hub {
+  fill: var(--accent);
+}
+.nt-pace-number {
+  font: 620 44px / 48px var(--font-sans);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.nt-pace-number small {
+  margin-left: var(--space-2);
+  font: italic 400 19px var(--font-serif);
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+.nt-silence {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+.nt-silence-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nt-silence-wave i {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ink-4);
+}
+.nt-silence-hole {
+  position: relative;
+  width: 120px;
+  height: 1px;
+  margin: 0 var(--space-2);
+  background: var(--accent);
+  transform-origin: center;
+  animation: nt-hole-open var(--spring-gentle-dur) var(--spring-gentle) both;
+}
+.nt-silence-hole b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  padding: 0 var(--space-1-5);
+  background: var(--bg-canvas);
+  font: 600 13px / 18px var(--font-mono);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+@keyframes nt-hole-open {
+  from {
+    transform: scaleX(0.2);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.nt-silence-after {
+  margin: 0;
+  max-width: 40ch;
+  font: 450 14px / 20px var(--font-sans);
+  color: var(--ink-2);
+  text-wrap: balance;
+}
+.nt-silence-after q {
+  font: italic 400 19px / 26px var(--font-serif);
+  color: var(--ink);
+}
+.nt-glance-link {
+  border: 0;
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: none;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.nt-glance-link:hover {
+  background: var(--fill-hover);
+  color: var(--ink);
+}
+.nt-glance-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-talkbar-track button,
+  .nt-silence-hole {
+    animation: none;
+  }
+  .nt-gauge-needle {
+    transition: none;
+  }
+}
+.nt-glance-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--space-5);
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.nt-glance-footer > * {
+  pointer-events: auto;
+}
+.nt-home {
+  display: flex;
+  flex-direction: column;
+  /* Room so the footer never covers the last line of a face. */
+  padding-bottom: var(--space-16);
+}
+/* Home's faces always wear Amber, whatever accent is chosen, so they keep one look. The
+   Settings preview gets the same, so it shows what Home will. */
+.nt-home,
+.nt-scaled-preview-stage {
+  --accent: var(--home-accent);
+  --accent-hover: var(--home-accent-hover);
+  --accent-text: var(--home-accent-text);
+  --accent-soft: var(--home-accent-soft);
+  --on-accent: var(--on-home-accent);
+}
+/* The face (or the welcome) sits in the middle of the page; a tall one simply scrolls. */
+.nt-home > :is(.nt-glance, .nt-empty) {
+  margin-block: auto;
+}
+/* The doodle pad fills the page, so its message centres inside it, with the same footer room. */
+.nt-home > .nt-doodle {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: inherit;
+}
+.nt-home > .nt-doodle > .nt-doodle-content {
+  margin-block: auto;
+}
+/* With Margin as the floating bar, the footer sits just above the resting pill (44px, REST in
+   MarginBar.tsx), wherever the bar rests: on the bottom edge, or above a capsule. */
+.nt-canvas:has(.nt-marginbar-dock:not([hidden])) {
+  --nt-marginbar-rest: 44px;
+  --nt-marginbar-bottom: var(--space-4);
+}
+.nt-canvas:has(.nt-marginbar-dock:not([hidden])):has(.nt-capsule-dock) {
+  --nt-marginbar-bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
+}
+.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-glance-footer {
+  bottom: calc(var(--nt-marginbar-bottom) + var(--nt-marginbar-rest) + var(--space-3));
+}
+.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-home {
+  padding-bottom: calc(var(--space-16) + var(--nt-marginbar-rest) + var(--space-3));
+}
+
+/* ───────── Launch intro (features/shell/intro.ts) ─────────
+   `hold`: the empty page stands alone; the band and floating controls wait unseen.
+   `reveal`: they come in after the panels start to slide, the band from above, the rest from below. */
+/* The opening plays a little slower than everyday motion (LAUNCH_SLOWDOWN in intro.ts): the
+   gentle spring is stretched for everything that starts while the intro runs. */
+.nt-window[data-intro] {
+  --spring-gentle-dur: 910ms;
+}
+.nt-window[data-intro="hold"]
+  :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+  opacity: 0;
+  pointer-events: none;
+}
+.nt-window[data-intro="reveal"] .nt-band-canvas {
+  animation: nt-intro-down var(--spring-gentle-dur) var(--spring-gentle) 120ms both;
+}
+.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+  animation: nt-intro-up var(--spring-gentle-dur) var(--spring-gentle) 280ms both;
+}
+@keyframes nt-intro-down {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+@keyframes nt-intro-up {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No travel: a short crossfade (beats the global 1ms animation cap). */
+  .nt-window[data-intro="reveal"]
+    :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+    /* biome-ignore lint/complexity/noImportantStyles: the global reduced-motion cap is !important too. */
+    animation: nt-fade-in var(--dur-fast) linear both !important;
+  }
+}
+
+/* ───────── Scaled preview: a live miniature of a screen ───────── */
+.nt-scaled-preview {
+  margin: var(--space-3) 0 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.nt-scaled-preview-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
+.nt-scaled-preview-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--preview-scale, 0.5));
+  transform-origin: 0 0;
+  animation: nt-fade-in var(--dur-base) var(--ease-out);
+}
+/* Home's faces sit a fifth of the way down a tall pane; in the miniature they centre. */
+.nt-scaled-preview-stage .nt-glance {
+  padding: 0 var(--space-6);
+}
+.nt-scaled-preview-stage .nt-doodle {
+  display: grid;
+  place-items: center;
+}
+.nt-scaled-preview-stage .nt-empty-tip {
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.nt-scaled-preview figcaption {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-scaled-preview-stage {
+    animation: none;
+  }
+}
+
+/* ───────── Newer Home faces: bars, overtime, decisions, notes, spelling, undo ───────── */
+@keyframes nt-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+.nt-gbars {
+  width: min(400px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.nt-gbar {
+  display: grid;
+  grid-template-columns: 136px 1fr 52px;
+  gap: var(--space-3);
+  align-items: center;
+  text-align: left;
+}
+.nt-gbar-label {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-gbar-serif {
+  font: italic 400 16px / 20px var(--font-serif);
+  color: var(--ink);
+}
+.nt-gbar-track {
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--fill-press);
+  overflow: hidden;
+}
+.nt-gbar-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c);
+  transform-origin: left;
+  transform: scaleX(var(--f));
+  animation: nt-grow-x var(--spring-gentle-dur) var(--spring-gentle) calc(var(--i) * 90ms) both;
+}
+.nt-gbar-n {
+  font: 500 12px / 16px var(--font-mono);
+  color: var(--ink-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nt-overtime {
+  width: min(400px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+.nt-overtime-track {
+  position: relative;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  overflow: hidden;
+}
+.nt-overtime-usual {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink-4);
+}
+.nt-overtime-over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent) 0 5px,
+    color-mix(in oklab, var(--accent) 60%, transparent) 5px 10px
+  );
+  transform-origin: left;
+  animation: nt-grow-x var(--spring-gentle-dur) var(--spring-gentle) 200ms both;
+}
+.nt-overtime-ticks {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font: 450 11px / 14px var(--font-mono);
+  color: var(--ink-3);
+}
+/* The usual mark's label ends at the mark, so it never meets the end label. */
+.nt-overtime-ticks span:nth-child(2) {
+  position: absolute;
+  transform: translateX(-100%);
+  padding-right: var(--space-1);
+  white-space: nowrap;
+}
+
+.nt-decisions {
+  width: min(400px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+.nt-decisions-flag {
+  position: relative;
+  height: 16px;
+  font: 500 11px / 14px var(--font-sans);
+  color: var(--accent-text);
+}
+.nt-decisions-flag span {
+  position: absolute;
+  transform: translateX(min(-50%, calc(-100% + 2px)));
+  white-space: nowrap;
+}
+.nt-decisions-track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+}
+.nt-decisions-mark {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--bg-canvas);
+  rotate: 45deg;
+  animation: nt-pop-in var(--spring-bouncy-dur) var(--spring-bouncy) calc(200ms + var(--i) * 120ms)
+    both;
+}
+@keyframes nt-pop-in {
+  from {
+    scale: 0;
+  }
+}
+.nt-decisions-ticks {
+  display: flex;
+  justify-content: space-between;
+  font: 450 11px / 14px var(--font-mono);
+  color: var(--ink-3);
+}
+
+.nt-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: -0.1em;
+  background: var(--accent);
+  animation: nt-caret-blink 1s steps(1) infinite;
+}
+@keyframes nt-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.nt-bare-note {
+  all: unset;
+  box-sizing: border-box;
+  width: min(300px, 100%);
+  min-height: 116px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 0.5px var(--line-strong),
+    var(--shadow-xs);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+.nt-bare-note:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-bare-note b {
+  font: 650 18px / 22px var(--font-sans);
+  color: var(--ink);
+}
+.nt-bare-note small {
+  margin-top: auto;
+  font: 450 11px / 14px var(--font-mono);
+  color: var(--ink-3);
+}
+
+.nt-misspelt {
+  font: italic 400 38px / 1.15 var(--font-serif);
+  color: var(--ink);
+  text-decoration: underline wavy var(--danger);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 7px;
+}
+
+.nt-splitbar {
+  width: min(400px, 100%);
+  display: flex;
+  height: 30px;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  overflow: hidden;
+  animation: nt-grow-x var(--spring-gentle-dur) var(--spring-gentle) both;
+  transform-origin: left;
+}
+.nt-splitbar span {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  font: 600 12px / 1 var(--font-sans);
+  white-space: nowrap;
+}
+.nt-splitbar-quiet {
+  background: var(--fill-press);
+  color: var(--ink-2);
+}
+.nt-splitbar-loud {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.nt-undone {
+  width: min(380px, 100%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    0 0 0 0.5px var(--line-strong),
+    var(--shadow-xs);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+.nt-undone-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-undone-pill {
+  flex: none;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.nt-undone del {
+  font: 450 13px / 19px var(--font-sans);
+  color: var(--ink-3);
+  text-decoration-color: var(--accent);
+}
+.nt-undone-kept {
+  font: 500 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-caret {
+    animation: none;
+  }
+}
+
+/* ───────── Swear jar (ui/SwearJar.tsx) ─────────
+   The glass, its coins and the label are drawn from tokens; coins wear the Home amber wherever
+   they appear, whatever the accent. */
+.nt-jar {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.nt-jar-glass,
+.nt-jar-neck {
+  fill: color-mix(in oklab, var(--ink) 4%, transparent);
+  stroke: color-mix(in oklab, var(--ink) 24%, transparent);
+  stroke-width: 1.4;
+}
+.nt-jar-lid {
+  fill: var(--ink-3);
+}
+.nt-jar-slot {
+  fill: var(--ink);
+}
+.nt-jar-label {
+  fill: var(--bg-raised);
+  stroke: var(--line-strong);
+  stroke-width: 0.6;
+}
+.nt-jar-count {
+  font: 650 8px var(--font-mono);
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.nt-jar-web {
+  fill: none;
+  stroke: var(--ink-4);
+  stroke-width: 0.5;
+}
+.nt-jar-coin {
+  fill: var(--home-accent);
+  stroke: color-mix(in oklab, var(--home-accent) 70%, var(--ink));
+  stroke-width: 0.7;
+  animation: nt-coin-settle var(--spring-snappy-dur) var(--spring-snappy) both;
+}
+/* Home and Settings: the coins fill in one after another. */
+.nt-jar-fill .nt-jar-coin {
+  animation-delay: calc(min(var(--i), 30) * 18ms);
+}
+@keyframes nt-coin-settle {
+  from {
+    transform: translateY(-24px);
+    opacity: 0;
+  }
+}
+
+/* A pile of coins per person (Who's paying). */
+.nt-coinstack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+}
+.nt-coinstack i {
+  display: block;
+  width: 30px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--home-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--home-accent) 70%, var(--ink));
+  transform: translateX(var(--x));
+  animation: nt-coin-settle var(--spring-snappy-dur) var(--spring-snappy) both;
+  animation-delay: calc(var(--i) * 30ms);
+}
+.nt-coinstack-empty {
+  width: 30px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ink-4);
+}
+
+/* The jar that rises from the canvas corner. Bottom-left keeps it clear of toasts (bottom-right)
+   and the recorder capsule (bottom-centre). */
+.nt-swearjar {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-capsule);
+  width: 64px;
+  pointer-events: none;
+  /* Hidden below the edge and faded, so it is gone even when it rests above the floating bar. */
+  transform: translateY(calc(100% + var(--space-6)));
+  opacity: 0;
+  transition:
+    transform 260ms var(--ease-in),
+    opacity 120ms var(--ease-in) 140ms;
+}
+.nt-swearjar[data-shown="true"] {
+  transform: none;
+  opacity: 1;
+  transition:
+    transform var(--spring-bouncy-dur) var(--spring-bouncy),
+    opacity var(--dur-fast) var(--ease-out);
+}
+.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-swearjar {
+  bottom: calc(var(--nt-marginbar-bottom) + var(--nt-marginbar-rest) + var(--space-3));
+}
+.nt-swearjar-art {
+  transform-origin: 50% 100%;
+}
+.nt-swearjar-label {
+  position: absolute;
+  left: 22.5%;
+  width: 55%;
+  top: 31.5%;
+  height: 15%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font: 650 10px / 1 var(--font-mono);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.nt-swearjar-plus {
+  position: absolute;
+  right: -14px;
+  top: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--home-accent);
+  color: var(--on-home-accent);
+  font: 650 12px / 1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-float);
+  animation: nt-jar-plus var(--spring-bouncy-dur) var(--spring-bouncy) both;
+}
+@keyframes nt-jar-plus {
+  from {
+    transform: translateY(8px) scale(0.6);
+    opacity: 0;
+  }
+}
+.nt-swearjar-away {
+  position: absolute;
+  left: calc(100% + var(--space-4));
+  bottom: var(--space-3);
+  height: 26px;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-float);
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-2);
+  animation: nt-jar-away 300ms var(--ease-out) 300ms both;
+}
+@keyframes nt-jar-away {
+  from {
+    transform: translateX(-6px);
+    opacity: 0;
+  }
+}
+
+/* Coins in flight, above everything but toasts. */
+.nt-coin-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-toast) - 1);
+  pointer-events: none;
+}
+.nt-coin-x {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.nt-coin-y {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+}
+.nt-coin {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, var(--home-accent-hover), var(--home-accent) 62%);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in oklab, var(--home-accent) 70%, var(--ink)),
+    var(--shadow-xs);
+  animation: nt-coin-flip 300ms linear infinite;
+}
+.nt-coin::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--home-accent) 60%, var(--ink));
+}
+@keyframes nt-coin-flip {
+  50% {
+    transform: scaleX(0.18);
+  }
+}
+
+/* The word that cost you, in a transcript or a note: an amber wash that holds while the coin
+   leaves, then fades out. The feature removes the wash once it has faded (WASH_MS in
+   features/swearjar/jar.ts, kept equal to this animation's length). */
+.nt-swear {
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  animation: nt-swear-wash 2200ms var(--ease-out) both;
+}
+@keyframes nt-swear-wash {
+  0%,
+  45% {
+    background-color: var(--home-accent-soft);
+    color: var(--home-accent-text);
+  }
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-jar-coin,
+  .nt-coinstack i,
+  .nt-swearjar-plus,
+  .nt-swearjar-away,
+  .nt-coin {
+    animation: none;
+  }
+  .nt-swearjar,
+  .nt-swearjar[data-shown="true"] {
+    transform: none;
+    transition: opacity 120ms var(--ease-out);
+  }
+}
+
+/* Jars and coins on Home and in Settings › Swear jar. */
+.nt-jar-figure {
+  display: block;
+  flex: none;
+}
+.nt-jar-figure-lg {
+  width: 96px;
+}
+.nt-jar-figure-md {
+  width: 56px;
+}
+.nt-coinstacks {
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-end;
+  min-height: 112px;
+}
+.nt-coinstacks-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.nt-coinstacks-col .nt-coinstack {
+  margin-bottom: var(--space-1);
+}
+.nt-coinstacks-name {
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-coinstacks-n {
+  font: 500 11px / 14px var(--font-mono);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.nt-jar-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  flex-wrap: wrap;
+}
+.nt-jar-hero-text {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nt-jar-hero-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font: 640 32px / 36px var(--font-sans);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.nt-jar-hero-count small {
+  font: 500 14px / 20px var(--font-sans);
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+.nt-jar-hero-caption {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-jar-weeks {
+  container: jar-weeks / inline-size;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+  height: 120px;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+.nt-jar-week {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+.nt-jar-week i {
+  width: 100%;
+  max-width: 26px;
+  height: 76px;
+  border-radius: 5px 5px 2px 2px;
+  background: var(--ink-4);
+  transform-origin: bottom;
+  transform: scaleY(var(--f));
+  animation: nt-jar-grow var(--spring-gentle-dur) var(--spring-gentle) both;
+  animation-delay: calc(var(--i) * 24ms);
+}
+.nt-jar-week[data-record] i {
+  background: color-mix(in oklab, var(--home-accent) 45%, var(--ink-4));
+}
+.nt-jar-week[data-current] i {
+  background: var(--home-accent);
+}
+.nt-jar-week small {
+  font: 450 10px / 12px var(--font-mono);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+/* Too narrow for every date: label every other week, always keeping this week's. */
+@container jar-weeks (max-width: 480px) {
+  .nt-jar-week:nth-last-child(even) small {
+    visibility: hidden;
+  }
+}
+@keyframes nt-jar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-jar-week i {
+    animation: none;
+  }
+}
+.nt-jar-scope {
+  display: contents;
+  --accent: var(--home-accent);
+  --accent-hover: var(--home-accent-hover);
+  --accent-text: var(--home-accent-text);
+  --accent-soft: var(--home-accent-soft);
+  --on-accent: var(--on-home-accent);
+}
+/* The rolling count is sized for small labels; the jar's own sizes. */
+.nt-jar-hero-count .nt-roll {
+  height: 36px;
+}
+.nt-swearjar-label .nt-roll {
+  height: 100%;
+  align-items: center;
+}
+
+/* ───────── Settings › Import ───────── */
+
+/* An app's mark: its own icon, or a symbol or its initial on a quiet tile. */
+.nt-provider-icon {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: calc(var(--radius-sm) * var(--sq, 1));
+  background: var(--fill-hover);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  color: var(--ink);
+}
+/* An app's icon file is the whole mark, its shape included: no tile, no clip, no outline. */
+.nt-provider-icon.has-logo {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.nt-provider-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+.nt-provider-icon-sm {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-xs);
+}
+.nt-provider-icon-lg {
+  width: 40px;
+  height: 40px;
+  border-radius: calc(var(--radius-md) * var(--sq, 1));
+}
+.nt-provider-mono {
+  font: 650 12px / 1 var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-provider-icon-sm .nt-provider-mono {
+  font-size: 10px;
+}
+.nt-provider-icon-lg .nt-provider-mono {
+  font-size: 18px;
+}
+
+/* The app picker: a tall select that opens a searchable, grouped list. */
+.nt-import-picker {
+  display: flex;
+  flex-direction: column;
+}
+.nt-picker {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-picker:hover,
+.nt-picker[data-state="open"] {
+  background: var(--fill-hover);
+}
+.nt-picker-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-picker-label {
+  font: 600 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-picker-hint {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-picker-menu {
+  width: var(--radix-popover-trigger-width);
+  max-width: calc(100vw - var(--space-8));
+  padding: 0;
+  overflow: hidden;
+}
+.nt-picker-search {
+  height: 44px;
+}
+.nt-picker-menu .nt-palette-scroll {
+  max-height: min(380px, calc(100vh - 220px));
+}
+.nt-picker-badge {
+  font: 550 11px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-picker-badge.is-found {
+  color: var(--success);
+}
+.nt-import-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: inset 0 0.5px 0 var(--line);
+  font-size: 13px;
+}
+.nt-import-suggest-chip {
+  gap: var(--space-1-5);
+  cursor: default;
+}
+
+/* One app's panel. */
+.nt-import-card {
+  margin: 0 0 var(--space-6);
+}
+.nt-import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+.nt-import-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.nt-import-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-import-head-text h2,
+.nt-import-head-text p {
+  margin: 0;
+}
+.nt-import-head-text p {
+  font-size: 13px;
+  line-height: 18px;
+}
+.nt-import-chips {
+  display: flex;
+  gap: var(--space-1-5);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.nt-import-found {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  box-shadow: inset 0 -0.5px 0 var(--line);
+}
+.nt-import-found-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--success);
+}
+.nt-import-locations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-import-location {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.nt-import-location + .nt-import-location {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.nt-import-location-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-import-location-label {
+  font: 600 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-import-counts {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-path {
+  font: 450 11px / 16px var(--font-mono);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-import-none {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-callout,
+.nt-import-plan {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-sm) * var(--sq, 1));
+  background: var(--info-soft);
+  color: var(--ink);
+  font: 450 13px / 18px var(--font-sans);
+}
+.nt-import-callout .nt-ico,
+.nt-import-plan .nt-ico {
+  flex: none;
+  margin-top: 1px;
+  color: var(--info);
+}
+.nt-import-route {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.nt-import-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.nt-import-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.nt-import-actions-end {
+  justify-content: flex-end;
+}
+.nt-import-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+.nt-import-key,
+.nt-import-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.nt-import-key .nt-key-ok,
+.nt-import-key .nt-key-bad {
+  font-size: 13px;
+  line-height: 18px;
+}
+.nt-import-paste .nt-textarea,
+.nt-import-paste textarea {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* Numbered steps; things to click are set apart, menu paths split at ›. */
+.nt-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.nt-steps li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font: 450 14px / 21px var(--font-sans);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.nt-step-n {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: 650 11px / 1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.nt-ui-path {
+  display: inline;
+}
+.nt-ui-path-part b {
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--fill-hover);
+  box-shadow: inset 0 0 0 0.5px var(--line);
+  white-space: nowrap;
+}
+.nt-ui-path-sep {
+  margin: 0 3px;
+  color: var(--ink-3);
+}
+.nt-inline-code {
+  font: 450 12.5px / 1 var(--font-mono);
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--ink);
+}
+
+/* Where files land. Only transform and opacity move. */
+.nt-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-6) var(--space-4);
+  border-radius: calc(var(--radius-md) * var(--sq, 1));
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  text-align: center;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.nt-dropzone.is-active {
+  border-color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.nt-dropzone-icon {
+  color: var(--ink-3);
+}
+.nt-dropzone.is-active .nt-dropzone-icon {
+  color: var(--accent-text);
+  transform: translateY(-2px);
+}
+.nt-dropzone-title {
+  font: 600 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-dropzone-hint {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  max-width: 44ch;
+}
+.nt-dropzone-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* What comes across, and what doesn't. */
+.nt-import-fidelity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.nt-import-subtitle {
+  margin: 0 0 var(--space-2);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-import-carries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+.nt-chip-off {
+  color: var(--ink-3);
+}
+.nt-import-leftout {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+.nt-import-leftout li {
+  display: grid;
+  grid-template-columns: minmax(120px, 34%) 1fr;
+  gap: var(--space-3);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-leftout b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.nt-import-note {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* The preview. */
+.nt-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+.nt-stat {
+  padding: 0;
+}
+.nt-stat dt {
+  font: 550 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-stat dd {
+  margin: 2px 0 0;
+  font: 650 20px / 26px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.nt-import-dates {
+  margin: calc(var(--space-3) * -1) 0 0;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-options {
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    inset 0 0.5px 0 var(--line),
+    inset 0 -0.5px 0 var(--line);
+}
+.nt-import-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+}
+.nt-import-option + .nt-import-option {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.nt-import-option-col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.nt-import-speakers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+.nt-import-speakers .nt-chip {
+  gap: var(--space-1-5);
+}
+.nt-import-warnings,
+.nt-import-report {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-import-warnings li,
+.nt-import-report li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.nt-import-warnings .nt-ico,
+.nt-import-report .nt-ico {
+  flex: none;
+  margin-top: 1px;
+  color: var(--warning);
+}
+.nt-import-report {
+  padding: var(--space-3) 0 0 36px;
+}
+.nt-import-samples {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nt-import-samples li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-2) 0;
+}
+.nt-import-samples li + li {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+.nt-import-samples .nt-ico {
+  margin-top: 2px;
+}
+.nt-import-sample-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-import-sample-title {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: 550 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-import-sample-title > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-import-sample-title .nt-faint {
+  flex: none;
+  font-size: 12px;
+  font-weight: 450;
+}
+.nt-import-sample-excerpt {
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Running imports and history. */
+.nt-import-progress .nt-import-bar {
+  margin: var(--space-2) 0 0 36px;
+}
+.nt-import-chevron {
+  transition: transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-import-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 560px) {
+  .nt-import-leftout li {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .nt-import-location {
+    flex-wrap: wrap;
+  }
+}
+fieldset.nt-import-speakers {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}

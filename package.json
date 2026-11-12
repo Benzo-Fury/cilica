@@ -1,0 +1,16 @@
+{
+  "name": "margin",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "bun run --cwd apps/desktop tauri dev",
+    "dev:web": "bun run --cwd apps/desktop dev",
+    "build": "bun run --cwd apps/desktop tauri build",
+    "typecheck": "bun run --cwd apps/desktop typecheck",
+    "test": "bun run --cwd apps/desktop test && cargo test --workspace",
+    "lint": "bun run --cwd apps/desktop lint && cargo clippy --workspace --all-targets",
+    "tokens": "python3 tools/build-tokens.py",
+    "import-apps": "python3 tools/build-import-apps.py",
+    "bindings": "cargo test -p margin-desktop export_bindings"
+  }
+}

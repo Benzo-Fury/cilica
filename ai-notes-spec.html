@@ -1,0 +1,481 @@
+<title>Margin Build Spec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (~760px) with a sticky section index on wide screens; tables and code scroll inside their own boxes. */
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --sunk: #eef0f4;
+  --fg: #14161b;
+  --muted: #5b6170;
+  --line: #e1e4ea;
+  --accent: #2f54eb;
+  --accent-soft: #e8edff;
+  --rec: #e5484d;
+  --rec-soft: #fdecec;
+  --ok: #1f8a5b;
+  --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115; --surface: #171a20; --sunk: #1d2129; --fg: #eceef2; --muted: #9aa1b0;
+    --line: #2a2f3a; --accent: #6f8bff; --accent-soft: #1d2647; --rec: #ff6369; --rec-soft: #3a1c1f; --ok: #4cc38a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115; --surface: #171a20; --sunk: #1d2129; --fg: #eceef2; --muted: #9aa1b0;
+  --line: #2a2f3a; --accent: #6f8bff; --accent-soft: #1d2647; --rec: #ff6369; --rec-soft: #3a1c1f; --ok: #4cc38a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+  -webkit-font-smoothing: antialiased;
+}
+.shell { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px; }
+nav.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; font-size: 13px; }
+nav.toc ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+nav.toc a { color: var(--muted); text-decoration: none; display: block; padding: 4px 8px; border-radius: 6px; }
+nav.toc a:hover { color: var(--fg); background: var(--sunk); }
+nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+main { min-width: 0; max-width: 760px; }
+@media (max-width: 860px) { .shell { grid-template-columns: minmax(0, 1fr); } nav.toc { display: none; } }
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; letter-spacing: -0.015em; }
+h1 { font-size: 34px; line-height: 1.15; margin: 0 0 12px; font-weight: 650; }
+h2 { font-size: 22px; margin: 0 0 14px; font-weight: 600; padding-top: 8px; }
+h3 { font-size: 15.5px; margin: 22px 0 8px; font-weight: 600; }
+section { padding-block: 28px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+p { margin: 0 0 12px; }
+ul, ol { margin: 0 0 12px; padding-left: 20px; }
+li { margin: 3px 0; }
+li::marker { color: var(--muted); }
+a { color: var(--accent); }
+strong { font-weight: 600; }
+code, kbd { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--sunk); padding: 1px 5px; border-radius: 4px; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; background: var(--surface); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.lede { font-size: 17px; color: var(--muted); max-width: 62ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chip { font: 500 12px/1 var(--font-mono); padding: 6px 9px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.chip.rec { background: var(--rec-soft); color: var(--rec); }
+
+.tbl { overflow-x: auto; margin: 6px 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 11.5px/1.3 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--sunk); }
+td:first-child { font-weight: 550; white-space: nowrap; }
+td.wrap { white-space: normal; }
+
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 13px/1.55 var(--font-mono); margin: 6px 0 14px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.c { color: var(--muted); }
+
+.note { border-left: 2px solid var(--accent); padding: 4px 0 4px 14px; margin: 10px 0 14px; color: var(--fg); }
+.note.warn { border-left-color: var(--rec); }
+.note strong { display: block; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+
+/* Wireframe */
+.wire { display: grid; grid-template-columns: 1.1fr 2.2fr 1.3fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); font-size: 12px; margin: 8px 0 16px; min-height: 320px; }
+.wire > div { padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wire .side { background: var(--sunk); border-right: 1px solid var(--line); }
+.wire .ai { background: var(--sunk); border-left: 1px solid var(--line); }
+.wire .lbl { font: 500 10.5px/1 var(--font-mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.bar { height: 8px; border-radius: 4px; background: var(--line); }
+.row { display: flex; gap: 6px; align-items: center; }
+.pill { border-radius: 999px; padding: 3px 8px; background: var(--surface); border: 1px solid var(--line); font-size: 11px; white-space: nowrap; }
+.pill.a { background: var(--accent); color: #fff; border-color: transparent; }
+.pill.r { background: var(--rec-soft); color: var(--rec); border-color: transparent; }
+.item { background: var(--surface); border-radius: 7px; padding: 6px 8px; display: grid; gap: 4px; }
+.item.sel { outline: 1.5px solid var(--accent); }
+.seg { display: inline-flex; background: var(--sunk); border-radius: 999px; padding: 2px; gap: 2px; }
+.seg span { padding: 3px 10px; border-radius: 999px; font-size: 11px; }
+.seg span.on { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.grow { flex: 1; }
+.spk { font-weight: 600; font-size: 11px; color: var(--muted); }
+@media (max-width: 620px) { .wire { grid-template-columns: 1fr; } .wire .side, .wire .ai { border: 0; border-bottom: 1px solid var(--line); } }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 14px; }
+.sw { display: grid; gap: 6px; font: 12px/1.3 var(--font-mono); color: var(--muted); }
+.sw i { display: block; width: 64px; height: 40px; border-radius: 8px; border: 1px solid var(--line); }
+
+ol.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 10px; margin: 0; }
+ol.steps > li::before { content: counter(s); font: 500 12px/24px var(--font-mono); text-align: center; width: 24px; height: 24px; border-radius: 50%; background: var(--sunk); color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+@media (max-width: 620px) { .two { grid-template-columns: minmax(0,1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin-top: 0; }
+.card ul { margin-bottom: 0; }
+small.src { color: var(--muted); font-size: 12.5px; }
+@media (prefers-reduced-motion: no-preference) { nav.toc a { transition: background .15s, color .15s; } }
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Sections">
+  <ol>
+    <li><a href="#decisions">Decisions</a></li>
+    <li><a href="#stack">Stack</a></li>
+    <li><a href="#layout">Layout</a></li>
+    <li><a href="#recording">Recording</a></li>
+    <li><a href="#capture">Audio capture</a></li>
+    <li><a href="#assistant">AI assistant</a></li>
+    <li><a href="#guardrails">Guardrails</a></li>
+    <li><a href="#providers">Providers &amp; auth</a></li>
+    <li><a href="#tasks">Scheduled tasks</a></li>
+    <li><a href="#keys">Keybinds</a></li>
+    <li><a href="#toasts">Toasts</a></li>
+    <li><a href="#data">Data model</a></li>
+    <li><a href="#code">Codebase</a></li>
+    <li><a href="#milestones">Build order</a></li>
+    <li><a href="#open">Still open</a></li>
+  </ol>
+</nav>
+
+<main>
+<header>
+  <div class="eyebrow">Build spec · v0.2 · 11 Nov 2026</div>
+  <h1>Margin</h1>
+  <p class="lede">A local-first desktop notes app with bot-free meeting transcription, speaker labels and an AI assistant that can read and edit everything. This page is the brief for agents designing and building it.</p>
+  <div class="meta">
+    <span class="chip accent">Tauri 2 + Rust core</span>
+    <span class="chip">macOS 14.4+ · Windows 10/11 · Linux (PipeWire)</span>
+    <span class="chip">Local-first SQLite</span>
+    <span class="chip rec">Records system + mic audio</span>
+  </div>
+</header>
+
+<section id="decisions">
+  <h2>Decisions on the open questions</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Question</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td>UI framework</td><td class="wrap"><strong>Tauri 2</strong>: all logic in Rust crates, UI in React + TypeScript in the OS webview. Pure-Rust UIs (GPUI, Iced, Slint, Dioxus native) would mean building a rich Markdown editor, drag and drop, blur and spring animation from scratch. Tauri keeps the binary small (no bundled Chromium) and gives native window vibrancy through <code>window-vibrancy</code>. Anarlog uses the same split.</td></tr>
+      <tr><td>Meeting audio capture</td><td class="wrap">Capture <strong>two streams</strong>, never integrate with Zoom: the <strong>mic</strong> (you) and <strong>system output</strong> (everyone else). This is app-agnostic, so Zoom, Meet, Teams, WhatsApp and Slack all work with no bot. Per-OS APIs are in <a href="#capture">Audio capture</a>.</td></tr>
+      <tr><td>Claude subscription</td><td class="wrap">Anarlog does not handle Claude tokens. It runs the user's installed <code>claude</code> CLI headless (<code>claude -p --output-format stream-json</code>), so Claude Code's own login is used. Copy that as an opt-in <strong>Claude Code bridge</strong>, but make API key the default. Anthropic's 2026 terms limit subscription use to Claude Code and claude.ai, so label the bridge experimental. See <a href="#providers">Providers</a>.</td></tr>
+      <tr><td>AI guardrails</td><td class="wrap">Adopt all six ideas, arranged as <strong>permission tiers</strong>: reads run freely, additive writes apply with undo, edits show a diff, destructive actions need confirmation. Everything is versioned, soft-deleted and logged. Add transcript prompt-injection isolation. See <a href="#guardrails">Guardrails</a>.</td></tr>
+      <tr><td>Bottom sidebar</td><td class="wrap">Listening toggle, Scheduled tasks, Saved people, AI activity, Trash, Settings.</td></tr>
+      <tr><td>Speech-to-text</td><td class="wrap"><strong>Local Whisper</strong> (whisper.cpp) is the default engine, as in Anarlog's on-device mode. Audio never leaves the machine. Cloud engines stay available as an option.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="stack">
+  <h2>Stack</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Layer</th><th>Choice</th></tr></thead>
+    <tbody>
+      <tr><td>Shell</td><td class="wrap">Tauri 2: WKWebView (macOS), WebView2 (Windows), WebKitGTK (Linux). Plugins: global-shortcut, single-instance, updater, window-state, tray, autostart.</td></tr>
+      <tr><td>IPC</td><td class="wrap"><code>tauri-specta</code> generates typed TS bindings for every command and event. No hand-written <code>invoke("…")</code> strings.</td></tr>
+      <tr><td>Frontend</td><td class="wrap">React 19, TypeScript, Vite. <strong>Motion</strong> for all animation. Tailwind v4 over CSS-variable tokens. Radix primitives (unstyled) for accessible menus/dialogs. <code>dnd-kit</code> for drag into categories. <code>cmdk</code> under the command palette. Zustand for UI state, TanStack Query as the cache over IPC.</td></tr>
+      <tr><td>Editor</td><td class="wrap">TipTap 3 (ProseMirror) with Markdown in/out. Markdown is the stored format. Anarlog also uses TipTap.</td></tr>
+      <tr><td>Storage</td><td class="wrap">SQLite via <code>sqlx</code> with migrations; FTS5 for search. Secrets in the OS keychain via <code>keyring</code>. Meeting audio as Opus files with a retention setting (default 30 days).</td></tr>
+      <tr><td>Audio</td><td class="wrap"><code>cpal</code> (mic), <code>cidre</code> (macOS Core Audio taps), <code>wasapi</code> (Windows loopback), <code>pipewire</code> (Linux). Resample to 16 kHz mono. Echo cancellation on the mic using system audio as the reference.</td></tr>
+      <tr><td>Speech-to-text</td><td class="wrap"><strong>Default: local Whisper</strong> via <code>whisper-rs</code> (whisper.cpp; Metal / CUDA / Vulkan features) with Silero VAD chunking. The model downloads during onboarding with a progress view. Optional cloud streaming engines (Deepgram, Soniox, AssemblyAI) with the user's own key, behind one <code>Transcriber</code> trait.</td></tr>
+      <tr><td>Diarization</td><td class="wrap"><code>ort</code> (ONNX Runtime): pyannote segmentation model + speaker-embedding model, then clustering. Anarlog's <code>pyannote-local</code> crate is a reference (MIT).</td></tr>
+      <tr><td>LLM</td><td class="wrap"><code>reqwest</code> + SSE streaming against the Anthropic Messages API with tool use. Defaults: <code>claude-sonnet-5-5</code> for assistant and summaries, <code>claude-haiku-5-5</code> for titles, snippets and prompt chips.</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Performance budgets</h3>
+  <ul>
+    <li>Installer under 20 MB, excluding downloadable speech models.</li>
+    <li>Idle memory under 150 MB. Cold start to interactive under 1 s.</li>
+    <li>Animations hold 60 fps (120 on ProMotion). Only <code>transform</code>/<code>opacity</code> animate; never width/height/top.</li>
+    <li>Live transcript lags speech by under 3 s with the local engine.</li>
+  </ul>
+</section>
+
+<section id="layout">
+  <h2>Layout</h2>
+  <div class="wire" role="img" aria-label="Three-pane layout: left notes sidebar, center note with Notes/Transcript slider, right AI assistant">
+    <div class="side">
+      <div class="row"><span class="pill a">＋ Note</span><span class="pill">＋ Category</span><span class="grow"></span><span class="pill r">● Rec</span></div>
+      <div class="pill" style="color:var(--muted)">Search… ⌘P</div>
+      <div class="lbl">Client work ▾</div>
+      <div class="item sel"><b>Acme kickoff</b><span style="color:var(--muted)">Today · Scope agreed, launch in Q1…</span></div>
+      <div class="item"><b>Design review</b><span style="color:var(--muted)">Mon · Nav pattern, open questions…</span></div>
+      <div class="lbl">Personal ▸</div>
+      <div class="grow"></div>
+      <div class="lbl">Tasks</div>
+      <div class="row"><span>Notes review</span><span class="grow"></span><span style="color:var(--muted)">in 2d</span></div>
+      <div style="color:var(--muted)">People · AI activity · Trash · Settings</div>
+      <div class="row"><span style="color:var(--ok)">●</span><span>Listening for meetings</span></div>
+    </div>
+    <div>
+      <div class="row"><b style="font-size:14px">Acme kickoff</b><span class="grow"></span><span class="seg"><span class="on">Notes</span><span>Transcript</span></span></div>
+      <div class="bar" style="width:40%"></div>
+      <div class="bar" style="width:92%"></div>
+      <div class="bar" style="width:85%"></div>
+      <div class="bar" style="width:60%"></div>
+      <div class="lbl" style="margin-top:8px">Action items</div>
+      <div class="bar" style="width:70%"></div>
+      <div class="bar" style="width:55%"></div>
+    </div>
+    <div class="ai">
+      <div class="lbl">Assistant · sees “Acme kickoff”</div>
+      <div class="pill">Draft a follow-up email</div>
+      <div class="pill">What did Sam commit to?</div>
+      <div class="pill">Merge with “Acme intro call”</div>
+      <div class="grow"></div>
+      <div class="pill" style="color:var(--muted)">Ask anything… ⌘J</div>
+    </div>
+  </div>
+
+  <h3>Left sidebar</h3>
+  <ul>
+    <li><strong>Top row</strong>: New note, New category (inline-editable name), Record. Search appears below on <kbd>⌘P</kbd> and hides via its own button or <kbd>Esc</kbd>; open/closed state persists.</li>
+    <li><strong>Note rows</strong>: title, relative date, one-line AI snippet, a mic glyph for meeting notes, a pulsing red dot while recording.</li>
+    <li><strong>Categories</strong>: drag notes in or out (dnd-kit, animated drop), drag to reorder categories, click the header to collapse. Uncategorised notes sit at the top under “Notes”.</li>
+    <li><strong>Bottom</strong>: Scheduled tasks (name, next run, status dot), Saved people, AI activity, Trash, Settings, and a Listening row that toggles auto-detect and shows a live mic level during recording.</li>
+    <li>Collapses fully with <kbd>⌘\</kbd>.</li>
+  </ul>
+
+  <h3>Note view</h3>
+  <ul>
+    <li>Header: editable title, a <strong>SegmentedSlider</strong> (Notes ↔ Transcript, animated thumb, <kbd>⌘E</kbd>), recording timer and Stop while live, overflow menu (export Markdown, copy, history, move to trash).</li>
+    <li><strong>Notes panel</strong>: TipTap Markdown editor. The user can type during a meeting; those jottings are kept and woven into the AI summary, as Granola does.</li>
+    <li><strong>Transcript panel</strong>: segments grouped by speaker with timestamps, auto-scrolling while live (pauses when the user scrolls up). Click a speaker chip to rename or link a Saved person.</li>
+    <li><strong>History</strong>: version list with author (you or AI) and a diff against current; one-click restore.</li>
+  </ul>
+
+  <h3>Right sidebar: assistant</h3>
+  <ul>
+    <li>Toggled with <kbd>⌘J</kbd>; the panel animates in and pushes the editor (it does not overlay it).</li>
+    <li>A context line at the top shows what the assistant can see (“Viewing: Acme kickoff · Transcript”).</li>
+    <li>Empty state: 3–4 prompt chips generated from context. Meeting note: action items, follow-up email, per-person commitments. Sidebar or category selected: weekly digest, find duplicates. Chips are cached per note and refreshed after edits.</li>
+    <li>Tool calls appear inline as compact rows (“Searched 14 notes”). Proposed edits render as diff cards with Apply / Reject.</li>
+  </ul>
+</section>
+
+<section id="recording">
+  <h2>Recording flow</h2>
+  <ol class="steps">
+    <li><div><strong>Trigger.</strong> Manual: Record button, <kbd>⌘⇧R</kbd> (global hotkey) or the tray menu. Automatic: the detector reports an allow-listed meeting app holding the mic for 5 s. The setting chooses between <em>auto-start</em> and <em>ask first</em> (an action toast), default ask first.</div></li>
+    <li><div><strong>New note.</strong> Titled “{App} meeting · {time}” and opened on the Transcript panel. A toast confirms with a Stop action.</div></li>
+    <li><div><strong>Capture.</strong> Mic and system streams start in parallel, are echo-cancelled and resampled, and are written to disk as they arrive, so a crash loses nothing.</div></li>
+    <li><div><strong>Live transcript.</strong> VAD splits speech into chunks; the engine streams partial then final segments to the UI as events. Mic segments are labelled <strong>You</strong>; system segments are labelled <strong>Others</strong> until diarization assigns Person 1, 2….</div></li>
+    <li><div><strong>End.</strong> Manual Stop, or the meeting app releases the mic for 15 s. A toast offers “Keep recording” for 10 s.</div></li>
+    <li><div><strong>Finalize.</strong> Full diarization pass, matching against Saved people voiceprints (suggested, never applied silently). Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.</div></li>
+  </ol>
+  <h3>Speakers and Saved people</h3>
+  <ul>
+    <li>Each Person 1…n is a cluster of speaker embeddings for that meeting. Naming one offers “Save as person”, which stores the name and an averaged voiceprint.</li>
+    <li>Later meetings compare clusters to saved voiceprints (cosine similarity above a tuned threshold) and suggest “Is Person 2 Sam?”.</li>
+    <li>Saved people page: name, voiceprint sample count, meetings they appeared in, merge/rename/delete.</li>
+    <li>In-person meetings (one mic, many speakers): diarize the mic channel as well.</li>
+  </ul>
+</section>
+
+<section id="capture">
+  <h2>Audio capture and meeting detection</h2>
+  <p>Based on Anarlog's <code>audio-actual</code> and <code>detect</code> crates. Every platform branch lives in the <code>audio</code> and <code>detect</code> crates behind one trait; no <code>cfg(target_os)</code> anywhere else.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>OS</th><th>System audio</th><th>Meeting detection</th><th>Permissions</th></tr></thead>
+    <tbody>
+      <tr><td>macOS</td><td class="wrap">Core Audio <strong>process tap</strong> (macOS 14.4+): a global mono tap that excludes our own process, wrapped in a private aggregate device (via <code>cidre</code>). A tap can also target specific PIDs to capture only the meeting app.</td><td class="wrap">Property listener on the input device's “running somewhere” state, plus the per-process input list to see <em>which</em> app holds the mic. Accessibility API reads window titles to spot Meet/Teams in browsers.</td><td class="wrap">Microphone (<code>NSMicrophoneUsageDescription</code>). System Audio Recording (<code>NSAudioCaptureUsageDescription</code>). Accessibility (optional, browser detection only). Guided onboarding checks each one.</td></tr>
+      <tr><td>Windows</td><td class="wrap"><strong>WASAPI loopback</strong> on the default render device. Per-app capture via process loopback on Windows 11.</td><td class="wrap">Enumerate capture audio sessions on the default mic (<code>IAudioSessionManager2</code>) and map them to process names.</td><td class="wrap">Microphone privacy setting only. Loopback needs no prompt.</td></tr>
+      <tr><td>Linux</td><td class="wrap"><strong>PipeWire</strong> monitor of the default sink (PulseAudio monitor source as fallback).</td><td class="wrap">PulseAudio/PipeWire source-outputs with <code>application.name</code>.</td><td class="wrap">None natively. Flatpak needs the PipeWire portal.</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Default meeting-app allow-list</strong> (editable in Settings): Zoom, Microsoft Teams, Google Meet (browser), Slack huddles, WhatsApp, FaceTime, Webex, Discord, Around. Zoom gets no special handling: it is just audio out of the speakers and audio into the mic.</p>
+  <div class="note warn"><strong>Consent</strong>Recording others may require their consent depending on jurisdiction. The first recording shows a one-time notice, and Settings has an optional “post a recording notice to chat” reminder.</div>
+</section>
+
+<section id="assistant">
+  <h2>AI assistant</h2>
+  <h3>Context, without being told</h3>
+  <p>Each turn starts with a compact <code>&lt;view&gt;</code> block built by the frontend: open note id and title, active panel, selected text, selected category, search query, recording state. Larger content (note bodies, transcripts) is fetched by the model through tools, so turns stay cheap.</p>
+  <h3>Tools</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Tier</th><th>Tools</th></tr></thead>
+    <tbody>
+      <tr><td>Read</td><td class="wrap"><code>search_notes</code>, <code>get_note</code>, <code>get_transcript</code>, <code>list_categories</code>, <code>list_people</code>, <code>list_tasks</code>, <code>get_note_history</code></td></tr>
+      <tr><td>Additive</td><td class="wrap"><code>create_note</code>, <code>create_category</code>, <code>move_note</code>, <code>rename_category</code>, <code>label_speaker</code>, <code>create_task</code></td></tr>
+      <tr><td>Edit</td><td class="wrap"><code>edit_note</code> (takes a patch, never a full rewrite), <code>rename_note</code></td></tr>
+      <tr><td>Destructive</td><td class="wrap"><code>trash_note</code>, <code>merge_notes</code>, <code>delete_category</code>, <code>delete_person</code>, any write touching more than 5 notes</td></tr>
+    </tbody>
+  </table></div>
+  <p>The tool registry lives in the <code>agent</code> crate and is the only write path for AI. The same registry is exposed over MCP for the Claude Code bridge.</p>
+</section>
+
+<section id="guardrails">
+  <h2>Guardrails</h2>
+  <div class="two">
+    <div class="card">
+      <h3>Applied per tier</h3>
+      <ul>
+        <li><strong>Read</strong>: runs freely.</li>
+        <li><strong>Additive</strong>: applies at once, with an Undo toast.</li>
+        <li><strong>Edit</strong>: a diff card; accept the whole change or per hunk.</li>
+        <li><strong>Destructive</strong>: a confirm card naming every affected note. This one cannot be switched off.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Always on</h3>
+      <ul>
+        <li><strong>Version history</strong>: snapshot before every AI write.</li>
+        <li><strong>Soft delete</strong>: Trash keeps items 30 days.</li>
+        <li><strong>Audit log</strong>: AI activity lists every tool call with arguments, result and Undo.</li>
+        <li><strong>Turn undo</strong>: <kbd>⌘Z</kbd> reverts a whole AI turn as one step.</li>
+      </ul>
+    </div>
+  </div>
+  <ul style="margin-top:14px">
+    <li><strong>Prompt-injection isolation</strong>: transcripts and note bodies reach the model wrapped as quoted data. A participant saying “delete all my notes” must never get past the destructive-tier confirmation, whatever the model decides.</li>
+    <li><strong>Scheduled tasks only propose</strong>: they run without the user present, so every change they suggest waits as a proposal.</li>
+    <li><strong>Limits</strong>: at most 20 writes per turn. No network or shell tools.</li>
+    <li>Settings can promote Edit to auto-apply (still versioned). Destructive cannot be promoted.</li>
+  </ul>
+</section>
+
+<section id="providers">
+  <h2>AI providers and auth</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Provider</th><th>How it works</th></tr></thead>
+    <tbody>
+      <tr><td>Anthropic API key</td><td class="wrap"><strong>Default.</strong> Key in the OS keychain. Direct Messages API with streaming and tool use.</td></tr>
+      <tr><td>OpenAI-compatible</td><td class="wrap">Base URL + key: OpenAI, OpenRouter, Groq, LM Studio.</td></tr>
+      <tr><td>Ollama</td><td class="wrap">Local models, no key. Assistant quality varies with model tool-use support.</td></tr>
+      <tr><td>Claude Code bridge</td><td class="wrap"><strong>Experimental, opt-in.</strong> Detect <code>claude</code> on PATH and check its auth status. Spawn <code>claude -p --output-format stream-json</code> with <code>--resume</code> for threads and <code>--mcp-config</code> pointing at our local MCP server, with allowed tools limited to ours (no Bash, no file edits). The app never reads or stores Claude credentials.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn"><strong>Policy risk</strong>Since February 2026, Anthropic's consumer terms say Free/Pro/Max OAuth tokens may only be used in Claude Code and claude.ai, and in April 2026 subscription access was cut off for third-party harnesses. Running the user's own CLI is how Anarlog does it, but it may still breach those terms and put the user's account at risk. Re-check Anthropic's current terms before shipping this path, and show the warning in the opt-in dialog.</div>
+</section>
+
+<section id="tasks">
+  <h2>Scheduled tasks</h2>
+  <ul>
+    <li>A task has a name, prompt, scope (all notes, a category, or the last N days), schedule (every N days, weekly on a day, or daily at a time), and an on/off switch.</li>
+    <li>The runner lives in Rust: it stores <code>next_run_at</code> and runs missed tasks at the next launch. It never runs while recording.</li>
+    <li>A finished run raises a toast and puts a badge on the task in the sidebar. Opening it shows the <strong>report view</strong>.</li>
+  </ul>
+  <h3>Default: Notes review (every 3 days, enabled)</h3>
+  <ul>
+    <li><strong>Merge</strong>: groups of notes that cover the same topic, with a preview of the merged note.</li>
+    <li><strong>Trim</strong>: content that could be dropped, shown in the DiffView component (git-style red/green, line numbers in mono).</li>
+    <li><strong>Delete</strong>: notes that look stale or empty, with the reason.</li>
+    <li>Each suggestion has Apply / Dismiss; “Apply all” still goes through the destructive confirm card. Dismissed items are remembered so they are not suggested again.</li>
+  </ul>
+</section>
+
+<section id="keys">
+  <h2>Keybinds</h2>
+  <p><kbd>⌘</kbd> means Ctrl on Windows and Linux. A single registry drives the handlers, the command palette labels and the <kbd>⌘/</kbd> cheat sheet. All keybinds are rebindable in Settings.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>⌘K</kbd></td><td class="wrap">Command palette: notes, actions, settings</td></tr>
+      <tr><td><kbd>⌘P</kbd></td><td class="wrap">Open sidebar search and focus it</td></tr>
+      <tr><td><kbd>⌘F</kbd></td><td class="wrap">Find in current note</td></tr>
+      <tr><td><kbd>⌘N</kbd> / <kbd>⌘⇧N</kbd></td><td class="wrap">New note / new category</td></tr>
+      <tr><td><kbd>⌘⇧R</kbd></td><td class="wrap">Start or stop recording (global, works when the app is in the background)</td></tr>
+      <tr><td><kbd>⌘E</kbd></td><td class="wrap">Swap Notes ↔ Transcript</td></tr>
+      <tr><td><kbd>⌘J</kbd> / <kbd>⌘\</kbd></td><td class="wrap">Toggle assistant / toggle left sidebar</td></tr>
+      <tr><td><kbd>⌘Z</kbd> / <kbd>⌘⇧Z</kbd></td><td class="wrap">Undo / redo, including whole AI turns</td></tr>
+      <tr><td><kbd>⌘⌫</kbd></td><td class="wrap">Move note to Trash</td></tr>
+      <tr><td><kbd>⌘,</kbd> / <kbd>⌘/</kbd></td><td class="wrap">Settings / keybind cheat sheet</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td class="wrap">Close the topmost layer</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="toasts">
+  <h2>Toasts</h2>
+  <p>An in-house module at <code>src/lib/toast/</code>, modelled on the behaviour of <a href="https://sileo.aaryan.design/docs" target="_blank" rel="noopener">Sileo</a> (MIT): spring physics and a gooey morph from a compact pill into an expanded card. Depends only on React and Motion. Re-implement it; do not vendor Sileo.</p>
+  <pre><code>toast("Saved")
+toast.success("Summary ready", { description: "Acme kickoff" })
+toast.error("Mic unavailable", { description: "Choose another input in Settings." })
+toast.action("Zoom meeting detected", { action: { label: "Record", onClick } })
+toast.undo("Moved 3 notes to Client work", { onUndo })
+toast.promise(summarise(), { loading: "Summarising…", success: "Summary ready", error: "Summary failed" })</code></pre>
+  <ul>
+    <li>Rust can raise toasts through a typed <code>toast</code> event, so backend jobs (scheduler, detector, STT errors) use the same component.</li>
+    <li>Top-center. At most 3 visible, the rest queue. New toasts spring in and the stack reflows.</li>
+    <li>Timing: 4 s default, 8 s for errors; toasts with an action stay until 6 s after the pointer leaves. Timers pause on hover and on window blur. Swipe or <kbd>Esc</kbd> dismisses.</li>
+    <li>Reduced motion uses a plain fade. Colours, surface and icon styling come from the design system.</li>
+  </ul>
+</section>
+
+<section id="data">
+  <h2>Data model</h2>
+  <pre><code>notes            id, title, body_md, snippet, category_id?, kind(manual|meeting),
+                 meeting_app?, started_at?, ended_at?, created_at, updated_at, deleted_at?
+note_versions    id, note_id, body_md, author(user|ai), ai_action_id?, created_at
+categories       id, name, position, collapsed
+segments         id, note_id, speaker_id, channel(mic|system), start_ms, end_ms, text, is_final
+speakers         id, note_id, label("Person 2"), person_id?, embedding
+people           id, name, voiceprint, sample_count, created_at
+tasks            id, name, prompt, scope_json, schedule_json, next_run_at, enabled, is_default
+task_runs        id, task_id, started_at, finished_at, status, report_json
+proposals        id, source(chat|task), kind, payload_json, status(pending|applied|dismissed)
+ai_actions       id, thread_id, turn_id, tool, args_json, tier, status, undo_json, created_at
+threads/messages chat history per thread
+notes_fts        FTS5 over title, body_md, transcript text
+settings         key, value_json        <span class="c">-- secrets live in the OS keychain, never here</span></code></pre>
+</section>
+
+<section id="code">
+  <h2>Codebase layout</h2>
+  <pre><code>apps/desktop/
+  src-tauri/          <span class="c"># thin shell: commands, events, windows, tray, permissions onboarding</span>
+  src/
+    app/              <span class="c"># root layout, providers, keybind registry, motion presets</span>
+    features/         <span class="c"># sidebar, note, transcript, assistant, people, tasks, activity, trash, settings</span>
+    ui/               <span class="c"># design-system components (the only place raw styling lives)</span>
+    lib/toast/        <span class="c"># in-house toast library</span>
+    ipc/              <span class="c"># generated by tauri-specta, never edited by hand</span>
+crates/
+  domain/             <span class="c"># shared types: Note, Category, Segment, Person, Task, AiAction</span>
+  store/              <span class="c"># SQLite, migrations, FTS, versions, trash</span>
+  audio/              <span class="c"># mic + system capture, AEC, resampling (macos.rs / windows.rs / linux.rs)</span>
+  detect/             <span class="c"># meeting detection per OS</span>
+  stt/                <span class="c"># Transcriber trait: whisper_local, cloud adapters</span>
+  diarize/            <span class="c"># VAD, segmentation, embeddings, clustering, voiceprint matching</span>
+  llm/                <span class="c"># Provider trait: anthropic, openai_compat, ollama, claude_code</span>
+  agent/              <span class="c"># tools, context builder, tiers, proposals, audit, undo</span>
+  scheduler/          <span class="c"># task runner, default Notes review</span>
+  mcp/                <span class="c"># exposes agent tools over MCP for the Claude Code bridge</span></code></pre>
+  <ul>
+    <li>Each crate has a short README: purpose, public API, what it must not depend on. <code>domain</code> depends on nothing app-specific; <code>src-tauri</code> only wires crates together.</li>
+    <li>A feature folder owns its components, hooks and state. UI components never call IPC directly; feature hooks do.</li>
+    <li>Every crate is testable without a window: audio and STT run against recorded fixture WAVs, the agent against a mock provider.</li>
+  </ul>
+</section>
+
+<section id="milestones">
+  <h2>Build order</h2>
+  <ol class="steps">
+    <li><div><strong>Foundation.</strong> Tauri shell, vibrancy window, tokens, motion presets, <code>ui/</code> components, toast library, keybind registry, command palette.</div></li>
+    <li><div><strong>Notes.</strong> Store, sidebar with categories, drag and collapse, FTS search, TipTap editor, version history, Trash.</div></li>
+    <li><div><strong>Manual recording on macOS.</strong> Mic + process tap, AEC, local Whisper, live transcript, end-of-meeting summary.</div></li>
+    <li><div><strong>Speakers.</strong> Diarization, speaker chips, Saved people, voiceprint suggestions.</div></li>
+    <li><div><strong>Assistant.</strong> API-key providers, view context, tool registry, tiers, diff cards, AI activity, turn undo.</div></li>
+    <li><div><strong>Auto-detect and other platforms.</strong> Meeting detection on all three OSs, Windows and Linux capture, permissions onboarding.</div></li>
+    <li><div><strong>Scheduled tasks.</strong> Runner, task editor, Notes review report with DiffView.</div></li>
+    <li><div><strong>Ship.</strong> Claude Code bridge (experimental), updater, code signing and notarisation, performance pass against the budgets.</div></li>
+  </ol>
+</section>
+
+<section id="open">
+  <h2>Still open</h2>
+  <ul>
+    <li><strong>Design system</strong>: palette, glass treatment, motion presets, type and components. Coming next as its own document.</li>
+    <li><strong>Out of v1 unless you say otherwise</strong>: calendar integration, cloud sync, sharing, mobile, custom summary templates.</li>
+  </ul>
+  <p><small class="src">Sources: <a href="https://github.com/fastrepl/anarlog" target="_blank" rel="noopener">fastrepl/anarlog</a> (MIT; crates <code>audio-actual</code>, <code>detect</code>, <code>claude</code>, <code>agent-access</code>, <code>pyannote-local</code>) · <a href="https://sileo.aaryan.design/docs" target="_blank" rel="noopener">Sileo docs</a> · <a href="https://winbuzzer.com/2026/02/19/anthropic-bans-claude-subscription-oauth-in-third-party-apps-xcxwbn/" target="_blank" rel="noopener">WinBuzzer on the Feb 2026 terms</a> · <a href="https://www.hongkiat.com/blog/anthropic-closed-openclaw-loophole/" target="_blank" rel="noopener">Hongkiat on the April 2026 enforcement</a></small></p>
+</section>
+</main>
+</div>

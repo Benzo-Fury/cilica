@@ -1,0 +1,19 @@
+[package]
+name = "margin-diarize"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ndarray = "0.17.2"
+margin-domain = { version = "0.1.0", path = "../domain" }
+margin-onnx = { version = "0.1.0", path = "../onnx" }
+ort = "2.0.0-rc.15"
+rustfft = "6.4.1"
+serde = "1.0.229"
+thiserror = "2.0.21"
+tracing = "0.1.44"
+
+[dev-dependencies]
+hound = "3.5.1"

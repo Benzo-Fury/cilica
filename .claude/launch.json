@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "margin-web", "runtimeExecutable": "bun", "runtimeArgs": ["run", "dev:web"], "port": 1420 }
+  ]
+}
