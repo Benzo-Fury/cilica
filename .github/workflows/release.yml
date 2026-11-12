@@ -125,6 +125,9 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Lay out the disk image window (background, icon positions) on CI too; Tauri skips
+          # the Finder step when CI is set unless this is "true"
+          TAURI_BUNDLER_DMG_IGNORE_CI: "true"
         with:
           projectPath: apps/desktop
           tauriScript: bun run tauri
