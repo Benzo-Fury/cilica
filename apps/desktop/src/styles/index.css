@@ -12,6 +12,7 @@
 @import "./components.css" layer(components);
 @import "../ui/ui.css" layer(components);
 @import "../ui/links.css" layer(components);
+@import "../ui/formatbar.css" layer(components);
 
 html,
 body,

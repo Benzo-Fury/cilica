@@ -12,6 +12,7 @@ export * from "./Diff";
 export * from "./EmptyState";
 export * from "./Excerpt";
 export * from "./Field";
+export * from "./FormatBar";
 export * from "./Glance";
 export * from "./Glass";
 export * from "./Graph";

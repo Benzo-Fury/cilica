@@ -19,6 +19,7 @@ import { noteExtensions } from "./editor/extensions";
 import { normalizeMarkdown } from "./editor/markdown";
 import type { SuggestHandlers } from "./editor/wikiSuggest";
 import { LinkSuggest } from "./LinkSuggest";
+import { SelectionToolbar } from "./SelectionToolbar";
 import { useAutosave } from "./useAutosave";
 import { useNoteViewState } from "./viewState";
 
@@ -178,6 +179,7 @@ export function NoteEditor({
     <>
       <EditorContent editor={editor} className="nt-editor" />
       <LinkSuggest editor={editor} handlers={suggest} excludeNoteId={note.id} />
+      <SelectionToolbar editor={editor} />
     </>
   );
 }
