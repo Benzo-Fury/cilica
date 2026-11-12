@@ -1,0 +1,9 @@
+pub mod notes;
+pub mod settings;
+pub mod recording;
+pub mod assistant;
+pub mod tasks;
+pub mod swears;
+pub mod ollama;
+pub mod updates;
+pub mod import;

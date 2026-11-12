@@ -1,0 +1,25 @@
+[package]
+name = "margin-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+chrono = "0.4.45"
+futures = "0.3.34"
+margin-domain = { version = "0.1.0", path = "../domain" }
+margin-llm = { version = "0.1.0", path = "../llm" }
+margin-store = { version = "0.1.0", path = "../store" }
+serde = "1.0.229"
+serde_json = "1.0.154"
+similar = "3.2.1"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["sync", "rt", "macros", "time", "rt-multi-thread"] }
+tokio-util = "0.7.20"
+tracing = "0.1.44"
+uuid = "1.29.2"
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["full"] }

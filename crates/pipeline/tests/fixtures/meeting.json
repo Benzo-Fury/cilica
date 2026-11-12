@@ -1,0 +1,44 @@
+[
+ {
+  "channel": "mic",
+  "speaker": "Samantha",
+  "start_ms": 1200,
+  "end_ms": 5190,
+  "text": "Hi both, thanks for joining. Shall we start with the launch plan?"
+ },
+ {
+  "channel": "system",
+  "speaker": "Daniel",
+  "start_ms": 5890,
+  "end_ms": 11231,
+  "text": "Sure. The launch is set for the third of March, and the website goes live the same morning."
+ },
+ {
+  "channel": "system",
+  "speaker": "Karen",
+  "start_ms": 11931,
+  "end_ms": 17540,
+  "text": "Marketing needs the final copy by the end of next week, otherwise the printed brochures will be late."
+ },
+ {
+  "channel": "mic",
+  "speaker": "Samantha",
+  "start_ms": 18240,
+  "end_ms": 20619,
+  "text": "Great, I will send the copy on Friday."
+ },
+ {
+  "channel": "system",
+  "speaker": "Daniel",
+  "start_ms": 21319,
+  "end_ms": 25806,
+  "text": "Perfect. Let's also book a review meeting for Monday morning with the whole team."
+ },
+ {
+  "channel": "system",
+  "speaker": "Karen",
+  "start_ms": 26506,
+  "end_ms": 30776,
+  "text": "I will send everyone an invitation today, and I will add the agenda to it."
+ }
+]

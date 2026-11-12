@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Margin",
+        "width": 1200,
+        "height": 760,
+        "minWidth": 880,
+        "minHeight": 560,
+        "transparent": false,
+        "decorations": false,
+        "visible": false
+      }
+    ]
+  }
+}

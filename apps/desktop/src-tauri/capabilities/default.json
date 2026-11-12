@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window: custom window chrome, save and open dialogs, links, OS facts, restart, window state, launch at login.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "opener:default",
+    "opener:allow-reveal-item-in-dir",
+    "os:default",
+    "process:default",
+    "global-shortcut:allow-is-registered",
+    "window-state:default",
+    "autostart:allow-is-enabled",
+    "updater:default"
+  ]
+}
