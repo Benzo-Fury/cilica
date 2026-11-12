@@ -4,10 +4,9 @@
 
 use crate::SAMPLE_RATE;
 
-/// Phrases Whisper is known to produce from non-speech. Dropped when they are the whole result.
+/// Phrases Whisper invents from silence, music and noise (video outros). Dropped when they are
+/// the whole result of a short clip or the model doubts there was speech.
 const PHANTOMS: &[&str] = &[
-    "thank you",
-    "thank you.",
     "thanks for watching",
     "thanks for watching!",
     "thank you for watching",
@@ -16,13 +15,12 @@ const PHANTOMS: &[&str] = &[
     "thank you so much for watching",
     "please subscribe",
     "subtitles by the amara.org community",
-    "you",
-    "bye",
-    "bye.",
-    "okay.",
-    "so",
     "the end",
 ];
+
+/// Short replies people really say in meetings, which Whisper also likes to invent for noise.
+/// Dropped only when the model doubts there was speech.
+const COMMON_REPLIES: &[&str] = &["you", "so", "bye", "bye.", "okay", "okay.", "thank you", "thank you."];
 
 /// Is the audio worth sending to the model at all?
 pub fn has_enough_speech(samples: &[f32], speech_samples: usize) -> bool {
@@ -48,6 +46,9 @@ pub fn clean(text: &str, no_speech_prob: f32, audio_secs: f32) -> Option<String>
     }
     let lower = t.to_lowercase();
     if PHANTOMS.contains(&lower.as_str()) && (audio_secs < 3.0 || no_speech_prob > 0.3) {
+        return None;
+    }
+    if COMMON_REPLIES.contains(&lower.as_str()) && no_speech_prob > 0.3 {
         return None;
     }
     Some(t)
@@ -176,6 +177,12 @@ mod tests {
         assert_eq!(clean("♪ ♪", 0.0, 2.0), None);
         assert_eq!(clean("(upbeat music) Hello there.", 0.1, 2.0).as_deref(), Some("Hello there."));
         assert_eq!(clean("Thank you.", 0.05, 6.0).as_deref(), Some("Thank you."));
+        // Real short replies survive when the model heard speech, even in a short clip.
+        assert_eq!(clean("Okay.", 0.05, 1.0).as_deref(), Some("Okay."));
+        assert_eq!(clean("Thank you.", 0.1, 1.5).as_deref(), Some("Thank you."));
+        // The same words from noise are dropped.
+        assert_eq!(clean("you", 0.5, 1.0), None);
+        assert_eq!(clean("Okay.", 0.4, 1.0), None);
         assert_eq!(clean("Real words", 0.95, 4.0), None);
     }
 

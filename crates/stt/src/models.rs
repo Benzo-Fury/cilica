@@ -9,13 +9,14 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use margin_domain::{AppEvent, Events, ModelDownloadProgress, SttModel};
+use margin_domain::{AppEvent, Events, HardwareProfile, ModelDownloadProgress, SttModel};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::oneshot;
 
 use crate::{SttError, SttResult};
 
@@ -48,20 +49,7 @@ macro_rules! hf {
 }
 
 /// The speech models Margin offers, smallest first.
-pub const SPEECH_MODELS: [SpeechModel; 4] = [
-    SpeechModel {
-        id: "tiny",
-        name: "Tiny",
-        description: "Fastest and smallest. Fine for quick tests; misses more words.",
-        multilingual: true,
-        recommended: false,
-        file: ModelFile {
-            file_name: "ggml-tiny.bin",
-            url: hf!("ggml-tiny.bin"),
-            size: 77_691_713,
-            sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
-        },
-    },
+pub const SPEECH_MODELS: [SpeechModel; 3] = [
     SpeechModel {
         id: "base",
         name: "Base",
@@ -91,7 +79,7 @@ pub const SPEECH_MODELS: [SpeechModel; 4] = [
     SpeechModel {
         id: "large-v3-turbo-q5_0",
         name: "Large v3 Turbo",
-        description: "Most accurate, in many languages. Recommended for Apple silicon and recent PCs.",
+        description: "Most accurate, in many languages. Needs Apple silicon or a recent PC.",
         multilingual: true,
         recommended: true,
         file: ModelFile {
@@ -143,12 +131,19 @@ pub struct ModelPaths {
     pub vad: Option<PathBuf>,
 }
 
+/// Told when a download ends: `Ok` once on disk, `Err` with the reason otherwise.
+type DoneSender = oneshot::Sender<Result<(), String>>;
+
 /// Owns `<data_dir>/models/`.
 pub struct ModelManager {
     dir: PathBuf,
     events: Events,
     client: reqwest::Client,
     active: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    /// Told when a download ends: `Ok` once the model is on disk, `Err` with the reason otherwise.
+    waiters: Mutex<HashMap<String, Vec<DoneSender>>>,
+    /// What this computer can run; decides which model is marked recommended.
+    hardware: OnceLock<HardwareProfile>,
 }
 
 impl ModelManager {
@@ -158,7 +153,31 @@ impl ModelManager {
             .connect_timeout(Duration::from_secs(20))
             .build()
             .unwrap_or_default();
-        Arc::new(Self { dir, events, client, active: Mutex::new(HashMap::new()) })
+        Arc::new(Self {
+            dir,
+            events,
+            client,
+            active: Mutex::new(HashMap::new()),
+            waiters: Mutex::new(HashMap::new()),
+            hardware: OnceLock::new(),
+        })
+    }
+
+    /// Record what this computer can run (once, at startup).
+    pub fn set_hardware(&self, profile: HardwareProfile) {
+        let _ = self.hardware.set(profile);
+    }
+
+    pub fn hardware(&self) -> Option<HardwareProfile> {
+        self.hardware.get().copied()
+    }
+
+    /// Id of the model to recommend on this computer (the catalogue's default when unknown).
+    pub fn recommended_id(&self) -> &'static str {
+        match self.hardware.get() {
+            Some(h) => crate::recommend::recommended_model(h.cores, h.ram_gb, h.apple_silicon),
+            None => SPEECH_MODELS.iter().find(|m| m.recommended).map(|m| m.id).unwrap_or(SPEECH_MODELS[0].id),
+        }
     }
 
     pub fn dir(&self) -> &Path {
@@ -176,6 +195,7 @@ impl ModelManager {
 
     /// The catalogue with what is on disk.
     pub fn list(&self) -> Vec<SttModel> {
+        let recommended = self.recommended_id();
         SPEECH_MODELS
             .iter()
             .map(|m| SttModel {
@@ -184,7 +204,7 @@ impl ModelManager {
                 description: m.description.into(),
                 size_mb: (m.file.size / 1_000_000) as u32,
                 multilingual: m.multilingual,
-                recommended: m.recommended,
+                recommended: m.id == recommended,
                 downloaded: self.has(&m.file),
             })
             .collect()
@@ -197,6 +217,11 @@ impl ModelManager {
             return Err(SttError::ModelMissing(m.name.into()));
         }
         Ok(ModelPaths { whisper: self.path_of(&m.file), vad: self.has(&VAD_MODEL).then(|| self.path_of(&VAD_MODEL)) })
+    }
+
+    /// Silero VAD, when it is on disk.
+    pub fn vad_path(&self) -> Option<PathBuf> {
+        self.has(&VAD_MODEL).then(|| self.path_of(&VAD_MODEL))
     }
 
     /// (segmentation, embedding) model paths when both are present.
@@ -217,6 +242,22 @@ impl ModelManager {
         files.extend(COMPANIONS.iter().filter(|f| !self.has(f)).copied());
         self.spawn(id.to_string(), files);
         Ok(())
+    }
+
+    /// Start (or join) a download and get told when it ends. Resolves at once when the model is
+    /// already on disk.
+    pub fn download_and_wait(self: &Arc<Self>, id: &str) -> SttResult<oneshot::Receiver<Result<(), String>>> {
+        let model = speech_model(id).ok_or_else(|| SttError::UnknownModel(id.into()))?;
+        let (tx, rx) = oneshot::channel();
+        if self.has(&model.file) && COMPANIONS.iter().all(|f| self.has(f)) {
+            let _ = tx.send(Ok(()));
+            return Ok(rx);
+        }
+        if let Ok(mut waiters) = self.waiters.lock() {
+            waiters.entry(id.to_string()).or_default().push(tx);
+        }
+        self.start_download(id)?;
+        Ok(rx)
     }
 
     /// Fetch the speaker models if they are missing; waits for the result.
@@ -244,8 +285,12 @@ impl ModelManager {
             if let Ok(mut active) = this.active.lock() {
                 active.remove(&id);
             }
-            if let Err(e) = result {
+            if let Err(e) = &result {
                 tracing::warn!(model = %id, error = %e, "model download failed");
+            }
+            let waiting = this.waiters.lock().ok().and_then(|mut w| w.remove(&id)).unwrap_or_default();
+            for tx in waiting {
+                let _ = tx.send(result.as_ref().map(|_| ()).map_err(|e| e.to_string()));
             }
         });
     }
@@ -411,7 +456,15 @@ mod tests {
         let m = speech_model(&id).expect("default model id must exist");
         assert!(m.recommended);
         assert_eq!(SPEECH_MODELS.iter().filter(|m| m.recommended).count(), 1);
+    }
 
+    #[test]
+    fn recommendation_follows_hardware() {
+        let mgr = ModelManager::new(std::env::temp_dir().join("margin-models-none"), Arc::new(NullSink));
+        let marked = |m: &ModelManager| m.list().into_iter().filter(|x| x.recommended).map(|x| x.id).collect::<Vec<_>>();
+        assert_eq!(marked(&mgr), vec!["large-v3-turbo-q5_0".to_string()]);
+        mgr.set_hardware(crate::recommend::profile(2, 4, false));
+        assert_eq!(marked(&mgr), vec!["base".to_string()]);
     }
 
     #[test]
@@ -420,14 +473,14 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let mgr = ModelManager::new(dir.clone(), Arc::new(NullSink));
         assert!(mgr.list().iter().all(|m| !m.downloaded));
-        assert!(matches!(mgr.speech_paths("tiny"), Err(SttError::ModelMissing(_))));
+        assert!(matches!(mgr.speech_paths("base"), Err(SttError::ModelMissing(_))));
         assert!(matches!(mgr.speech_paths("huge"), Err(SttError::UnknownModel(_))));
         // A file with the right size counts as downloaded.
-        let f = std::fs::File::create(dir.join("ggml-tiny.bin")).unwrap();
+        let f = std::fs::File::create(dir.join("ggml-base.bin")).unwrap();
         f.set_len(SPEECH_MODELS[0].file.size).unwrap();
         assert!(mgr.list()[0].downloaded);
-        assert!(mgr.speech_paths("tiny").unwrap().vad.is_none());
-        mgr.delete("tiny").unwrap();
+        assert!(mgr.speech_paths("base").unwrap().vad.is_none());
+        mgr.delete("base").unwrap();
         assert!(!mgr.list()[0].downloaded);
         std::fs::remove_dir_all(&dir).ok();
     }

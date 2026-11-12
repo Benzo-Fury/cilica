@@ -2,25 +2,29 @@
 //!
 //! Live strategy: Silero VAD cuts each channel into utterances. While an utterance is open, the
 //! audio so far is decoded about once a second with a shortened encoder window (fast, a little
-//! less accurate) and sent as a partial; when the speaker pauses (400 ms) or 20 s pass, the
-//! utterance is decoded in full with temperature fallback and sent as the final. Both channels
-//! share one model and one decoder state, so inference is serialised.
+//! less accurate) and sent as a partial; when the speaker pauses (700 ms) or 20 s pass, the
+//! utterance is decoded again and sent as the final. Each decode is primed with the stream's
+//! recent text, so names and the thread of the conversation carry across utterances. Both
+//! channels share the loaded model but each has its own decoder state, so one never waits for
+//! the other's state.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use margin_domain::SttEngine;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState};
 
 use crate::guards;
-use crate::vad::{EnergyVad, Segmenter, SegmenterConfig, SileroVad, Vad};
+use crate::vad::{EnergyVad, FRAME, Segmenter, SegmenterConfig, SileroVad, Vad};
 use crate::{SAMPLE_RATE, StreamOptions, SttError, SttEvent, SttResult, Transcriber, TranscriptStream, Utterance, samples_to_ms};
 
 /// Partial results at most this often (in audio).
 const PARTIAL_EVERY: usize = SAMPLE_RATE as usize;
 /// No partials for utterances shorter than this.
 const PARTIAL_MIN: usize = SAMPLE_RATE as usize * 3 / 4;
+/// Recent final text kept to prime the next decode (characters).
+const CONTEXT_CHARS: usize = 200;
 
 #[derive(Debug, Clone)]
 pub struct WhisperOptions {
@@ -29,21 +33,32 @@ pub struct WhisperOptions {
     pub vad_model_path: Option<PathBuf>,
     pub threads: usize,
     pub use_gpu: bool,
+    /// Decode finals with the full 30 s encoder window (slower, more accurate) instead of one
+    /// sized to the utterance.
+    pub final_full_window: bool,
+    /// How speech is cut into utterances.
+    pub segmenter: SegmenterConfig,
 }
 
 impl WhisperOptions {
     pub fn new(model_path: PathBuf, vad_model_path: Option<PathBuf>) -> Self {
         let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 8);
-        Self { model_path, vad_model_path, threads, use_gpu: true }
+        Self {
+            model_path,
+            vad_model_path,
+            threads,
+            use_gpu: true,
+            final_full_window: false,
+            segmenter: SegmenterConfig::default(),
+        }
     }
 }
 
 struct Engine {
-    state: Mutex<WhisperState>,
-    // Keep the context alive as long as the state.
-    _ctx: Arc<WhisperContext>,
+    ctx: WhisperContext,
     threads: usize,
     multilingual: bool,
+    final_full_window: bool,
 }
 
 /// How carefully to decode.
@@ -65,11 +80,20 @@ struct Decoded {
 }
 
 impl Engine {
-    fn decode(&self, audio: &[f32], language: Option<&str>, pass: Pass) -> SttResult<Decoded> {
+    fn new_state(&self) -> SttResult<WhisperState> {
+        self.ctx.create_state().map_err(|e| SttError::ModelLoad(e.to_string()))
+    }
+
+    /// Decode one clip. `prompt` is recent text from the same stream (may be empty).
+    fn decode(&self, state: &mut WhisperState, audio: &[f32], language: Option<&str>, pass: Pass, prompt: &str) -> SttResult<Decoded> {
+        let pass = if pass == Pass::Fast && self.final_full_window { Pass::Full } else { pass };
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_n_threads(self.threads as i32);
         params.set_translate(false);
         params.set_no_context(true);
+        if !prompt.is_empty() {
+            params.set_initial_prompt(prompt);
+        }
         params.set_single_segment(false);
         params.set_print_special(false);
         params.set_print_progress(false);
@@ -116,7 +140,6 @@ impl Engine {
             audio
         };
 
-        let mut state = self.state.lock().map_err(|_| SttError::Inference("the model state was poisoned".into()))?;
         state.full(params, input).map_err(|e| SttError::Inference(e.to_string()))?;
         let mut text = String::new();
         let mut no_speech: f32 = 0.0;
@@ -170,6 +193,7 @@ fn phantom_segment(t0_cs: i64, t1_cs: i64, audio_cs: i64) -> bool {
 pub struct WhisperLocal {
     engine: Arc<Engine>,
     vad_model_path: Option<PathBuf>,
+    segmenter: SegmenterConfig,
 }
 
 impl WhisperLocal {
@@ -188,10 +212,15 @@ impl WhisperLocal {
         let path = options.model_path.to_string_lossy().into_owned();
         let ctx = WhisperContext::new_with_params(&path, cparams).map_err(|e| SttError::ModelLoad(e.to_string()))?;
         let multilingual = ctx.is_multilingual();
-        let state = ctx.create_state().map_err(|e| SttError::ModelLoad(e.to_string()))?;
         Ok(Self {
-            engine: Arc::new(Engine { state: Mutex::new(state), _ctx: Arc::new(ctx), threads: options.threads, multilingual }),
+            engine: Arc::new(Engine {
+                ctx,
+                threads: options.threads,
+                multilingual,
+                final_full_window: options.final_full_window,
+            }),
             vad_model_path: options.vad_model_path,
+            segmenter: options.segmenter,
         })
     }
 
@@ -204,6 +233,73 @@ impl WhisperLocal {
         }
         Box::new(EnergyVad::default())
     }
+
+    /// The careful pass over a whole recording channel: beam search, the full 30 s window,
+    /// context carried from window to window, temperature fallback. Segments that fall where
+    /// voice activity detection heard no speech are dropped (Whisper invents text for silence).
+    fn careful(&self, samples: &[f32], language: Option<&str>) -> SttResult<Vec<Utterance>> {
+        if samples.len() < SAMPLE_RATE as usize / 2 {
+            return Ok(Vec::new());
+        }
+        let mut state = self.engine.new_state()?;
+        let mut params = FullParams::new(SamplingStrategy::BeamSearch { beam_size: 5, patience: -1.0 });
+        params.set_n_threads(self.engine.threads as i32);
+        params.set_translate(false);
+        params.set_no_context(false);
+        params.set_suppress_blank(true);
+        params.set_suppress_nst(true);
+        params.set_no_speech_thold(0.6);
+        params.set_logprob_thold(-1.0);
+        params.set_entropy_thold(2.4);
+        params.set_temperature(0.0);
+        params.set_temperature_inc(0.2);
+        params.set_print_special(false);
+        params.set_print_progress(false);
+        params.set_print_realtime(false);
+        params.set_print_timestamps(false);
+        let lang = language.filter(|l| !l.is_empty() && *l != "auto");
+        params.set_language(Some(match lang {
+            Some(l) => l,
+            None if self.engine.multilingual => "auto",
+            None => "en",
+        }));
+        state.full(params, samples).map_err(|e| SttError::Inference(e.to_string()))?;
+
+        let speech = speech_frames(self.make_vad(), samples);
+        let mut out = Vec::new();
+        for i in 0..state.full_n_segments() {
+            let Some(seg) = state.get_segment(i) else { continue };
+            let (t0, t1) = (seg.start_timestamp().max(0) as u64, seg.end_timestamp().max(0) as u64);
+            if t1 <= t0 || speech_share(&speech, t0, t1) < MIN_SPEECH_SHARE {
+                continue;
+            }
+            let Ok(text) = seg.to_str_lossy() else { continue };
+            let secs = (t1 - t0) as f32 / 100.0;
+            if let Some(text) = guards::clean(&text, seg.no_speech_probability(), secs) {
+                out.push(Utterance { id: out.len() as u64 + 1, start_ms: (t0 * 10) as u32, end_ms: (t1 * 10) as u32, text, speaker: None });
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// A careful-pass segment needs at least this share of its time to be speech.
+const MIN_SPEECH_SHARE: f32 = 0.2;
+
+/// Speech or not for each VAD frame of `samples`.
+fn speech_frames(mut vad: Box<dyn Vad>, samples: &[f32]) -> Vec<bool> {
+    samples.chunks_exact(FRAME).map(|frame| vad.prob(frame) >= 0.5).collect()
+}
+
+/// Share of speech frames between two Whisper timestamps (10 ms units).
+fn speech_share(speech: &[bool], t0_cs: u64, t1_cs: u64) -> f32 {
+    let frame_cs = FRAME as f64 * 100.0 / SAMPLE_RATE as f64;
+    let a = ((t0_cs as f64 / frame_cs) as usize).min(speech.len());
+    let b = ((t1_cs as f64 / frame_cs).ceil() as usize).clamp(a, speech.len());
+    if b == a {
+        return 0.0;
+    }
+    speech[a..b].iter().filter(|s| **s).count() as f32 / (b - a) as f32
 }
 
 impl Transcriber for WhisperLocal {
@@ -211,10 +307,16 @@ impl Transcriber for WhisperLocal {
         SttEngine::WhisperLocal
     }
 
+    fn transcribe_recording(&self, samples: &[f32], language: Option<&str>) -> SttResult<Vec<Utterance>> {
+        self.careful(samples, language)
+    }
+
     fn open_stream(&self, options: StreamOptions) -> SttResult<Box<dyn TranscriptStream>> {
         Ok(Box::new(WhisperStream {
+            state: self.engine.new_state()?,
             engine: self.engine.clone(),
-            segmenter: Segmenter::new(self.make_vad(), SegmenterConfig::default()),
+            context: String::new(),
+            segmenter: Segmenter::new(self.make_vad(), self.segmenter),
             language: options.language.filter(|l| !l.is_empty() && l != "auto"),
             language_locked: false,
             next_id: 1,
@@ -227,6 +329,10 @@ impl Transcriber for WhisperLocal {
 
 struct WhisperStream {
     engine: Arc<Engine>,
+    /// This stream's own decoder state (the model weights are shared).
+    state: WhisperState,
+    /// Recent final text, to prime the next decode.
+    context: String,
     segmenter: Segmenter,
     language: Option<String>,
     language_locked: bool,
@@ -243,6 +349,25 @@ impl WhisperStream {
         id
     }
 
+    fn decode(&mut self, audio: &[f32], pass: Pass) -> SttResult<Decoded> {
+        self.engine.decode(&mut self.state, audio, self.language.as_deref(), pass, &self.context)
+    }
+
+    /// Remember a final's text as context, keeping the last [`CONTEXT_CHARS`] at a word boundary.
+    fn remember(&mut self, text: &str) {
+        if !self.context.is_empty() {
+            self.context.push(' ');
+        }
+        self.context.push_str(text);
+        let n = self.context.chars().count();
+        if n > CONTEXT_CHARS {
+            let skip = self.context.char_indices().nth(n - CONTEXT_CHARS).map(|(i, _)| i).unwrap_or(0);
+            let tail = &self.context[skip..];
+            let cut = tail.find(' ').map(|i| i + 1).unwrap_or(0);
+            self.context = tail[cut..].to_string();
+        }
+    }
+
     fn finalize(&mut self, chunk: crate::vad::Chunk, out: &mut Vec<SttEvent>) -> SttResult<()> {
         let id = match self.current_id.take() {
             Some(id) => id,
@@ -255,10 +380,10 @@ impl WhisperStream {
         let secs = chunk.samples.len() as f32 / SAMPLE_RATE as f32;
         let text = if guards::has_enough_speech(&chunk.samples, chunk.speech_samples) {
             let started = Instant::now();
-            let mut d = self.engine.decode(&chunk.samples, self.language.as_deref(), Pass::Fast)?;
+            let mut d = self.decode(&chunk.samples, Pass::Fast)?;
             if guards::implausible(&d.text, secs) {
                 tracing::debug!(text = %d.text, "fast decode went wrong; decoding again with the full window");
-                d = self.engine.decode(&chunk.samples, self.language.as_deref(), Pass::Full)?;
+                d = self.decode(&chunk.samples, Pass::Full)?;
             }
             tracing::debug!(secs, took = ?started.elapsed(), "final decode");
             if !self.language_locked
@@ -276,9 +401,12 @@ impl WhisperStream {
             None
         };
         match text {
-            Some(text) => out.push(SttEvent::Final(Utterance { id, start_ms, end_ms, text })),
+            Some(text) => {
+                self.remember(&text);
+                out.push(SttEvent::Final(Utterance { id, start_ms, end_ms, text, speaker: None }))
+            }
             // Retract a partial that turned out to be nothing.
-            None if had_partial => out.push(SttEvent::Final(Utterance { id, start_ms, end_ms, text: String::new() })),
+            None if had_partial => out.push(SttEvent::Final(Utterance { id, start_ms, end_ms, text: String::new(), speaker: None })),
             None => {}
         }
         Ok(())
@@ -307,7 +435,7 @@ impl TranscriptStream for WhisperStream {
         }
         if let Some((start, audio)) = partial {
             self.last_partial_len = audio.len();
-            let d = self.engine.decode(&audio, self.language.as_deref(), Pass::Partial)?;
+            let d = self.decode(&audio, Pass::Partial)?;
             let secs = audio.len() as f32 / SAMPLE_RATE as f32;
             if let (Some(text), Some(id)) = (guards::clean(&d.text, d.no_speech, secs.max(3.0)), self.current_id) {
                 self.partial_sent = true;
@@ -316,6 +444,7 @@ impl TranscriptStream for WhisperStream {
                     start_ms: samples_to_ms(start),
                     end_ms: samples_to_ms(start + audio.len() as u64),
                     text,
+                    speaker: None,
                 }));
             }
         }
@@ -334,6 +463,17 @@ impl TranscriptStream for WhisperStream {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn speech_share_counts_vad_frames() {
+        // 32 ms frames: frames 0-9 silent, 10-19 speech.
+        let speech: Vec<bool> = (0..20).map(|i| i >= 10).collect();
+        assert_eq!(speech_share(&speech, 0, 32), 0.0);
+        assert!(speech_share(&speech, 32, 64) > 0.99);
+        let half = speech_share(&speech, 16, 48);
+        assert!((0.4..=0.6).contains(&half), "{half}");
+        assert_eq!(speech_share(&speech, 100, 100), 0.0);
+    }
 
     #[test]
     fn encoder_window_and_phantoms() {

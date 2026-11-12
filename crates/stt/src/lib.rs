@@ -1,8 +1,10 @@
 //! Speech-to-text for Margin.
 //!
 //! - [`Transcriber`] is the one engine trait. [`WhisperLocal`] (whisper.cpp through whisper-rs,
-//!   Metal on macOS) is the default and keeps audio on the machine; cloud engines plug in behind
-//!   the same trait ([`cloud`]) and currently report `Unavailable`.
+//!   Metal on macOS) is the default and keeps audio on the machine; cloud engines (Soniox,
+//!   Deepgram, AssemblyAI, OpenAI and OpenAI-compatible services) plug in behind the same trait
+//!   ([`cloud`]).
+//! - [`sample`] streams a known public-domain clip through any engine, for the test in Settings.
 //! - A [`TranscriptStream`] is fed one channel's 16 kHz audio as it is captured; Silero VAD
 //!   ([`vad`]) cuts it into utterances, partial results arrive about every second while someone
 //!   speaks, and a final result when they pause.
@@ -12,6 +14,8 @@ pub mod cloud;
 mod error;
 mod guards;
 pub mod models;
+pub mod recommend;
+pub mod sample;
 pub mod vad;
 mod whisper_local;
 
@@ -33,6 +37,9 @@ pub struct Utterance {
     pub end_ms: u32,
     /// Empty on a final means "nothing was said here" (drop the partial).
     pub text: String,
+    /// Who said it, as the engine labels speakers within this stream ("1", "A"), when it was
+    /// asked to tell them apart. Labels say nothing about who the person is.
+    pub speaker: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,6 +74,11 @@ pub trait Transcriber: Send + Sync {
                 _ => None,
             })
             .collect())
+    }
+    /// Transcribe a whole recording channel as carefully as the engine can, after the meeting
+    /// (16 kHz mono). Blocking. Engines without a careful mode use [`Transcriber::transcribe`].
+    fn transcribe_recording(&self, samples: &[f32], language: Option<&str>) -> SttResult<Vec<Utterance>> {
+        self.transcribe(samples, language)
     }
 }
 

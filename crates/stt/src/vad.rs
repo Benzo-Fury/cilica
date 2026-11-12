@@ -116,6 +116,10 @@ pub struct SegmenterConfig {
     pub pre_roll_ms: u32,
     /// Silence kept after the last speech frame.
     pub post_roll_ms: u32,
+    /// Past this length a shorter pause ([`Self::soft_silence_ms`]) ends the utterance, so long
+    /// turns are cut at a breath instead of running on to the hard cap.
+    pub soft_max_ms: u32,
+    pub soft_silence_ms: u32,
     /// Utterances are cut at this length even without a pause.
     pub max_utterance_ms: u32,
 }
@@ -125,10 +129,12 @@ impl Default for SegmenterConfig {
         Self {
             start_threshold: 0.5,
             end_threshold: 0.35,
-            min_silence_ms: 400,
+            min_silence_ms: 700,
             pre_roll_ms: 300,
             post_roll_ms: 200,
-            max_utterance_ms: 20_000,
+            soft_max_ms: 6_000,
+            soft_silence_ms: 250,
+            max_utterance_ms: 12_000,
         }
     }
 }
@@ -242,7 +248,8 @@ impl Segmenter {
                 } else {
                     a.silence_run += FRAME;
                 }
-                if a.silence_run >= ms(self.cfg.min_silence_ms) {
+                let pause = if a.audio.len() >= ms(self.cfg.soft_max_ms) { self.cfg.soft_silence_ms } else { self.cfg.min_silence_ms };
+                if a.silence_run >= ms(pause) {
                     if let Some(c) = self.close(false) {
                         done.push(c);
                     }
@@ -317,6 +324,22 @@ mod tests {
         chunks = seg.push(1_000_000, &tone(0.5));
         assert_eq!(chunks.len(), 1);
         assert!(seg.current().is_some());
+    }
+
+    #[test]
+    fn long_turns_are_cut_at_a_short_pause() {
+        // 7 s of speech, a 300 ms breath, 3 s more: one cut at the breath (past the soft cap),
+        // where a 300 ms pause early in an utterance would not cut.
+        let mut audio = tone(1.0);
+        audio.extend(vec![0.0; 4_800]);
+        audio.extend(tone(6.0));
+        audio.extend(vec![0.0; 4_800]);
+        audio.extend(tone(3.0));
+        let mut seg = Segmenter::new(Box::new(Loud), SegmenterConfig::default());
+        let mut chunks = seg.push(0, &audio);
+        chunks.extend(seg.flush());
+        assert_eq!(chunks.len(), 2, "{:?}", chunks.iter().map(|c| c.samples.len()).collect::<Vec<_>>());
+        assert!(chunks[0].samples.len() > 16_000 * 7);
     }
 
     #[test]

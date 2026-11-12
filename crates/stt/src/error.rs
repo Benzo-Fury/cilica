@@ -20,6 +20,22 @@ pub enum SttError {
     Cancelled,
     #[error("A file could not be written: {0}. Check that the disk has space.")]
     Io(#[from] std::io::Error),
+    /// The provider has no key for us yet. Holds the provider's name.
+    #[error("Add your {0} API key in Settings › Transcription, then start recording again.")]
+    MissingKey(String),
+    /// The provider rejected the key. Holds the provider's name.
+    #[error("{0} did not accept the API key. Paste a valid key in Settings › Transcription.")]
+    Auth(String),
+    /// The provider took the key but it lacks a permission (for example live transcription).
+    /// Holds a message fit for people saying what to change.
+    #[error("{0}")]
+    NotAllowed(String),
+    /// The provider could not be reached. Holds the provider's name.
+    #[error("Margin could not reach {0}. Check your connection; the audio is still being recorded.")]
+    Network(String),
+    /// The provider answered with an error. Holds a message fit for people (never the key).
+    #[error("{0}")]
+    Provider(String),
 }
 
 pub type SttResult<T> = Result<T, SttError>;
@@ -27,7 +43,9 @@ pub type SttResult<T> = Result<T, SttError>;
 impl From<SttError> for AppError {
     fn from(e: SttError) -> Self {
         let code = match &e {
-            SttError::ModelMissing(_) | SttError::EngineUnavailable(_) => ErrorCode::Unavailable,
+            SttError::ModelMissing(_) | SttError::EngineUnavailable(_) | SttError::MissingKey(_) => ErrorCode::Unavailable,
+            SttError::Auth(_) | SttError::NotAllowed(_) => ErrorCode::PermissionDenied,
+            SttError::Network(_) | SttError::Provider(_) => ErrorCode::Upstream,
             SttError::UnknownModel(_) => ErrorCode::NotFound,
             SttError::Download(_) | SttError::Checksum(_) => ErrorCode::Upstream,
             SttError::Cancelled => ErrorCode::Cancelled,
