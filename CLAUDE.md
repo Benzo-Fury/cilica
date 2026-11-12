@@ -1,6 +1,6 @@
 # Margin
 
-A private, local-first desktop notes app. You write in Markdown, an AI assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. Tauri 2 (Rust) + React 19.
+A private, local-first desktop notes app with an AI assistant and a meeting summariser. You write in Markdown, the assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. Tauri 2 (Rust) + React 19.
 
 Read these before writing code:
 

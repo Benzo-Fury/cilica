@@ -1,10 +1,10 @@
 <div align="center">
   <img src="apps/desktop/src-tauri/icons/icon.png" alt="Margin logo" width="160" height="160">
   <h1>Margin</h1>
-  <p><strong>Local notes app with AI and bot-free meeting summaries</strong></p>
+  <p><strong>Local notes app with an AI assistant and a bot-free meeting summariser</strong></p>
 </div>
 
-Margin is a free, open-source desktop notes app. You write in Markdown and organise notes into categories, and Margin, the built-in assistant, can read and edit all of them: sort them, summarise them, tidy them up, or answer questions about them. When you're on a call, Margin records your microphone and your computer's audio, with no bot joining. It transcribes the call on your computer and turns it into a note with a summary, decisions and action items.
+Margin is a free, open-source desktop notes app with an AI assistant and a meeting summariser. You write in Markdown and organise notes into categories, and Margin, the built-in assistant, can read and edit all of them: sort them, summarise them, tidy them up, or answer questions about them. When you're on a call, the meeting summariser records your microphone and your computer's audio, with no bot joining. It transcribes the call on your computer and turns it into a note with a summary, decisions and action items.
 
 <p align="center">
   <img src="docs/screenshots/01-assistant.jpg" alt="A meeting note with the Margin assistant open, having moved a note into a category with an undo button">
@@ -12,7 +12,7 @@ Margin is a free, open-source desktop notes app. You write in Markdown and organ
 
 ## Why I made it
 
-I wanted something like Granola or Anarlog. Granola is a paid subscription, and I didn't want to pay for it. Anarlog is free, but its interface didn't appeal to me, it was missing features I wanted, and it felt unpolished. So I built the meeting notes app I wanted to use: private, local-first, polished and free.
+I wanted something like Granola or Anarlog. Granola is a paid subscription, and I didn't want to pay for it. Anarlog is free, but its interface didn't appeal to me, it was missing features I wanted, and it felt unpolished. So I built the notes app I wanted to use, with meeting summaries built in: private, local-first, polished and free.
 
 ## Features
 

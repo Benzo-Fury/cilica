@@ -25,7 +25,7 @@ crates/
   store/              SQLite (sqlx), migrations, FTS5. One module per schema area, each `impl Db`
   audio/              mic + system capture, echo cancellation, resampling, Opus/WAV writing
   detect/             meeting detection per OS
-  stt/                Transcriber trait: whisper_local (+ model catalogue and download), cloud adapters
+  stt/                Transcriber trait: whisper_local (+ model catalogue, download, hardware recommendation), cloud adapters (Soniox, Deepgram, AssemblyAI over WebSocket; OpenAI-compatible over HTTP)
   diarize/            VAD, segmentation, embeddings, clustering, voiceprint matching
   pipeline/           one recording session end to end: capture → VAD → STT → store → events → diarize → summarise
   llm/                Provider trait: anthropic, openai_compat, ollama, claude_code
@@ -50,11 +50,13 @@ If you need a change to any of them, make the smallest additive change in your o
 Crates receive an `Events` handle (`Arc<dyn EventSink>`) and call `events.emit(AppEvent::…)`. The shell forwards each as `BackendEvent`. The UI listens once (`events.backendEvent.listen`) and fans out by `payload.type`:
 
 - `data_changed { scopes, note_id }`: invalidate TanStack Query keys. Emit this after any write the UI did not make itself (AI, scheduler, pipeline).
-- `recording_state_changed`, `audio_levels`, `transcript_segment`, `note_body_stream`, `meeting_detected`, `meeting_ended`, `model_download`, `assistant`, `task_run_finished`, `settings_changed`, `toast`, `import_progress`.
+- `recording_state_changed`, `audio_levels`, `transcript_segment`, `note_body_stream`, `meeting_detected`, `meeting_ended`, `model_download`, `assistant`, `task_run_finished`, `settings_changed`, `toast`, `import_progress`, `open_note` (the main window opens that note; sent when setup finishes).
 
 ## Startup
 
 `lib.rs` opens the database (`Core::init`), then calls each `commands::<area>::setup(app, &core)` in order: settings, notes, recording, assistant, tasks. Each area builds its own service there and registers it with `app.manage(...)`; commands take it as `State<'_, YourService>` alongside `State<'_, Core>`. The main window starts hidden; the UI calls `showMainWindow` after first paint.
+
+Every window loads the same bundle; `main.tsx` picks the root from `?window=`: the main app, `island` (the Dynamic Island) or `onboarding` (first-run setup). On a first launch (`onboarding_done` false) `shell::setup` also builds the setup window (`shell/onboarding.rs`), and `showMainWindow` leaves the main window hidden while it is open. `finish_onboarding` (Open Margin, or closing the window) marks setup done, writes the welcome note (`Db::create_welcome_note`), emits `open_note`, closes setup and shows the main window. `open_onboarding` reopens setup from Settings.
 
 ## Cross-area seams
 

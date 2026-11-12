@@ -32,9 +32,9 @@ Built on 12 Nov 2026 (`crates/import`, Settings › Import).
 
 ## Who we import from
 
-Competitors fall into four groups. The **route** is how Margin gets the data out, listed best first. **Fidelity** is what that route carries: S = AI summary, N = the user's own typed notes, T = transcript, Sp = speaker names, Ts = timestamps.
+The apps fall into four groups. The **route** is how Margin gets the data out, listed best first. **Fidelity** is what that route carries: S = AI summary, N = the user's own typed notes, T = transcript, Sp = speaker names, Ts = timestamps.
 
-### 1. Bot-free desktop note takers (direct competitors)
+### 1. Bot-free desktop note takers
 
 These users are the most likely to switch, so they come first.
 

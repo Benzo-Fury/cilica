@@ -2,7 +2,7 @@
 
 > v0.2, 11 Nov 2026. Source of truth for behaviour. The design system (docs/design-system/) is the source of truth for look and motion; where the two disagree on visuals (for example toast position), the design system wins.
 
-A local-first desktop notes app with bot-free meeting transcription, speaker labels and an AI assistant that can read and edit everything. This page is the brief for agents designing and building it.
+A local-first desktop notes app with an AI assistant and a meeting summariser. The assistant can read and edit every note; the summariser records calls without a bot, transcribes them on-device with speaker labels and writes them up as notes. This page is the brief for agents designing and building it.
 
 - Tauri 2 + Rust core
 - macOS 14.4+ · Windows 10/11 · Linux (PipeWire)
@@ -19,7 +19,7 @@ A local-first desktop notes app with bot-free meeting transcription, speaker lab
 | Claude subscription | Anarlog does not handle Claude tokens. It runs the user's installed `claude` CLI headless (`claude -p --output-format stream-json`), so Claude Code's own login is used. Copy that as an opt-in **Claude Code bridge**, but make API key the default. Anthropic's 2026 terms limit subscription use to Claude Code and claude.ai, so label the bridge experimental. See Providers. |
 | AI guardrails | Adopt all six ideas, arranged as **permission tiers**: reads run freely, additive writes apply with undo, edits show a diff, destructive actions need confirmation. Everything is versioned, soft-deleted and logged. Add transcript prompt-injection isolation. See Guardrails. |
 | Bottom sidebar | Listening toggle, Scheduled tasks, Saved people, AI activity, Trash, Settings. |
-| Speech-to-text | **Local Whisper** (whisper.cpp) is the default engine, as in Anarlog's on-device mode. Audio never leaves the machine. Cloud engines stay available as an option. |
+| Speech-to-text | **Local Whisper** (whisper.cpp) is the default engine, as in Anarlog's on-device mode. Audio never leaves the machine. Cloud services (Soniox, Deepgram, AssemblyAI, OpenAI, or any OpenAI-compatible endpoint) are an option with the person's own key, for computers that cannot keep up locally. |
 
 ## Stack
 
@@ -31,7 +31,7 @@ A local-first desktop notes app with bot-free meeting transcription, speaker lab
 | Editor | TipTap 3 (ProseMirror) with Markdown in/out. Markdown is the stored format. Anarlog also uses TipTap. |
 | Storage | SQLite via `sqlx` with migrations; FTS5 for search. Secrets in the OS keychain via `keyring`. Meeting audio as Opus files with a retention setting (default 30 days). |
 | Audio | `cpal` (mic), `cidre` (macOS Core Audio taps), `wasapi` (Windows loopback), `pipewire` (Linux). Resample to 16 kHz mono. Echo cancellation on the mic using system audio as the reference. |
-| Speech-to-text | **Default: local Whisper** via `whisper-rs` (whisper.cpp; Metal / CUDA / Vulkan features) with Silero VAD chunking. The model downloads during onboarding with a progress view. Optional cloud streaming engines (Deepgram, Soniox, AssemblyAI) with the user's own key, behind one `Transcriber` trait. |
+| Speech-to-text | **Default: local Whisper** via `whisper-rs` (whisper.cpp; Metal / CUDA / Vulkan features) with Silero VAD chunking. The model downloads during first-run setup and keeps going in the background. Settings recommends a model for the computer (Turbo on Apple silicon and strong PCs, Small on typical laptops, Base plus a cloud suggestion on old machines); choosing one and clicking Download downloads it and switches to it. Optional cloud engines with the user's own key (keychain account `stt.<engine>`), behind one `Transcriber` trait: Soniox, Deepgram and AssemblyAI stream over WebSocket; OpenAI and OpenAI-compatible services take utterances cut at pauses. Choosing one first confirms that audio will go to that provider. Settings › Transcription has a Test that streams an 11 s public-domain speech clip (never the person's audio) to the service in real time and shows the words as they come back and how quickly the first ones arrived. **After the meeting** (on by default), the whole recording is transcribed again with Whisper Large v3 Turbo (beam search, full windows) and replaces the live transcript, unless that pass loses more than half the words. It runs only with local Whisper; a cloud service's transcript is kept, and the setting is hidden while one is chosen. **Speakers:** Soniox, Deepgram and AssemblyAI can label who is speaking, on the call and on the microphone, as the meeting goes (Settings › Transcription › Show who's speaking live, on by default; greyed out and off for local Whisper, OpenAI and other services). Each label becomes a "Person N" on the note, except the first voice on the microphone, which is You. Without live labels the live transcript leaves speakers out and says they appear when it is finished. **Identify speakers after the meeting** (on by default) then tells voices apart on this computer, which is more accurate, replacing the live labels and suggesting names for known voices; turned off, the live labels (or You and Others) are kept. |
 | Diarization | `ort` (ONNX Runtime): pyannote segmentation model + speaker-embedding model, then clustering. Anarlog's `pyannote-local` crate is a reference (MIT). |
 | LLM | `reqwest` + SSE streaming against the Anthropic Messages API with tool use. Defaults: `claude-sonnet-5-5` for assistant and summaries, `claude-haiku-5-5` for titles, snippets and prompt chips. |
 
@@ -42,6 +42,19 @@ A local-first desktop notes app with bot-free meeting transcription, speaker lab
 
 - Animations hold 60 fps (120 on ProMotion). Only `transform`/`opacity` animate; never width/height/top.
 - Live transcript lags speech by under 3 s with the local engine.
+
+## First launch
+
+Setup is its own small window (560 × 700, fixed size), not a dialog in the app. The main window stays hidden until setup finishes or is closed. Over background art (a pixel ridgeline drawn in code, dawn in light and night in dark), one column:
+
+1. **Welcome**: one line on what Margin is (a notes app with an AI assistant and a meeting summariser) and four features from the README in that order (notes, the assistant, meeting summaries, import), then Set up Margin. Once you start, the welcome steps aside so each step title is the only heading.
+2. **Let Margin hear your meetings**: microphone, system audio and Accessibility (optional) as buttons that turn into confirmations, plus Record when a meeting starts (Ask me first or Start on its own). Only the microphone is needed to go on.
+3. **Transcribe on this Mac**: Mostly English or Several languages picks the recommended Whisper model; the download continues in a pill at the bottom of the window and after setup.
+4. **Connect Margin to a model**: Anthropic key, Ollama, an OpenAI-compatible server (address, model, key) or Claude Code (with the terms warning). Keys are checked before they are kept.
+5. **Bring your notes**: apps found on this computer with their counts; picked ones import in the background.
+6. **Make it yours**: theme and note typeface. Its button, Open Margin, finishes setup. There is no ending page.
+
+Finished steps collapse to one line with a check (grey when skipped) and reopen when clicked. Every step can be skipped. Finishing or closing the window marks setup done, writes a welcome note with the three main shortcuts (first run only) and opens the main window on it. A quiet ambient pad is available from the speaker button and starts muted. Settings › General › Run setup again opens the window over Margin.
 
 ## Layout
 
@@ -89,17 +102,18 @@ Notes link with Obsidian's Markdown, so an imported vault keeps its links and Ma
 - **New note.** Titled “{App} meeting · {time}” and opened on the Transcript panel. A toast confirms with a Stop action.
 
 - **Capture.** Mic and system streams start in parallel, are echo-cancelled and resampled, and are written to disk as they arrive, so a crash loses nothing.
-- **Live transcript.** VAD splits speech into chunks; the engine streams partial then final segments to the UI as events. Mic segments are labelled **You**; system segments are labelled **Others** until diarization assigns Person 1, 2….
+- **Live transcript.** VAD splits speech into utterances (a 700 ms pause ends one; past 6 s a 250 ms breath does; 12 s at most); each decode is primed with the stream's recent text; mic and call audio each have their own decoder state. The engine streams partial then final segments to the UI as events. Mic segments are labelled **You**; system segments are labelled **Others** until diarization assigns Person 1, 2….
 
 - **End.** Manual Stop, or the meeting app releases the mic for 15 s. A toast offers “Keep recording” for 10 s.
-- **Finalize.** Full diarization pass, matching against Saved people voiceprints (suggested, never applied silently). Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.
+- **Finalize.** Full diarization pass, matching against Saved people voices (named when Margin is sure, suggested when it is less sure; it learns only from confirmations). Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.
 
 ### Speakers and Saved people
 
-- Each Person 1…n is a cluster of speaker embeddings for that meeting. Naming one offers “Save as person”, which stores the name and an averaged voiceprint.
-- Later meetings compare clusters to saved voiceprints (cosine similarity above a tuned threshold) and suggest “Is Person 2 Sam?”.
-
-- Saved people page: name, voiceprint sample count, meetings they appeared in, merge/rename/delete.
+- Each Person 1…n is a cluster of speaker embeddings for that meeting. Naming one offers “Save as person”, which stores the name and the speaker's voice as a first sample.
+- **You** is a Saved person that is always there (it cannot be deleted or merged away). Your mic speaker is linked to it, and your voice is learnt the same way as anyone's.
+- **Learning.** Picking a Saved person for a speaker (or confirming Margin's guess, or answering Yes to a suggestion) adds that speaker's voice as one of the person's samples. Picking someone else, or unlinking, takes that sample back out, so a correction untrains the wrong person. Margin's own guesses teach nothing.
+- **Recognising** (Settings › Transcription › Recognise saved voices, on by default). Live, with a service that labels speakers: once a labelled speaker has said about 3 s (then 8 s and 15 s), Margin makes a voiceprint on this computer (CAM++) and compares it with each Saved person's samples; at or above 0.72 cosine similarity it names them (one speaker per person; You only on the mic). After the meeting the same happens for every speaker the check found, and the mic voice closest to your saved voice is You (whoever talked most until Margin knows your voice). Between 0.6 and 0.72 it only asks: “Is Person 2 Sam?”.
+- Saved people page: name, voice sample count, meetings they appeared in, rename/recolour/merge/forget voice/delete. Forget voice drops a person's samples and keeps them and their meetings.
 - In-person meetings (one mic, many speakers): diarize the mic channel as well.
 
 ## Audio capture and meeting detection
@@ -229,7 +243,8 @@ note_versions    id, note_id, body_md, author(user|ai), ai_action_id?, created_a
 categories       id, name, position, collapsed
 segments         id, note_id, speaker_id, channel(mic|system), start_ms, end_ms, text, is_final
 speakers         id, note_id, label("Person 2"), person_id?, embedding
-people           id, name, voiceprint, sample_count, created_at
+people           id, name, voiceprint (mean of samples), sample_count, created_at, is_self
+voice_samples    id, person_id, speaker_id?, embedding, created_at
 tasks            id, name, prompt, scope_json, schedule_json, next_run_at, enabled, is_default
 task_runs        id, task_id, started_at, finished_at, status, report_json
 proposals        id, source(chat|task), kind, payload_json, status(pending|applied|dismissed)
@@ -244,7 +259,7 @@ settings         key, value_json        -- secrets live in the OS keychain, neve
 
 ```
 apps/desktop/
-  src-tauri/          # thin shell: commands, events, windows, tray, permissions onboarding
+  src-tauri/          # thin shell: commands, events, windows (main, setup, island), tray
   src/
     app/              # root layout, providers, keybind registry, motion presets
     features/         # sidebar, note, transcript, assistant, people, tasks, activity, trash, settings
