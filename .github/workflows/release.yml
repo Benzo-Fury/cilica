@@ -10,35 +10,53 @@ name: Release
 on:
   release:
     types: [published]
+  # Rebuild an existing release from the current branch, for example after a platform failed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach to, like v0.1.0
+        required: true
+      platform:
+        description: Platform to build
+        type: choice
+        options: [all, macOS (Apple Silicon), Windows, Linux]
+        default: all
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
+  # Picks the platforms to build: all of them for a published release, or the one asked for.
+  platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          PLATFORM: ${{ inputs.platform || 'all' }}
+        run: |
+          ALL='[
+            {"name":"macOS (Apple Silicon)","os":"macos-latest","target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"},
+            {"name":"Windows","os":"windows-latest","target":"x86_64-pc-windows-msvc","args":""},
+            {"name":"Linux","os":"ubuntu-24.04","target":"x86_64-unknown-linux-gnu","args":""}
+          ]'
+          echo "matrix=$(jq -c --arg p "$PLATFORM" 'map(select($p == "all" or .name == $p))' <<<"$ALL")" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: platforms
     name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       # One platform failing must not stop the others from shipping.
       fail-fast: false
       matrix:
-        include:
-          - name: macOS (Apple Silicon)
-            os: macos-latest
-            target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin
-          - name: Windows
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            args: ""
-          - name: Linux
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            args: ""
+        include: ${{ fromJSON(needs.platforms.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +86,8 @@ jobs:
       - name: Set the app version from the release tag
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${TAG#v}"
           node -e '
             const fs = require("fs");
             const path = "apps/desktop/src-tauri/tauri.conf.json";
@@ -110,6 +129,5 @@ jobs:
           projectPath: apps/desktop
           tauriScript: bun run tauri
           args: ${{ matrix.args }}
-          releaseId: ${{ github.event.release.id }}
-          tagName: ${{ github.event.release.tag_name }}
+          tagName: ${{ github.event.release.tag_name || inputs.tag }}
           updaterJsonPreferNsis: true
