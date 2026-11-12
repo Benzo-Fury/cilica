@@ -225,6 +225,10 @@
     inset 0 0 0 0.5px var(--glass-edge),
     var(--shadow-float);
 }
+.nt-graph-legend-count {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
 .nt-graph-hint {
   position: absolute;
   top: var(--space-4);

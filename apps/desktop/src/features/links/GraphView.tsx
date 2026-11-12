@@ -77,6 +77,21 @@ export function GraphView({ focus }: { focus?: string }) {
     }
   };
 
+  const legendCounts = useMemo(() => {
+    const c: Record<string, number> = { link: 0, dotted: 0 };
+    for (const n of graph?.nodes ?? []) {
+      c[n.kind] = (c[n.kind] ?? 0) + 1;
+      if (n.kind === "note") {
+        const cat = n.category_id ?? "none";
+        c[`cat:${cat}`] = (c[`cat:${cat}`] ?? 0) + 1;
+      }
+    }
+    for (const e of graph?.edges ?? []) {
+      if (e.kind === "transcript") c.dotted = (c.dotted ?? 0) + 1;
+      else c.link = (c.link ?? 0) + 1;
+    }
+    return c;
+  }, [graph]);
   const noteCount = graph?.nodes.filter((n) => n.kind === "note").length ?? 0;
   const linkCount = graph?.edges.filter((e) => e.kind !== "transcript").length ?? 0;
 
@@ -167,7 +182,12 @@ export function GraphView({ focus }: { focus?: string }) {
                 No links yet. Type [[ in a note to link it to another.
               </p>
             )}
-            <Legend colorBy={options.colorBy} categories={categories} filter={options} />
+            <Legend
+              counts={legendCounts}
+              colorBy={options.colorBy}
+              categories={categories}
+              filter={options}
+            />
             <div className="nt-graph-zoom" role="toolbar" aria-label="Zoom">
               <IconButton
                 icon={Minus}
@@ -218,28 +238,40 @@ export function Legend({
   colorBy,
   categories,
   filter,
+  counts,
 }: {
+  /** How many of each item: node kinds, `cat:<id>` / `cat:none`, `link`, `dotted`. */
+  counts?: Record<string, number>;
   colorBy: "type" | "category";
   categories: readonly { id: string; name: string }[];
   filter: { people: boolean; tags: boolean; missing: boolean };
 }) {
-  const items: { key: string; label: string; swatch: string; color?: number | null }[] = [];
+  const items: {
+    key: string;
+    label: string;
+    swatch: string;
+    count: string;
+    color?: number | null;
+  }[] = [];
   if (colorBy === "category" && categories.length) {
     for (const c of categories.slice(0, 7)) {
       items.push({
         key: c.id,
         label: c.name,
         swatch: "group",
+        count: `cat:${c.id}`,
         color: categoryColor(categories as never, c.id),
       });
     }
-    items.push({ key: "none", label: "No category", swatch: "note" });
+    items.push({ key: "none", label: "No category", swatch: "note", count: "cat:none" });
   } else {
-    items.push({ key: "note", label: "Notes", swatch: "note" });
+    items.push({ key: "note", label: "Notes", swatch: "note", count: "note" });
   }
-  if (filter.people) items.push({ key: "person", label: "People", swatch: "person" });
-  if (filter.tags) items.push({ key: "tag", label: "Tags", swatch: "tag" });
-  if (filter.missing) items.push({ key: "missing", label: "Not created yet", swatch: "missing" });
+  if (filter.people)
+    items.push({ key: "person", label: "People", swatch: "person", count: "person" });
+  if (filter.tags) items.push({ key: "tag", label: "Tags", swatch: "tag", count: "tag" });
+  if (filter.missing)
+    items.push({ key: "missing", label: "Not created yet", swatch: "missing", count: "missing" });
   return (
     <ul className="nt-graph-legend" aria-label="Key">
       {items.map((item) => (
@@ -255,18 +287,26 @@ export function Legend({
             aria-hidden
           />
           {item.label}
+          <Count n={counts?.[item.count]} />
         </li>
       ))}
       <li>
         <span className="nt-graph-swatch" data-swatch="line" aria-hidden />
         Link
+        <Count n={counts?.link} />
       </li>
       {filter.people && (
         <li>
           <span className="nt-graph-swatch" data-swatch="dotted" aria-hidden />
           Heard in a meeting
+          <Count n={counts?.dotted} />
         </li>
       )}
     </ul>
   );
+}
+
+function Count({ n }: { n: number | undefined }) {
+  if (n === undefined) return null;
+  return <span className="nt-graph-legend-count">({n.toLocaleString()})</span>;
 }
