@@ -1048,6 +1048,13 @@ mark {
 .nt-note :is(ul, ol) :is(ul, ol) {
   margin: 2px 0 0;
 }
+/* Sub-bullets (Tab / Shift-Tab) change marker per level so the depth reads at a glance. */
+.nt-note ul ul {
+  list-style: circle;
+}
+.nt-note ul ul ul {
+  list-style: square;
+}
 .nt-note a {
   color: var(--accent-text);
   text-decoration: underline;
