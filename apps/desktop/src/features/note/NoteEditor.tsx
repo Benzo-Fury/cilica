@@ -49,10 +49,13 @@ function setBody(editor: Editor, markdown: string) {
 export function NoteEditor({
   note,
   onStreamingChange,
+  onTextChange,
   ref,
 }: {
   note: Note;
   onStreamingChange?: (streaming: boolean) => void;
+  /** Plain text of the body, on mount and after every edit (for the word count). */
+  onTextChange?: (text: string) => void;
   ref?: Ref<NoteEditorHandle>;
 }) {
   const queryClient = useQueryClient();
@@ -96,7 +99,11 @@ export function NoteEditor({
     editorProps: {
       attributes: { "aria-label": "Note body", spellcheck: "true", class: "nt-selectable" },
     },
-    onUpdate: ({ editor: e }) => autosave.schedule(e.getMarkdown()),
+    onCreate: ({ editor: e }) => onTextChange?.(e.getText()),
+    onUpdate: ({ editor: e }) => {
+      autosave.schedule(e.getMarkdown());
+      onTextChange?.(e.getText());
+    },
     // The assistant can see what is selected ("Viewing: … · 12 words selected").
     onSelectionUpdate: ({ editor: e }) => {
       const { from, to } = e.state.selection;

@@ -131,6 +131,7 @@ function LoadedNote({ note }: { note: Note }) {
   const [mode, setMode] = useState<"view" | "history">("view");
   const [find, setFind] = useState<{ open: boolean; tick: number }>({ open: false, tick: 0 });
   const [streaming, setStreaming] = useState(false);
+  const [words, setWords] = useState(0);
   const [title, setTitle] = useState(note.title);
   const editorRef = useRef<NoteEditorHandle>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -453,7 +454,12 @@ function LoadedNote({ note }: { note: Note }) {
                         <Shimmer>Writing notes from the meeting…</Shimmer>
                       </div>
                     )}
-                    <NoteEditor ref={editorRef} note={note} onStreamingChange={setStreaming} />
+                    <NoteEditor
+                      ref={editorRef}
+                      note={note}
+                      onStreamingChange={setStreaming}
+                      onTextChange={(text) => setWords(countWords(text))}
+                    />
                   </article>
                   {!streaming && (note.title.trim() || note.body_md.trim()) && (
                     <Connections noteId={note.id} categoryId={note.category_id} />
@@ -465,7 +471,17 @@ function LoadedNote({ note }: { note: Note }) {
             )}
           </motion.div>
         </AnimatePresence>
+        {panel === "notes" && mode === "view" && (
+          <p className="nt-note-wordcount" aria-live="off">
+            {words === 1 ? "1 word" : `${words.toLocaleString()} words`}
+          </p>
+        )}
       </div>
     </ViewLayer>
   );
+}
+
+function countWords(text: string): number {
+  const m = text.trim().match(/\S+/g);
+  return m ? m.length : 0;
 }

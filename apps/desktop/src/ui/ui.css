@@ -1738,6 +1738,18 @@ mark {
   flex: 1;
   min-height: 0;
 }
+.nt-note-wordcount {
+  position: absolute;
+  left: var(--space-5);
+  bottom: var(--space-4);
+  z-index: 1;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  text-shadow: 0 0 6px var(--bg-canvas);
+}
 .nt-crumb-cat {
   display: inline-flex;
   align-items: center;
