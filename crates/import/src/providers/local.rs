@@ -643,9 +643,64 @@ impl Provider for AppleNotes {
                 ImportError::upstream("Apple Notes did not answer. Open Notes once, wait for it to finish syncing, then try again.")
             });
         }
-        let json: Value = serde_json::from_slice(&output.stdout).map_err(|_| ImportError::upstream("Apple Notes answered in a way Margin did not understand. Try again."))?;
+        let json = parse_notes_json(&output.stdout).map_err(|e| {
+            tracing::warn!(error = %e, bytes = output.stdout.len(), "could not parse Apple Notes output");
+            ImportError::upstream("Apple Notes answered in a way Margin did not understand. Try again.")
+        })?;
         Ok(read_apple_notes(&json))
     }
+}
+
+/// Parse what the Notes script printed. JavaScript strings may hold half an emoji (a title Notes
+/// cut mid-character), which `JSON.stringify` writes as a lone `\\uD83D` escape that serde rejects;
+/// those halves become U+FFFD and the rest of the note survives.
+fn parse_notes_json(bytes: &[u8]) -> Result<Value, serde_json::Error> {
+    match serde_json::from_slice(bytes) {
+        Ok(v) => Ok(v),
+        Err(first) => {
+            let text = String::from_utf8_lossy(bytes);
+            let repaired = repair_lone_surrogates(&text);
+            if repaired == text { Err(first) } else { serde_json::from_str(&repaired) }
+        }
+    }
+}
+
+/// Replace `\uD800`–`\uDFFF` escapes that are not part of a high+low pair with `\uFFFD`.
+fn repair_lone_surrogates(text: &str) -> String {
+    fn escape_at(b: &[u8], i: usize) -> Option<u16> {
+        // `\uXXXX` preceded by an even number of backslashes is a real escape.
+        if b.get(i) != Some(&b'\\') || b.get(i + 1) != Some(&b'u') {
+            return None;
+        }
+        let hex = std::str::from_utf8(b.get(i + 2..i + 6)?).ok()?;
+        u16::from_str_radix(hex, 16).ok()
+    }
+    let b = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let mut last = 0;
+    while i < b.len() {
+        if b[i] == b'\\' {
+            match escape_at(b, i) {
+                Some(hi @ 0xD800..=0xDBFF) if matches!(escape_at(b, i + 6), Some(0xDC00..=0xDFFF)) => {
+                    let _ = hi;
+                    i += 12;
+                }
+                Some(0xD800..=0xDFFF) => {
+                    out.push_str(&text[last..i]);
+                    out.push_str("\\uFFFD");
+                    i += 6;
+                    last = i;
+                }
+                // Any other escape, including `\\`, is two bytes we skip whole.
+                _ => i += 2,
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out.push_str(&text[last..]);
+    out
 }
 
 fn read_apple_notes(json: &Value) -> Scan {
@@ -723,6 +778,19 @@ mod tests {
         assert_eq!(meetily_summary(r###"{"markdown":"## Done"}"###).as_deref(), Some("## Done"));
         assert!(meetily_summary(r#"{"Key points":["a","b"]}"#).unwrap().contains("- a"));
         assert_eq!(meetily_summary("plain").as_deref(), Some("plain"));
+    }
+
+    #[test]
+    fn apple_notes_output_with_half_an_emoji() {
+        // Exactly what osascript prints for a title cut mid-emoji, plus a whole emoji and an escaped backslash.
+        let raw = br#"[{"id":"x-coredata://1","name":"Trip \ud83c","folder":["Notes"],"locked":false,"body":"<div>Fun \ud83c\udf89 \\ud800 \udc00 end</div>"}]"#;
+        assert!(serde_json::from_slice::<Value>(raw).is_err());
+        let json = parse_notes_json(raw).unwrap();
+        let scan = read_apple_notes(&json);
+        assert_eq!(scan.notes.len(), 1);
+        assert_eq!(scan.notes[0].title, "Trip \u{FFFD}");
+        let body = scan.notes[0].notes_md.as_deref().unwrap();
+        assert!(body.starts_with("Fun \u{1F389} ") && body.contains("ud800") && body.ends_with(" \u{FFFD} end"), "{body}");
     }
 
     #[test]
