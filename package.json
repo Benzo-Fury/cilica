@@ -11,6 +11,7 @@
     "lint": "bun run --cwd apps/desktop lint && cargo clippy --workspace --all-targets",
     "tokens": "python3 tools/build-tokens.py",
     "import-apps": "python3 tools/build-import-apps.py",
+    "dmg-background": "bun tools/build-dmg-background.ts",
     "bindings": "cargo test -p margin-desktop export_bindings"
   }
 }

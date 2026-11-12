@@ -34,6 +34,8 @@ bun run --cwd apps/desktop tauri build --target aarch64-apple-darwin
 
 Output lands in `target/aarch64-apple-darwin/release/bundle/`: the notarized `.dmg`, plus `Margin.app.tar.gz` and its `.sig` for the updater.
 
+The `.dmg` opens on a "Drag Margin into Applications" window: the setup window's night ridgeline from `apps/desktop/src-tauri/dmg/background.tiff`, with the icons placed by `bundle.macOS.dmg` in `tauri.conf.json`. The image is generated (`bun run dmg-background`), so change the script in `tools/` rather than the file. The window is laid out by Finder over AppleScript, so the first local build asks for your terminal to control Finder; allow it.
+
 Verify:
 
 ```bash

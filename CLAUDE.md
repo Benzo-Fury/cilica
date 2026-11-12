@@ -19,6 +19,7 @@ Read these before writing code:
 | Regenerate `src/ipc/bindings.ts` | `bun run bindings` |
 | Regenerate `tokens.css` from `tokens.json` | `bun run tokens` |
 | Regenerate the README's import image (`docs/images/import-apps.svg`) after changing the import catalogue or its logos | `bun run import-apps` |
+| Regenerate the disk image background (`src-tauri/dmg/background.tiff`) after changing the setup art or dark tokens (needs Chrome) | `bun run dmg-background` |
 
 Package manager is **bun**. Rust edition 2024. Add dependencies with `cargo add` / `bun add` (never hand-type versions).
 
