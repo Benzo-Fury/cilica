@@ -65,7 +65,7 @@ Every rounded rectangle is a **squircle** (continuous corner), as on Apple platf
 
 ## Elevation
 
-Depth comes from material first, shadow second. `shadow-xs` for controls that sit on a surface, `shadow-sm` for cards, `shadow-float` for anything floating (menus, toasts, capsule), `shadow-overlay` for the palette and dialogs. Dark-theme shadows add a 0.5px light rim because a shadow alone disappears on graphite. Glass adds an inner top highlight (`glass-highlight`) and a 0.5px edge (`glass-edge`); that rim is what makes it read as glass.
+Depth comes from material first, shadow second. `shadow-xs` for controls that sit on a surface, `shadow-sm` for cards, `shadow-float` for anything floating (menus, toasts, capsule), `shadow-overlay` for the palette and dialogs. Dark-theme shadows add a 0.5px light rim because a shadow alone disappears on graphite. Glass adds a 0.5px edge (`glass-edge`) and nothing inside it: no inner top highlight or inner glow on any surface.
 
 ## Interaction states
 

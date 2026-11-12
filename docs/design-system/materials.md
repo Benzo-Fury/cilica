@@ -20,13 +20,14 @@ No native window material is applied (`WINDOW_MATERIAL` in `src-tauri/src/shell/
 
 Controls that float over the canvas are frosted glass made in CSS:
 
-- `nt-glass`: `glass-fill`, `backdrop-filter: blur(blur-glass) saturate(180%)`, an inner `glass-highlight` top rim, a 0.5px `glass-edge`, `shadow-float`. For the recorder capsule, floating toolbars, toasts, the "Jump to live" chip.
+- `nt-glass`: `glass-fill`, `backdrop-filter: blur(blur-glass) saturate(180%)`, a 0.5px `glass-edge`, `shadow-float`. No inner highlight. For the recorder capsule, floating toolbars, toasts, the "Jump to live" chip.
 - `nt-glass-strong`: `glass-fill-strong` with `blur-glass-strong`. For anything with text to read: menus, the command palette, popovers.
 - Glass buttons and large glass surfaces carry a soft specular highlight that follows the pointer.
 - The Dynamic Island is its own window: true black on Macs with a notch, dark glass elsewhere.
 
 ## Rules
 
+- No inner light on glass or any other surface: no `inset 0 1px 0` top rim, no inner glow. The edge comes from the 0.5px `glass-edge` and the shadow alone.
 - Dialogs are opaque `bg-raised`: a decision deserves a solid surface.
 - Don't stack glass on glass (a menu opened from the recorder capsule renders below it in `glass-fill-strong` with a stronger blur, never over it).
 - Keep glass small: it is for controls, not regions. The largest in-app glass surface is the command palette.

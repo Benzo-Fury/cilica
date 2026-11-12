@@ -28,6 +28,7 @@ Package manager is **bun**. Rust edition 2024. Add dependencies with `cargo add`
 - **IPC is typed.** Commands are declared in `src-tauri/src/commands/*.rs` with `#[tauri::command] #[specta::specta]`, listed in `src-tauri/src/lib.rs`, and reach the UI only through the generated `apps/desktop/src/ipc/bindings.ts`. No hand-written `invoke("…")`. No `i64`/`u64` in IPC types.
 - **UI layering.** `src/ui/` holds design-system components and is the only place raw styling lives. `src/features/<name>/` owns its components, hooks and state. UI components never call IPC; feature hooks do, through `src/ipc/`.
 - **Tokens only.** No raw hex, px radii or ad-hoc shadows in components: use Tailwind utilities mapped in `src/styles/theme.css` or the `var(--token)` names. `tokens.css` and `bindings.ts` are generated; never edit them.
+- **No inner light.** No inset top highlight or inner glow on any surface (`inset 0 1px 0 …`). Glass gets its edge from the 0.5px `glass-edge` and its shadow only (see `materials.md`).
 - **Everything that moves, springs.** Use the presets in `docs/design-system/motion.md`. Animate transform and opacity only. Honour Reduce motion and Reduce transparency.
 - **Copy.** Sentence case, plain verbs, no emoji, no "Success!", errors say what went wrong and what to do next (see Voice and copy in the design system README). The assistant is "Margin", never "AI" (except the "AI" settings section).
 - **Errors.** Every command returns `AppResult<T>` (`margin_domain::AppError { code, message }`). Messages are written for people.
