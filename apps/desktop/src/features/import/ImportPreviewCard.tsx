@@ -14,8 +14,9 @@ import {
 import { useMemo, useState } from "react";
 import type { ImportCategoryMode, ImportFidelity, ImportPreview } from "@/ipc/types";
 import { plural, relativeDate } from "@/lib/format";
-import { Button, Chip, ChipButton, Icon, ProviderIcon, RichText, SelectMenu, StatGrid } from "@/ui";
+import { Button, Chip, ChipButton, Icon, ProviderIcon, SelectMenu, StatGrid } from "@/ui";
 import { countNotes, useStartImport } from "./hooks";
+import { LeftOutPills } from "./LeftOutPills";
 import type { ImportProvider } from "./providers";
 
 const FIDELITY: { key: keyof ImportFidelity; label: string }[] = [
@@ -178,24 +179,8 @@ export function ImportPreviewCard({
         )}
       </div>
 
-      {preview.unsupported.filter((u) => u.count > 0).length > 0 && (
-        <div>
-          <div className="nt-import-subtitle">Not imported</div>
-          <ul className="nt-import-leftout">
-            {preview.unsupported
-              .filter((u) => u.count > 0)
-              .map((u) => (
-                <li key={u.kind}>
-                  <b>
-                    {u.kind} ({u.count})
-                  </b>
-                  <span>
-                    <RichText text={u.reason} />
-                  </span>
-                </li>
-              ))}
-          </ul>
-        </div>
+      {preview.unsupported.some((u) => u.count > 0) && (
+        <LeftOutPills items={preview.unsupported.filter((u) => u.count > 0)} />
       )}
 
       {preview.warnings.length > 0 && (

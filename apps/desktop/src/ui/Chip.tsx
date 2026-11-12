@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { cn } from "./cn";
 import { Icon } from "./Icon";
 
-export type ChipTone = "neutral" | "accent" | "rec" | "success" | "warning";
+export type ChipTone = "neutral" | "accent" | "rec" | "success" | "warning" | "danger";
 
 interface BaseProps {
   tone?: ChipTone;
@@ -16,10 +16,19 @@ interface BaseProps {
 
 const toneClass = (tone: ChipTone) => (tone === "neutral" ? null : `nt-chip-${tone}`);
 
+export type ChipProps = BaseProps & HTMLAttributes<HTMLSpanElement>;
+
 /** Small pill for metadata and status. Never more than one icon. */
-export function Chip({ tone = "neutral", icon, leading, className, children }: BaseProps) {
+export function Chip({
+  tone = "neutral",
+  icon,
+  leading,
+  className,
+  children,
+  ...props
+}: ChipProps) {
   return (
-    <span className={cn("nt-chip", toneClass(tone), className)}>
+    <span className={cn("nt-chip", toneClass(tone), className)} {...props}>
       {leading ?? (icon && <Icon icon={icon} size="sm" />)}
       {children}
     </span>

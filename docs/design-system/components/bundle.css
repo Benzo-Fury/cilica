@@ -242,6 +242,7 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 .nt-chip-rec { background: var(--rec-soft); color: var(--danger); }
 .nt-chip-success { background: var(--success-soft); color: var(--success); }
 .nt-chip-warning { background: var(--warning-soft); color: var(--warning); }
+.nt-chip-danger { background: var(--danger-soft); color: var(--danger); }
 .nt-avatar { --c: var(--speaker-1); --s: var(--speaker-1-soft); width: 24px; height: 24px; flex: none; border-radius: 50%; display: grid; place-items: center;
   background: var(--s); color: var(--ink); font: 600 10px/1 var(--font-sans); letter-spacing: .02em; box-shadow: 0 0 0 1.5px var(--c); }
 .nt-avatar-lg { width: 32px; height: 32px; font-size: 12px; }

@@ -38,6 +38,7 @@ import {
 } from "@/ui";
 import { pickPaths, useFileDrop, useImportDetection, useImportKey, useImportScan } from "./hooks";
 import { ImportPreviewCard } from "./ImportPreviewCard";
+import { type LeftOutItem, LeftOutPills } from "./LeftOutPills";
 import type { ImportProvider, ImportRoute } from "./providers";
 
 export function ProviderPanel({ provider }: { provider: ImportProvider }) {
@@ -545,24 +546,7 @@ function WhatComesAcross({
           ))}
         </ul>
       </div>
-      {leftOut.length > 0 && (
-        <div>
-          <div className="nt-import-subtitle">Not imported</div>
-          <ul className="nt-import-leftout">
-            {leftOut.map((item) => (
-              <li key={item.kind}>
-                <b>
-                  {item.kind}
-                  {item.count ? ` (${item.count})` : ""}
-                </b>
-                <span>
-                  <RichText text={item.reason} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {leftOut.length > 0 && <LeftOutPills items={leftOut} />}
     </div>
   );
 }
@@ -571,8 +555,8 @@ function WhatComesAcross({
 function mergeLeftOut(
   fixed: { kind: string; reason: string }[],
   found: UnsupportedItem[],
-): { kind: string; reason: string; count?: number }[] {
-  const out: { kind: string; reason: string; count?: number }[] = fixed.map((f) => ({ ...f }));
+): LeftOutItem[] {
+  const out: LeftOutItem[] = fixed.map((f) => ({ ...f }));
   for (const item of found) {
     const match = out.find((o) => o.kind.toLowerCase() === item.kind.toLowerCase());
     if (match) match.count = (match.count ?? 0) + item.count;
