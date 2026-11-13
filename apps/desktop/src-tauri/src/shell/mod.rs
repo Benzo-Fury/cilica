@@ -211,11 +211,7 @@ pub fn save_settings(app: &AppHandle, change: impl FnOnce(&mut Settings) + Send 
 
 /// The native window theme for a setting (`None` follows the system).
 pub(crate) fn window_theme(mode: ThemeMode) -> Option<Theme> {
-    match mode {
-        ThemeMode::System => None,
-        ThemeMode::Light => Some(Theme::Light),
-        ThemeMode::Dark => Some(Theme::Dark),
-    }
+    mode.is_dark().map(|dark| if dark { Theme::Dark } else { Theme::Light })
 }
 
 /// The main and setup windows follow the theme setting; the island is always dark.

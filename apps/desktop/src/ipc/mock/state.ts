@@ -75,6 +75,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       theme: "system",
       transparency: true,
       note_font: "sans",
+      scene_headings: true,
       cilica_placement: "side_panel",
       home_face: "random",
     },

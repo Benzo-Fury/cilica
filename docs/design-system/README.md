@@ -23,6 +23,8 @@ Cilica is a private, local-first desktop notes app with an AI assistant and a me
 
 Two themes, designed together and following the OS setting (Light, Dark or System in Settings › Appearance).
 
+**Themes.** Light and Dark are the two bases. Every other theme in Settings › Appearance is a *look*: a base plus the handful of tokens it changes (grounds, ink, accent, `scene-tint`), listed under `color.looks` in tokens.json and applied by `data-look` on `<html>` beside `data-theme`. A look never changes layout, radii or motion. The one type change: under a look with a scene, the note title and note headings are set in Newsreader (`data-headings="serif"`), which Settings › Appearance › Serif headings turns off. Most looks also paint a pixel scene behind the window (`SceneBackdrop`): Ridgeline dawn and Ridgeline night keep Light's and Dark's own colours; Tide and Dusk recolour the ridgeline; Pines and Mesa have their own scenes. Under a scene the sheet is clear and both panels carry a 20% `bg-canvas` wash; a veil keeps the top 40% of the window the plain page, so the art reads only towards the bottom. The scene is still in the main window. A look's `ink`, `ink-2` and `ink-3` must meet 4.5:1 on its own grounds, and `ink` must also meet it on the darkest part of its scene.
+
 - **Grounds**: `bg-window` (opaque window, shown where vibrancy is unavailable), `bg-canvas` (the note page), `bg-raised` (cards, dialogs, diff cards), `bg-sunken` (inputs, code). Washes for interaction are `fill-hover` and `fill-press`; edges are `line` and `line-strong`.
 - **Text**: `ink` for primary text, `ink-2` secondary, `ink-3` tertiary (timestamps, counts, kbd), `ink-4` only for placeholders and disabled labels. `ink`, `ink-2` and `ink-3` all meet 4.5:1 on every ground and glass fill in both themes.
 - **Accent**: `accent` is the fill (primary button, switch on, send). Text on it is always `on-accent`, the canvas colour. `accent-text` is the accent as text, link, selected icon and focus ring. `accent-soft` is the tinted ground for selection and AI-inserted text.
@@ -33,7 +35,7 @@ Two themes, designed together and following the OS setting (Light, Dark or Syste
 
 **Dark theme ground.** Cilica's dark grounds are warm graphite (`bg-canvas` #1b1917, `bg-window` #131110), not pure black. Pure white text on #000 causes halation for readers with astigmatism; shadows and glass depth disappear on black; and Material Design, macOS and most premium tools settle on an 8–14% grey. The faint warm bias (hue 70) keeps the neutrals in the same family as the graphite accent. Text is off-white `ink` (#ebe9e7), never #fff.
 
-**Accent.** Cilica has one accent, Graphite: near-black in light (`accent` #302d2b) and near-white in dark (#dad7d5), so the interface stays monochrome and colour is left to status, recording and speakers. `on-accent` is the `bg-canvas` colour. There is no accent setting.
+**Accent.** Cilica has one accent, Graphite: near-black in light (`accent` #302d2b) and near-white in dark (#dad7d5), so the interface stays monochrome and colour is left to status, recording and speakers. `on-accent` is the `bg-canvas` colour. There is no accent setting; a look (see Themes) may carry its own accent, still one per theme.
 
 **Focus ring.** `--focus`: a 2px `bg-canvas` gap, then a solid 2px `accent-text` ring. Passes 3:1 on every surface in both themes. Shown on keyboard focus only (`:focus-visible`).
 

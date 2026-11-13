@@ -1153,6 +1153,24 @@ mark {
   font: 400 17px / 27px var(--font-serif);
   letter-spacing: 0;
 }
+/* Scene themes: the note title and headings in the serif (Settings › Appearance › Serif headings). */
+:root[data-headings="serif"] .nt-note-title {
+  font: 480 34px / 38px var(--font-serif);
+  letter-spacing: -0.018em;
+  font-variation-settings: normal;
+}
+:root[data-headings="serif"] .nt-note h1 {
+  font: 500 25px / 30px var(--font-serif);
+  letter-spacing: -0.012em;
+}
+:root[data-headings="serif"] .nt-note h2 {
+  font: 520 23px / 28px var(--font-serif);
+  letter-spacing: -0.01em;
+}
+:root[data-headings="serif"] .nt-note h3 {
+  font: 540 19px / 24px var(--font-serif);
+  letter-spacing: -0.006em;
+}
 :root[data-note-font="mono"] .nt-note :is(p, li, td) {
   font: 400 14px / 22px var(--font-mono);
   letter-spacing: 0;
@@ -6103,4 +6121,162 @@ fieldset.nt-import-speakers {
   margin: 0;
   padding: 0;
   min-width: 0;
+}
+
+/* ───────── Scene themes: pixel art behind the window ───────── */
+.nt-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nt-scene canvas,
+.nt-theme-pane canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+/* The top of the window stays the plain page, so text there never sits on the art. */
+.nt-scene-veil,
+.nt-theme-pane-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--bg-canvas) 0, var(--bg-canvas) 40%, transparent 82%);
+}
+/* The sheet lets the scene through: the page is clear and the panels keep a light wash. */
+.nt-window[data-scene] {
+  background: var(--bg-canvas);
+}
+.nt-window[data-scene] .nt-canvas {
+  background: transparent;
+}
+.nt-window[data-scene] .nt-panel-col {
+  background: color-mix(in srgb, var(--bg-canvas) 20%, transparent);
+}
+
+/* Theme picker: each card is a miniature window painted with its own theme's tokens. */
+.nt-theme-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.nt-theme-choice {
+  display: grid;
+  gap: var(--space-1-5);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 500 12px / 16px var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.nt-theme-choice:focus-visible {
+  outline: none;
+}
+.nt-theme-preview {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 0.5px var(--line-strong);
+  transition:
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-theme-choice:hover .nt-theme-preview {
+  box-shadow:
+    0 0 0 0.5px var(--line-strong),
+    var(--shadow-sm);
+}
+.nt-theme-choice:active .nt-theme-preview {
+  transform: scale(0.97);
+}
+.nt-theme-choice[aria-checked="true"] {
+  color: var(--ink);
+}
+.nt-theme-choice[aria-checked="true"] .nt-theme-preview {
+  box-shadow:
+    0 0 0 2px var(--bg-raised),
+    0 0 0 4px var(--accent-text);
+}
+.nt-theme-choice:focus-visible .nt-theme-preview {
+  box-shadow: var(--focus);
+}
+.nt-theme-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--bg-canvas);
+}
+/* System: the dark half shows on the right. */
+.nt-theme-pane + .nt-theme-pane {
+  clip-path: inset(0 0 0 50%);
+}
+.nt-theme-pane-side,
+.nt-theme-pane-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10% 7% 0;
+}
+.nt-theme-pane-side {
+  width: 28%;
+  flex: none;
+  background: var(--bg-sunken);
+  box-shadow: 0.5px 0 0 var(--line-strong);
+}
+.nt-theme-pane[data-scene] .nt-theme-pane-side {
+  background: color-mix(in srgb, var(--bg-canvas) 20%, transparent);
+}
+.nt-theme-pane-note {
+  flex: 1;
+  min-width: 0;
+}
+.nt-theme-pane :is(i, b, u) {
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-4);
+}
+.nt-theme-pane-side i {
+  height: 5px;
+  border-radius: var(--radius-xs);
+  background: var(--fill-press);
+}
+.nt-theme-pane-side i[data-selected] {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 0.5px var(--line-strong);
+}
+.nt-theme-pane-note b {
+  width: 55%;
+  height: 5px;
+  margin-bottom: 2px;
+  background: var(--ink);
+}
+.nt-theme-pane-note i:nth-of-type(2) {
+  width: 82%;
+}
+.nt-theme-pane-note i:nth-of-type(3) {
+  width: 64%;
+}
+/* The recorder capsule, in the theme's accent. */
+.nt-theme-pane-note u {
+  position: absolute;
+  left: 50%;
+  bottom: 9%;
+  width: 34%;
+  height: 7px;
+  translate: -50% 0;
+  background: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-theme-preview {
+    transition: none;
+  }
 }

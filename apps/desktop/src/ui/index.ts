@@ -48,6 +48,7 @@ export * from "./Swatch";
 export * from "./SwearJar";
 export * from "./Switch";
 export * from "./TextArea";
+export * from "./ThemeChoice";
 export * from "./Thread";
 export * from "./TitleInput";
 export * from "./Tooltip";

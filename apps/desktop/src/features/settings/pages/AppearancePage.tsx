@@ -1,6 +1,6 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { THEMES, themeLook, themeOption } from "@/app/theme/themes";
 import { HomeFacePreview } from "@/features/home/HomeFacePreview";
-import type { HomeFace, NoteFont, ThemeMode } from "@/ipc/types";
+import type { HomeFace, NoteFont } from "@/ipc/types";
 import {
   SegmentedControl,
   SelectMenu,
@@ -8,14 +8,10 @@ import {
   SettingsPage,
   SettingsRow,
   Switch,
+  ThemeChoice,
+  ThemeChoices,
 } from "@/ui";
 import { useSettings, useUpdateSettings } from "../hooks";
-
-const THEMES = [
-  { value: "system", label: "System", icon: Monitor },
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-] as const satisfies readonly { value: ThemeMode; label: string; icon: typeof Sun }[];
 
 const FONTS = [
   { value: "sans", label: "Sans" },
@@ -57,16 +53,36 @@ export function AppearancePage() {
       <SettingsGroup>
         <SettingsRow
           label="Theme"
-          description="System follows your computer's light and dark setting."
-          control={
-            <SegmentedControl
-              label="Theme"
-              options={THEMES}
-              value={a.theme}
-              onChange={(theme) => patch("appearance", { theme })}
-            />
-          }
-        />
+          description="System follows your computer's light and dark setting. Some themes paint a pixel landscape behind the window."
+        >
+          <ThemeChoices label="Theme">
+            {THEMES.map((theme) => (
+              <ThemeChoice
+                key={theme.value}
+                title={theme.label}
+                schemes={theme.scheme ? [theme.scheme] : ["light", "dark"]}
+                look={themeLook(theme)}
+                scene={theme.scene}
+                checked={a.theme === theme.value}
+                onSelect={() => patch("appearance", { theme: theme.value })}
+              />
+            ))}
+          </ThemeChoices>
+        </SettingsRow>
+        {themeOption(a.theme).scene && (
+          <SettingsRow
+            id="scene-headings-label"
+            label="Serif headings"
+            description="Note titles and headings are set in Newsreader under this theme. Turn off to keep them in Sans."
+            control={
+              <Switch
+                aria-labelledby="scene-headings-label"
+                checked={a.scene_headings}
+                onCheckedChange={(scene_headings) => patch("appearance", { scene_headings })}
+              />
+            }
+          />
+        )}
         <SettingsRow
           id="transparency-label"
           label="Frosted controls"
@@ -80,7 +96,10 @@ export function AppearancePage() {
           }
         />
       </SettingsGroup>
-      <SettingsGroup title="Notes" footer="Headings stay in Sans.">
+      <SettingsGroup
+        title="Notes"
+        footer="Headings stay in Sans, unless a theme with a landscape sets them in the serif."
+      >
         <SettingsRow
           label="Note font"
           description={

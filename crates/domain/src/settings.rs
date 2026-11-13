@@ -12,6 +12,29 @@ pub enum ThemeMode {
     System,
     Light,
     Dark,
+    /// Light, with the pixel ridgeline at dawn behind the window.
+    RidgelineDawn,
+    /// Dark, with the ridgeline at night.
+    RidgelineNight,
+    /// A cool light palette over a misty blue ridgeline.
+    Tide,
+    /// A plum dark palette over a violet ridgeline.
+    Dusk,
+    /// A sage light palette over a pine forest.
+    Pines,
+    /// A sand light palette over desert buttes.
+    Mesa,
+}
+
+impl ThemeMode {
+    /// Whether the theme is dark. `None` follows the system.
+    pub fn is_dark(self) -> Option<bool> {
+        match self {
+            Self::System => None,
+            Self::Light | Self::RidgelineDawn | Self::Tide | Self::Pines | Self::Mesa => Some(false),
+            Self::Dark | Self::RidgelineNight | Self::Dusk => Some(true),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
@@ -76,6 +99,8 @@ pub struct AppearanceSettings {
     /// When false every glass layer paints its opaque ground.
     pub transparency: bool,
     pub note_font: NoteFont,
+    /// Under a theme with a scene, set note titles and headings in the serif.
+    pub scene_headings: bool,
     pub cilica_placement: CilicaPlacement,
     pub home_face: HomeFace,
 }
@@ -86,6 +111,7 @@ impl Default for AppearanceSettings {
             theme: ThemeMode::System,
             transparency: true,
             note_font: NoteFont::Sans,
+            scene_headings: true,
             cilica_placement: CilicaPlacement::SidePanel,
             home_face: HomeFace::Random,
         }
@@ -371,6 +397,16 @@ pub struct Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_named_theme_keeps_its_name_and_knows_its_base() {
+        let theme: ThemeMode = serde_json::from_str("\"ridgeline_night\"").unwrap();
+        assert_eq!(theme, ThemeMode::RidgelineNight);
+        assert_eq!(serde_json::to_string(&ThemeMode::Tide).unwrap(), "\"tide\"");
+        assert_eq!(ThemeMode::System.is_dark(), None);
+        assert_eq!(ThemeMode::Mesa.is_dark(), Some(false));
+        assert_eq!(ThemeMode::Dusk.is_dark(), Some(true));
+    }
 
     #[test]
     fn a_kept_word_face_reads_as_verbal_tics() {

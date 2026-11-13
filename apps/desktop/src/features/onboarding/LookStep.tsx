@@ -3,6 +3,7 @@
  * once. Its button opens Cilica; there is no separate ending page.
  */
 import { ArrowRight } from "lucide-react";
+import { themeOption } from "@/app/theme/themes";
 import { useSettings, useUpdateSettings } from "@/features/settings/hooks";
 import type { NoteFont, ThemeMode } from "@/ipc/types";
 import { Button, Icon, SegmentedControl, SetupChoice, SetupChoices, SetupStep } from "@/ui";
@@ -20,7 +21,7 @@ const FONTS = [
 ] as const satisfies readonly { value: NoteFont; label: string }[];
 
 export function lookSummary(theme: ThemeMode, font: NoteFont): string {
-  const t = THEMES.find((x) => x.value === theme)?.label ?? "System";
+  const t = themeOption(theme).label;
   const f = FONTS.find((x) => x.value === font)?.label ?? "Sans";
   return `${t} theme, ${f} notes`;
 }

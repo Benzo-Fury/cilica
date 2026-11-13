@@ -7,18 +7,20 @@
  * At launch the empty page holds the window alone for a moment, then the chrome comes in (intro.ts).
  */
 import { useEffect, useState } from "react";
+import { themeOption } from "@/app/theme/themes";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
 import { useCilicaPlacement } from "@/features/assistant/placement";
 import { CheatSheet } from "@/features/palette/CheatSheet";
 import { CommandPalette } from "@/features/palette/CommandPalette";
 import { ConsentNotice } from "@/features/recorder/ConsentNotice";
 import { useRecordingEffects } from "@/features/recorder/hooks";
+import { useSettings } from "@/features/settings/hooks";
 import { useModelDownloadEvents } from "@/features/settings/system";
 import { Sidebar } from "@/features/sidebar/Sidebar";
 import { useLiveTranscripts } from "@/features/transcript/hooks";
 import { useBackgroundUpdates } from "@/features/updates/hooks";
 import { haptic } from "@/lib/haptics";
-import { CanvasSheet, ResizeHandle, SidePanel, WindowFrame } from "@/ui";
+import { CanvasSheet, ResizeHandle, SceneBackdrop, SidePanel, WindowFrame } from "@/ui";
 import { Canvas } from "./Canvas";
 import { useLaunchIntro } from "./intro";
 import { ASSISTANT, maxPanelWidth, panelToClose, SIDEBAR, usePanels } from "./panels";
@@ -47,6 +49,8 @@ export function Shell() {
   const [resizing, setResizing] = useState<"left" | "right" | null>(null);
   const windowWidth = useWindowWidth();
   const lastOpened = usePanels((s) => s.lastOpened);
+  // A scene theme paints its art behind the panels and the canvas.
+  const scene = themeOption(useSettings().data?.appearance.theme).scene;
 
   // Both panels and the canvas must fit: the panel opened earlier closes when they do not.
   useEffect(() => {
@@ -64,7 +68,9 @@ export function Shell() {
     <WindowFrame
       data-resizing={resizing ?? undefined}
       data-intro={intro === "done" ? undefined : intro}
+      data-scene={scene ?? undefined}
     >
+      {scene && <SceneBackdrop scene={scene} />}
       <SidePanel
         side="left"
         open={sidebarOpen}

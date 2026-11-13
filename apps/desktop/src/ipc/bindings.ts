@@ -413,6 +413,8 @@ export type AppearanceSettings_Deserialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency?: boolean,
 	note_font?: NoteFont,
+	/**  Under a theme with a scene, set note titles and headings in the serif. */
+	scene_headings?: boolean,
 	cilica_placement?: CilicaPlacement,
 	home_face?: HomeFace_Deserialize,
 };
@@ -422,6 +424,8 @@ export type AppearanceSettings_Serialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency: boolean,
 	note_font: NoteFont,
+	/**  Under a theme with a scene, set note titles and headings in the serif. */
+	scene_headings: boolean,
 	cilica_placement: CilicaPlacement,
 	home_face: HomeFace_Serialize,
 };
@@ -2170,7 +2174,19 @@ export type Task_Serialize = {
 	pending_count: number,
 };
 
-export type ThemeMode = "system" | "light" | "dark";
+export type ThemeMode = "system" | "light" | "dark" | 
+/**  Light, with the pixel ridgeline at dawn behind the window. */
+"ridgeline_dawn" | 
+/**  Dark, with the ridgeline at night. */
+"ridgeline_night" | 
+/**  A cool light palette over a misty blue ridgeline. */
+"tide" | 
+/**  A plum dark palette over a violet ridgeline. */
+"dusk" | 
+/**  A sage light palette over a pine forest. */
+"pines" | 
+/**  A sand light palette over desert buttes. */
+"mesa";
 
 export type Thread = {
 	id: string,

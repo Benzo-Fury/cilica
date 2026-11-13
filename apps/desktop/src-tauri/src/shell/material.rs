@@ -69,11 +69,7 @@ fn sync_on_main_thread(app: &AppHandle) {
 }
 
 fn is_dark(window: &WebviewWindow, mode: cilica_domain::ThemeMode) -> bool {
-    match mode {
-        cilica_domain::ThemeMode::Light => false,
-        cilica_domain::ThemeMode::Dark => true,
-        cilica_domain::ThemeMode::System => matches!(window.theme(), Ok(Theme::Dark)),
-    }
+    mode.is_dark().unwrap_or_else(|| matches!(window.theme(), Ok(Theme::Dark)))
 }
 
 #[cfg(target_os = "macos")]
