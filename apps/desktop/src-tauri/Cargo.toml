@@ -57,6 +57,7 @@ async-trait = "0.1.92"
 futures = "0.3.34"
 cilica-import = { path = "../../../crates/import" }
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
+auto-launch = "0.6.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

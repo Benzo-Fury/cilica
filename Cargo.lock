@@ -836,6 +836,291 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a85776177a885b3cd2cda74d634cabe7fa05fecfde8ded8779c0b34110a44dcb"
 
 [[package]]
+name = "cilica-agent"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "cilica-domain",
+ "cilica-llm",
+ "cilica-store",
+ "futures",
+ "serde",
+ "serde_json",
+ "similar",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "cilica-audio"
+version = "0.3.0"
+dependencies = [
+ "aec3",
+ "cidre",
+ "cilica-domain",
+ "cpal",
+ "crossbeam-channel",
+ "hound",
+ "ogg",
+ "opus",
+ "pipewire",
+ "ringbuf",
+ "rubato",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "wasapi",
+ "windows",
+]
+
+[[package]]
+name = "cilica-desktop"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "auto-launch",
+ "chrono",
+ "cilica-agent",
+ "cilica-audio",
+ "cilica-detect",
+ "cilica-diarize",
+ "cilica-domain",
+ "cilica-import",
+ "cilica-llm",
+ "cilica-mcp",
+ "cilica-pipeline",
+ "cilica-scheduler",
+ "cilica-store",
+ "cilica-stt",
+ "futures",
+ "keyring",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "serde",
+ "serde_json",
+ "specta",
+ "specta-typescript",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+ "tauri-specta",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "webkit2gtk",
+ "window-vibrancy",
+ "windows-registry",
+]
+
+[[package]]
+name = "cilica-detect"
+version = "0.3.0"
+dependencies = [
+ "cidre",
+ "cilica-domain",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "wasapi",
+ "windows",
+]
+
+[[package]]
+name = "cilica-diarize"
+version = "0.3.0"
+dependencies = [
+ "cilica-domain",
+ "cilica-onnx",
+ "hound",
+ "ndarray",
+ "ort",
+ "rustfft",
+ "serde",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
+name = "cilica-domain"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "specta",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "cilica-import"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "cilica-domain",
+ "cilica-store",
+ "csv",
+ "futures",
+ "htmd",
+ "md-5",
+ "quick-xml",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "walkdir",
+ "yaml-rust2",
+ "zip",
+]
+
+[[package]]
+name = "cilica-llm"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "cilica-domain",
+ "eventsource-stream",
+ "futures",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "cilica-mcp"
+version = "0.3.0"
+dependencies = [
+ "cilica-agent",
+ "cilica-domain",
+ "cilica-store",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "cilica-onnx"
+version = "0.3.0"
+dependencies = [
+ "ort",
+]
+
+[[package]]
+name = "cilica-pipeline"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "cilica-audio",
+ "cilica-detect",
+ "cilica-diarize",
+ "cilica-domain",
+ "cilica-store",
+ "cilica-stt",
+ "crossbeam-channel",
+ "futures",
+ "hound",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "cilica-scheduler"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "chrono-tz",
+ "cilica-agent",
+ "cilica-domain",
+ "cilica-llm",
+ "cilica-store",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "cilica-store"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "cilica-domain",
+ "serde",
+ "serde_json",
+ "similar",
+ "sqlx",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "cilica-stt"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "cilica-domain",
+ "cilica-onnx",
+ "crossbeam-channel",
+ "futures",
+ "hound",
+ "ort",
+ "rcgen",
+ "reqwest",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite",
+ "tracing",
+ "whisper-rs",
+]
+
+[[package]]
 name = "cipher"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3030,290 +3315,6 @@ name = "mach2"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
-
-[[package]]
-name = "cilica-agent"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "chrono",
- "futures",
- "cilica-domain",
- "cilica-llm",
- "cilica-store",
- "serde",
- "serde_json",
- "similar",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "cilica-audio"
-version = "0.3.0"
-dependencies = [
- "aec3",
- "cidre",
- "cpal",
- "crossbeam-channel",
- "hound",
- "cilica-domain",
- "ogg",
- "opus",
- "pipewire",
- "ringbuf",
- "rubato",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "wasapi",
- "windows",
-]
-
-[[package]]
-name = "cilica-desktop"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "chrono",
- "futures",
- "keyring",
- "cilica-agent",
- "cilica-audio",
- "cilica-detect",
- "cilica-diarize",
- "cilica-domain",
- "cilica-import",
- "cilica-llm",
- "cilica-mcp",
- "cilica-pipeline",
- "cilica-scheduler",
- "cilica-store",
- "cilica-stt",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "serde",
- "serde_json",
- "specta",
- "specta-typescript",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tauri-specta",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "webkit2gtk",
- "window-vibrancy",
- "windows-registry",
-]
-
-[[package]]
-name = "cilica-detect"
-version = "0.3.0"
-dependencies = [
- "cidre",
- "cilica-domain",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "wasapi",
- "windows",
-]
-
-[[package]]
-name = "cilica-diarize"
-version = "0.3.0"
-dependencies = [
- "hound",
- "cilica-domain",
- "cilica-onnx",
- "ndarray",
- "ort",
- "rustfft",
- "serde",
- "thiserror 2.0.21",
- "tracing",
-]
-
-[[package]]
-name = "cilica-domain"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "chrono",
- "serde",
- "serde_json",
- "specta",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "cilica-import"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "base64 0.23.1",
- "csv",
- "futures",
- "htmd",
- "cilica-domain",
- "cilica-store",
- "md-5",
- "quick-xml",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "tokio",
- "tracing",
- "walkdir",
- "yaml-rust2",
- "zip",
-]
-
-[[package]]
-name = "cilica-llm"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "bytes",
- "eventsource-stream",
- "futures",
- "cilica-domain",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-name = "cilica-mcp"
-version = "0.3.0"
-dependencies = [
- "cilica-agent",
- "cilica-domain",
- "cilica-store",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "cilica-onnx"
-version = "0.3.0"
-dependencies = [
- "ort",
-]
-
-[[package]]
-name = "cilica-pipeline"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "chrono",
- "crossbeam-channel",
- "futures",
- "hound",
- "cilica-audio",
- "cilica-detect",
- "cilica-diarize",
- "cilica-domain",
- "cilica-store",
- "cilica-stt",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "cilica-scheduler"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "chrono",
- "chrono-tz",
- "futures",
- "cilica-agent",
- "cilica-domain",
- "cilica-llm",
- "cilica-store",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-name = "cilica-store"
-version = "0.3.0"
-dependencies = [
- "chrono",
- "cilica-domain",
- "serde",
- "serde_json",
- "similar",
- "sqlx",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "cilica-stt"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "crossbeam-channel",
- "futures",
- "hound",
- "cilica-domain",
- "cilica-onnx",
- "ort",
- "rcgen",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "tokio",
- "tokio-rustls",
- "tokio-tungstenite",
- "tracing",
- "whisper-rs",
-]
 
 [[package]]
 name = "markup5ever"
