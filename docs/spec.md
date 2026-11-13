@@ -74,7 +74,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 ### Left sidebar
 
-- **Top row**: New note, New category (inline-editable name), Record. Below it, a search field that opens the command palette (`⌘K`), which searches notes and transcripts.
+- **Top row**: New note, New category (inline-editable name), Record. Below it, a search field that opens the command palette (`⌘K`), which searches notes, transcripts, conversations with Cilica and tasks (see [Search](#search)).
 - **Note rows**: title, relative date, one-line AI snippet, a mic glyph for meeting notes, a pulsing red dot while recording.
 
 - **Categories**: drag notes in or out (dnd-kit, animated drop), drag to reorder categories, click the header to collapse. Uncategorised notes sit at the top under “Notes”.
@@ -100,6 +100,20 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 - Empty state: 3–4 prompt chips generated from context. Meeting note: action items, follow-up email, per-person commitments. Sidebar or category selected: weekly digest, find duplicates. Chips are cached per note and refreshed after edits.
 - Tool calls appear inline as compact rows (“Searched 14 notes”). Proposed edits render as diff cards with Apply / Reject.
+
+## Search
+
+The command palette reads what is typed as words plus filters, and shows each filter it understood as a chip under the input. Clicking a chip removes it and the words it came from; "Search the words instead" turns the reading off for that query.
+
+- **Dates** (local time): today, yesterday, this/last week, month or year, last 7 days, 3 days ago, weekdays (the most recent one), 14 Nov, Nov 14th 2025, 2026-11-14, 14/11 (day or month first by the computer's locale), November, in 2025, since/before/until a date, between two dates, from one date to another, recently (two weeks). "may" and a bare year are only dates after a preposition.
+- **Times**: 3pm, 15:30, at 3, around 3pm (15 minutes before to an hour after), 2-4pm, between 2 and 4, after 6pm, this morning, yesterday afternoon, last night, tonight. With one day they narrow it; without, they apply to every day.
+- **Which date**: by default a note matches on when its meeting started (or it was made) or when it was last edited. "created", "edited" (including saved versions), "met" or "recorded", and "deleted" before a date pick one. A meeting search with a date uses when the meeting started.
+- **Meetings**: with Sam (Saved people, first name when unique, "me"), on Zoom or "zoom calls" (meeting apps), longer than 30 min, under 10m, long or quick calls (45 and 15 minutes), with or without a recording, with quotes. "meetings" and "calls" only filter alongside another filter; alone they are words.
+- **Structure**: in Work (category), `#tag`, links to a note title or `[[Title]]`, imported from Notion, in Trash or deleted.
+- **Syntax**: `in:`, `with:`, `tag:`, `app:`, `from:`, `is:meeting|note|deleted`, `has:` and `no:recording|quotes`, `before:`, `after:`, `since:`, `until:`, `on:`, `created:`, `edited:`, `met:`, `deleted:`, `links:`, `longer:` and `shorter:`, `"exact phrase"`, `-word`. Values with spaces go in quotes.
+- **Suggestions**: while a word is typed the palette offers matching people, categories, tags, apps and import sources as filters.
+- **Results**: with filters, matching notes newest first by the date asked about, with that date shown; Trash matches in their own group (they open Trash). Without filters, as before plus conversations with Cilica (by title and message text) and tasks (by name and prompt).
+- **Backend**: `find_notes(NoteQuery)` applies everything in SQL on top of FTS5; `search_facets` lists tags, meeting apps and import sources; `search_threads` searches conversations. The assistant's `search_notes` tool takes the same filters (after, before, date_field, kind, person, tag, meeting_app, in_trash).
 
 ## Links and the graph
 
@@ -220,7 +234,7 @@ The tool registry lives in the `agent` crate and is the only write path for AI. 
 
 | Keys | Action |
 | --- | --- |
-| `⌘K` | Command palette: notes, actions, settings |
+| `⌘K` | Command palette: notes by words, dates, people and more; conversations, tasks, actions, settings |
 | `⌘F` | Find in current note |
 | `⌘N` / `⌘⇧N` | New note / new category |
 | `⌘⇧R` | Start or stop recording (global, works when the app is in the background) |
