@@ -318,6 +318,119 @@ impl Db {
         Ok(())
     }
 
+    // ── Several notes at once (sidebar and Trash selection) ─────────────
+    //
+    // Each runs in one transaction, so a failure leaves nothing half done. Ids that no longer exist
+    // (removed by Margin or another window since the selection was made) are skipped, not errors.
+
+    /// Move live notes to Trash. Returns how many were moved; ones already in Trash are not counted.
+    pub async fn trash_notes(&self, ids: &[Id]) -> StoreResult<u32> {
+        let at = codec::ts(now());
+        let mut moved = 0u32;
+        let mut tx = self.begin_write().await?;
+        for &id in ids {
+            let done = sqlx::query("UPDATE notes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+                .bind(&at)
+                .bind(codec::id(id))
+                .execute(&mut *tx)
+                .await?;
+            moved += u32::try_from(done.rows_affected()).unwrap_or(0);
+        }
+        tx.commit().await?;
+        Ok(moved)
+    }
+
+    /// Bring notes back from Trash, each at the top of its category, keeping the order given
+    /// (the first id ends up highest). Returns the restored notes in that order.
+    pub async fn restore_notes(&self, ids: &[Id]) -> StoreResult<Vec<NoteSummary>> {
+        let mut tx = self.begin_write().await?;
+        let mut restored = Vec::new();
+        // Last first, so each next one lands above it.
+        for &id in ids.iter().rev() {
+            let Some(current) = fetch_summary_opt(&mut *tx, id).await? else { continue };
+            if current.deleted_at.is_none() {
+                continue;
+            }
+            let position = top_position(&mut *tx, current.category_id).await?;
+            sqlx::query("UPDATE notes SET deleted_at = NULL, position = ? WHERE id = ?")
+                .bind(position)
+                .bind(codec::id(id))
+                .execute(&mut *tx)
+                .await?;
+            restored.push(fetch_summary(&mut *tx, id).await?);
+        }
+        tx.commit().await?;
+        restored.reverse();
+        Ok(restored)
+    }
+
+    /// Delete notes for good. Only notes already in Trash are removed; returns how many.
+    pub async fn delete_notes_forever(&self, ids: &[Id]) -> StoreResult<u32> {
+        let mut trashed = Vec::with_capacity(ids.len());
+        for &id in ids {
+            if fetch_summary_opt(self.pool(), id).await?.is_some_and(|n| n.deleted_at.is_some()) {
+                trashed.push(id);
+            }
+        }
+        self.delete_notes(&trashed).await
+    }
+
+    /// Move live notes into a category (or out, with `None`) as one block, in the order given.
+    ///
+    /// With `position`, the block starts there and fills the gap up to the next note that is not
+    /// moving; without one it goes to the top. Does not move `updated_at`. Returns the moved notes
+    /// and whether the category had to be renumbered (so other notes' positions changed too).
+    pub async fn move_notes(&self, ids: &[Id], category_id: Option<Id>, position: Option<f64>) -> StoreResult<(Vec<NoteSummary>, bool)> {
+        if let Some(position) = position {
+            check_position(position)?;
+        }
+        let mut tx = self.begin_write().await?;
+        if let Some(category_id) = category_id {
+            ensure_category(&mut *tx, category_id).await?;
+        }
+        let mut moving: Vec<Id> = Vec::with_capacity(ids.len());
+        for &id in ids {
+            if moving.contains(&id) {
+                continue;
+            }
+            if fetch_summary_opt(&mut *tx, id).await?.is_some_and(|n| n.deleted_at.is_none()) {
+                moving.push(id);
+            }
+        }
+        if moving.is_empty() {
+            tx.commit().await?;
+            return Ok((Vec::new(), false));
+        }
+
+        // Positions of the notes staying where they are in the target.
+        let staying = sqlx::query_as::<_, (String, Option<f64>)>("SELECT id, position FROM notes WHERE category_id IS ? AND deleted_at IS NULL")
+            .bind(codec::opt_id(category_id))
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .filter(|(id, _)| !moving.iter().any(|m| codec::id(*m) == *id))
+            .filter_map(|(_, p)| p)
+            .collect::<Vec<f64>>();
+        let positions = block_positions(&staying, position, moving.len());
+
+        for (&id, &p) in moving.iter().zip(&positions) {
+            sqlx::query("UPDATE notes SET category_id = ?, position = ? WHERE id = ?")
+                .bind(codec::opt_id(category_id))
+                .bind(p)
+                .bind(codec::id(id))
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        let rebalanced = rebalance_category_if_crowded(&mut tx, category_id).await?;
+        let mut moved = Vec::with_capacity(moving.len());
+        for &id in &moving {
+            moved.push(fetch_summary(&mut *tx, id).await?);
+        }
+        tx.commit().await?;
+        Ok((moved, rebalanced))
+    }
+
     /// Remove a note nothing was ever put in: no title, no body, no recording, no transcript.
     /// Returns whether it was removed. Anything else is left alone.
     pub async fn discard_empty_note(&self, id: Id) -> StoreResult<bool> {
@@ -667,6 +780,49 @@ async fn fetch_summary<'e>(ex: impl SqliteExecutor<'e>, id: Id) -> StoreResult<N
         .await?
         .ok_or_else(|| StoreError::NotFound("That note".into()))?;
     summary_from_row(&row)
+}
+
+async fn fetch_summary_opt<'e>(ex: impl SqliteExecutor<'e>, id: Id) -> StoreResult<Option<NoteSummary>> {
+    let row = sqlx::query(concat!("SELECT ", summary_columns!(), " FROM notes WHERE id = ?")).bind(codec::id(id)).fetch_optional(ex).await?;
+    row.as_ref().map(summary_from_row).transpose()
+}
+
+/// Positions for `count` notes placed as one block among `staying` (the target's other notes).
+/// From `start` up to the next staying note above it, or above everything when `start` is `None`.
+fn block_positions(staying: &[f64], start: Option<f64>, count: usize) -> Vec<f64> {
+    let n = count as f64;
+    match start {
+        None => {
+            let top = staying.iter().copied().fold(f64::INFINITY, f64::min);
+            let top = if top.is_finite() { top.ceil() } else { n };
+            (0..count).map(|i| top - n + i as f64).collect()
+        }
+        Some(start) => {
+            let next = staying.iter().copied().filter(|p| *p > start).fold(f64::INFINITY, f64::min);
+            let step = if next.is_finite() { (next - start) / n } else { 1.0 };
+            (0..count).map(|i| start + step * i as f64).collect()
+        }
+    }
+}
+
+/// Renumber a category's live notes 1, 2, 3… when any two sit closer than [`MIN_GAP`].
+async fn rebalance_category_if_crowded(tx: &mut Transaction<'static, Sqlite>, category_id: Option<Id>) -> StoreResult<bool> {
+    let positions: Vec<Option<f64>> = sqlx::query_scalar("SELECT position FROM notes WHERE category_id IS ? AND deleted_at IS NULL ORDER BY position ASC")
+        .bind(codec::opt_id(category_id))
+        .fetch_all(&mut **tx)
+        .await?;
+    let positions: Vec<f64> = positions.into_iter().flatten().collect();
+    if !positions.windows(2).any(|w| w[1] - w[0] < MIN_GAP) {
+        return Ok(false);
+    }
+    renumber(
+        tx,
+        "SELECT id FROM notes WHERE category_id IS ? AND deleted_at IS NULL ORDER BY position ASC, created_at DESC",
+        Some(codec::opt_id(category_id)),
+        "UPDATE notes SET position = ? WHERE id = ?",
+    )
+    .await?;
+    Ok(true)
 }
 
 async fn fetch_category<'e>(ex: impl SqliteExecutor<'e>, id: Id) -> StoreResult<Category> {
@@ -1523,6 +1679,81 @@ mod tests {
         assert_eq!(db.empty_trash().await.unwrap(), 1);
         assert!(db.list_trash().await.unwrap().is_empty());
         assert_eq!(db.empty_trash().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn trash_restore_and_delete_several() {
+        let db = db().await;
+        let a = note(&db, "A", "").await;
+        let b = note(&db, "B", "").await;
+        let c = note(&db, "C", "").await;
+        let gone = new_id();
+
+        assert_eq!(db.trash_notes(&[a.id, b.id, gone]).await.unwrap(), 2);
+        assert_eq!(db.trash_notes(&[a.id]).await.unwrap(), 0, "already in Trash");
+        assert_eq!(db.list_notes().await.unwrap().iter().map(|n| n.id).collect::<Vec<_>>(), [c.id]);
+
+        // Restored as a block on top, in the order given.
+        let restored = db.restore_notes(&[b.id, a.id, gone, c.id]).await.unwrap();
+        assert_eq!(restored.iter().map(|n| n.id).collect::<Vec<_>>(), [b.id, a.id]);
+        let live = byposition(db.list_notes().await.unwrap());
+        assert_eq!(live, [b.id, a.id, c.id]);
+
+        // Only notes in Trash are deleted for good.
+        db.trash_notes(&[a.id]).await.unwrap();
+        assert_eq!(db.delete_notes_forever(&[a.id, b.id, gone]).await.unwrap(), 1);
+        assert!(matches!(db.get_note(a.id).await, Err(StoreError::NotFound(_))));
+        assert!(db.get_note(b.id).await.is_ok());
+    }
+
+    fn byposition(mut notes: Vec<NoteSummary>) -> Vec<Id> {
+        notes.sort_by(|x, y| x.position.partial_cmp(&y.position).unwrap());
+        notes.into_iter().map(|n| n.id).collect()
+    }
+
+    #[tokio::test]
+    async fn move_several_keeps_their_order() {
+        let db = db().await;
+        let cat = db.create_category("Work").await.unwrap();
+        let x = note(&db, "X", "").await;
+        let y = note(&db, "Y", "").await;
+        let a = note(&db, "A", "").await;
+        let b = note(&db, "B", "").await;
+        db.move_note(x.id, Some(cat.id), 1.0).await.unwrap();
+        db.move_note(y.id, Some(cat.id), 2.0).await.unwrap();
+        let in_cat = |db: Db| async move {
+            byposition(db.list_notes().await.unwrap().into_iter().filter(|n| n.category_id == Some(cat.id)).collect())
+        };
+
+        // To the top, in the order given.
+        let (moved, _) = db.move_notes(&[b.id, a.id], Some(cat.id), None).await.unwrap();
+        assert_eq!(moved.iter().map(|n| n.id).collect::<Vec<_>>(), [b.id, a.id]);
+        assert_eq!(in_cat(db.clone()).await, [b.id, a.id, x.id, y.id]);
+
+        // Between X and Y.
+        db.move_notes(&[a.id, b.id], Some(cat.id), Some(1.5)).await.unwrap();
+        assert_eq!(in_cat(db.clone()).await, [x.id, a.id, b.id, y.id]);
+
+        // To the end.
+        db.move_notes(&[x.id, a.id], Some(cat.id), Some(3.0)).await.unwrap();
+        assert_eq!(in_cat(db.clone()).await, [b.id, y.id, x.id, a.id]);
+
+        // A crowded gap gets the category renumbered, order intact.
+        let b_at = db.get_note(b.id).await.unwrap().position;
+        let (_, rebalanced) = db.move_notes(&[x.id, a.id], Some(cat.id), Some(b_at - 1e-7)).await.unwrap();
+        assert!(rebalanced);
+        assert_eq!(in_cat(db.clone()).await, [x.id, a.id, b.id, y.id]);
+        let x_at = db.get_note(x.id).await.unwrap().position;
+        assert_eq!(x_at, 1.0, "renumbered 1, 2, 3…");
+
+        // Out of the category; trashed and missing notes are skipped.
+        db.trash_note(y.id).await.unwrap();
+        let (moved, _) = db.move_notes(&[y.id, x.id, new_id()], None, None).await.unwrap();
+        assert_eq!(moved.iter().map(|n| n.id).collect::<Vec<_>>(), [x.id]);
+        assert_eq!(moved[0].category_id, None);
+
+        assert!(matches!(db.move_notes(&[a.id], Some(new_id()), None).await, Err(StoreError::NotFound(_))));
+        assert!(matches!(db.move_notes(&[a.id], None, Some(f64::NAN)).await, Err(StoreError::Invalid(_))));
     }
 
     #[tokio::test]

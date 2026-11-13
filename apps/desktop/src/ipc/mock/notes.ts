@@ -220,6 +220,77 @@ export function notesCommands(ctx: MockContext) {
       return null;
     },
 
+    // Several at once: ids that no longer exist are skipped, as in the store.
+
+    trashNotes(noteIds: string[]): number {
+      let moved = 0;
+      for (const id of noteIds) {
+        const note = state.notes.get(id);
+        if (!note || note.deleted_at) continue;
+        note.deleted_at = iso();
+        moved++;
+      }
+      return moved;
+    },
+
+    restoreNotes(noteIds: string[]): NoteSummary[] {
+      const restored: NoteSummary[] = [];
+      for (const id of [...noteIds].reverse()) {
+        const note = state.notes.get(id);
+        if (!note?.deleted_at) continue;
+        if (note.category_id && !state.categories.has(note.category_id)) note.category_id = null;
+        note.deleted_at = null;
+        note.position = topPosition(state, note.category_id, note.id);
+        restored.push(summaryOf(note));
+      }
+      return restored.reverse();
+    },
+
+    deleteNotesForever(noteIds: string[]): number {
+      let removed = 0;
+      for (const id of noteIds) {
+        if (!state.notes.get(id)?.deleted_at) continue;
+        removeNote(state, id);
+        removed++;
+      }
+      return removed;
+    },
+
+    moveNotes(
+      noteIds: string[],
+      categoryId: string | null,
+      position: number | null,
+    ): NoteSummary[] {
+      if (categoryId !== null) requireCategory(state, categoryId);
+      if (position !== null && !Number.isFinite(position)) {
+        throw appError("invalid", "That position is not a number. Try the move again.");
+      }
+      const moving = [...new Set(noteIds)].filter((id) => {
+        const note = state.notes.get(id);
+        return note && !note.deleted_at;
+      });
+      const staying = bucket(state, categoryId)
+        .filter((n) => !moving.includes(n.id))
+        .map((n) => n.position)
+        .filter((p): p is number => p !== null);
+      const count = moving.length;
+      let positions: number[];
+      if (position === null) {
+        const top = staying.length ? Math.ceil(Math.min(...staying)) : count;
+        positions = moving.map((_, i) => top - count + i);
+      } else {
+        const above = staying.filter((p) => p > position);
+        const step = above.length ? (Math.min(...above) - position) / count : 1;
+        positions = moving.map((_, i) => position + step * i);
+      }
+      return moving.map((id, i) => {
+        const note = state.notes.get(id) as Note;
+        note.category_id = categoryId;
+        note.position = positions[i] ?? 0;
+        return summaryOf(note);
+      });
+    },
+
     discardEmptyNote(noteId: string): boolean {
       const note = state.notes.get(noteId);
       if (!note || note.deleted_at || note.kind !== "manual") return false;

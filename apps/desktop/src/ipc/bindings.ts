@@ -35,6 +35,17 @@ export const commands = {
 	discardEmptyNote: (noteId: string) => __TAURI_INVOKE<boolean>("discard_empty_note", { noteId }),
 	/**  Returns how many notes were removed. */
 	emptyTrash: () => __TAURI_INVOKE<number>("empty_trash"),
+	/**  Move several notes to Trash at once. Returns how many were moved. */
+	trashNotes: (noteIds: string[]) => __TAURI_INVOKE<number>("trash_notes", { noteIds }),
+	/**  Bring several notes back from Trash, as a block on top of their categories in the order given. */
+	restoreNotes: (noteIds: string[]) => __TAURI_INVOKE<NoteSummary_Serialize[]>("restore_notes", { noteIds }),
+	/**  Delete several notes from Trash for good. Notes not in Trash are left alone. Returns how many. */
+	deleteNotesForever: (noteIds: string[]) => __TAURI_INVOKE<number>("delete_notes_forever", { noteIds }),
+	/**
+	 *  Move several notes into a category (or out, with `None`) as one block in the order given:
+	 *  from `position` up to the next note, or to the top when `position` is `None`.
+	 */
+	moveNotes: (noteIds: string[], categoryId: string | null, position: number | null) => __TAURI_INVOKE<NoteSummary_Serialize[]>("move_notes", { noteIds, categoryId, position }),
 	listCategories: () => __TAURI_INVOKE<Category[]>("list_categories"),
 	createCategory: (name: string) => __TAURI_INVOKE<Category>("create_category", { name }),
 	renameCategory: (categoryId: string, name: string) => __TAURI_INVOKE<Category>("rename_category", { categoryId, name }),

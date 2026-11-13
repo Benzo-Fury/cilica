@@ -92,6 +92,36 @@ describe("notes", () => {
     expect(await api().listNoteVersions(note.id)).toHaveLength(1);
   });
 
+  it("moves several notes as one block, in the order given", async () => {
+    const inHiring = async () =>
+      (await api().listNotes()).filter((n) => n.category_id === "cat_hiring").map((n) => n.id);
+    const before = await inHiring();
+    const moved = await api().moveNotes(
+      ["note_inbox", "missing", "note_inbox"],
+      "cat_hiring",
+      null,
+    );
+    expect(moved.map((n) => n.id)).toEqual(["note_inbox"]);
+    expect(await inHiring()).toEqual(["note_inbox", ...before]);
+    await api().moveNotes([before[0] as string, "note_inbox"], null, null);
+    const top = (await api().listNotes()).slice(0, 2).map((n) => n.id);
+    expect(top).toEqual([before[0], "note_inbox"]);
+  });
+
+  it("trashes, restores and deletes several notes", async () => {
+    const [a, b] = (await api().listNotes()).map((n) => n.id) as [string, string];
+    expect(await api().trashNotes([a, b, "missing"])).toBe(2);
+    expect(await api().trashNotes([a])).toBe(0);
+    const seeded = (await api().listTrash()).length - 2;
+    expect((await api().listTrash()).map((n) => n.id)).toEqual(expect.arrayContaining([a, b]));
+    const restored = await api().restoreNotes([b, a]);
+    expect(restored.map((n) => n.id)).toEqual([b, a]);
+    expect((await api().listNotes()).slice(0, 2).map((n) => n.id)).toEqual([b, a]);
+    await api().trashNotes([a]);
+    expect(await api().deleteNotesForever([a, b])).toBe(1);
+    expect(await api().listTrash()).toHaveLength(seeded);
+  });
+
   it("moves notes between categories with fractional positions", async () => {
     await api().moveNote("note_inbox", "cat_hiring", 1.5);
     const hiring = (await api().listNotes()).filter((n) => n.category_id === "cat_hiring");

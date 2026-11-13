@@ -163,6 +163,39 @@ pub async fn delete_note_forever(core: State<'_, Core>, note_id: Id) -> AppResul
     Ok(core.db.delete_note_forever(note_id).await?)
 }
 
+/// Move several notes to Trash at once. Returns how many were moved.
+#[tauri::command]
+#[specta::specta]
+pub async fn trash_notes(core: State<'_, Core>, note_ids: Vec<Id>) -> AppResult<u32> {
+    Ok(core.db.trash_notes(&note_ids).await?)
+}
+
+/// Bring several notes back from Trash, as a block on top of their categories in the order given.
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_notes(core: State<'_, Core>, note_ids: Vec<Id>) -> AppResult<Vec<NoteSummary>> {
+    Ok(core.db.restore_notes(&note_ids).await?)
+}
+
+/// Delete several notes from Trash for good. Notes not in Trash are left alone. Returns how many.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_notes_forever(core: State<'_, Core>, note_ids: Vec<Id>) -> AppResult<u32> {
+    Ok(core.db.delete_notes_forever(&note_ids).await?)
+}
+
+/// Move several notes into a category (or out, with `None`) as one block in the order given:
+/// from `position` up to the next note, or to the top when `position` is `None`.
+#[tauri::command]
+#[specta::specta]
+pub async fn move_notes(core: State<'_, Core>, note_ids: Vec<Id>, category_id: Option<Id>, position: Option<f64>) -> AppResult<Vec<NoteSummary>> {
+    let (notes, renumbered) = core.db.move_notes(&note_ids, category_id, position).await?;
+    if renumbered {
+        core.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes], note_id: None });
+    }
+    Ok(notes)
+}
+
 /// Drop a note that has nothing in it (no title, body, recording or transcript). Returns whether
 /// it was removed.
 #[tauri::command]
