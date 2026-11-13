@@ -877,11 +877,9 @@ mark {
 .nt-iconbtn-rec[aria-pressed="true"] {
   color: var(--rec);
 }
-.nt-row-dot {
-  width: 18px;
-  display: grid;
-  place-items: center;
-  flex: none;
+/* The recording note's mic stays `rec` even on the current row, which tints icons accent. */
+.nt-row.nt-note-row .nt-ico.nt-note-rec {
+  color: var(--rec);
 }
 .nt-sidebar-search {
   padding: 0 0 var(--space-2);

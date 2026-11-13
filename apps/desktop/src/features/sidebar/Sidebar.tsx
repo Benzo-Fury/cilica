@@ -2,42 +2,12 @@ import { FolderPlus, PanelLeft, Search, SquarePen } from "lucide-react";
 import { LayoutGroup } from "motion/react";
 import { runAction, useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
-import { openNote, useRouter } from "@/app/router";
-import { isLive, useRecordingState } from "@/features/recorder/hooks";
 import { usePanels } from "@/features/shell/panels";
 import { isTauri } from "@/ipc/client";
-import { clock } from "@/lib/format";
-import { Icon, IconButton, Kbd, RecDot, Row, TitleBand, TrafficLightsSpace } from "@/ui";
+import { Icon, IconButton, Kbd, TitleBand, TrafficLightsSpace } from "@/ui";
 import { BottomSection } from "./BottomSection";
 import { NoteTree } from "./NoteTree";
-import { SIDEBAR_PILL } from "./rows";
 import { useSidebarUi } from "./store";
-import { useNow } from "./useNow";
-
-function RecordingNowRow() {
-  const recording = useRecordingState();
-  const currentNote = useRouter((s) => (s.view.name === "note" ? s.view.noteId : null));
-  const now = useNow(isLive(recording));
-  if (!isLive(recording) || !recording.note_id) return null;
-  const started = recording.started_at ? new Date(recording.started_at).getTime() : now;
-  const noteId = recording.note_id;
-  return (
-    <Row
-      role="button"
-      tabIndex={0}
-      leading={
-        <span className="nt-row-dot">
-          <RecDot />
-        </span>
-      }
-      label="Recording now"
-      meta={<span className="nt-mono">{clock(now - started)}</span>}
-      current={currentNote === noteId}
-      pillId={SIDEBAR_PILL}
-      onClick={() => openNote(noteId)}
-    />
-  );
-}
 
 /** The left sidebar: new note, search (opens the palette), notes and categories, bottom items. */
 export function Sidebar() {
@@ -90,7 +60,6 @@ export function Sidebar() {
           <Kbd keys={keys.search} />
         </button>
         <nav className="nt-sidebar-scroll" aria-label="Notes">
-          <RecordingNowRow />
           <NoteTree />
         </nav>
         <BottomSection />

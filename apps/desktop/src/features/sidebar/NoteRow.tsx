@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Folder, FolderInput, Inbox, PenLine, Sparkles, Trash2 } from "lucide-react";
+import { Folder, FolderInput, Inbox, Mic, PenLine, Sparkles, Trash2 } from "lucide-react";
 import { type KeyboardEvent, type MouseEvent, memo, useCallback } from "react";
 import { useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
@@ -16,7 +16,7 @@ import {
   ContextMenuSub,
   ContextMenuTrigger,
   cn,
-  RecDot,
+  Icon,
   Row,
   Tooltip,
 } from "@/ui";
@@ -177,14 +177,14 @@ export const NoteRow = memo(function NoteRow({
       data-note-id={note.id}
       role="button"
       tabIndex={0}
-      aria-label={`${displayTitle(note.title)}${note.kind === "meeting" ? ", meeting" : ""}${selected ? ", selected" : ""}`}
+      aria-label={`${displayTitle(note.title)}${note.kind === "meeting" ? ", meeting" : ""}${recording ? ", recording" : ""}${selected ? ", selected" : ""}`}
       current={current}
       selected={selected}
       pillId={SIDEBAR_PILL}
       dimmed={dragging}
       dropLine={dropLine}
       className={cn("nt-note-row", renaming && "nt-row-editing")}
-      trailing={recording ? <RecDot size="sm" /> : undefined}
+      trailing={recording ? <Icon icon={Mic} size="sm" className="nt-note-rec" /> : undefined}
       label={
         renaming ? (
           <InlineName
