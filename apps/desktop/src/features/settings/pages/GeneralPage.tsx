@@ -34,6 +34,22 @@ export function GeneralPage() {
           }
         />
       </SettingsGroup>
+      <SettingsGroup title="Writing">
+        <SettingsRow
+          id="spelling-label"
+          label="Check spelling"
+          description="Underlines misspelt words as you type. Right-click one for suggestions."
+          control={
+            <Switch
+              aria-labelledby="spelling-label"
+              checked={settings.writing.check_spelling}
+              onCheckedChange={(check_spelling) =>
+                update((s) => ({ ...s, writing: { ...s.writing, check_spelling } }))
+              }
+            />
+          }
+        />
+      </SettingsGroup>
       <SettingsGroup title="Updates">
         <SettingsRow
           id="auto-update-label"

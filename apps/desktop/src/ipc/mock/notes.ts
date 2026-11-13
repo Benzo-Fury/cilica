@@ -604,6 +604,7 @@ export function mergeSettings(current: Settings, input: SettingsInput): Settings
     ai: pick(current.ai, input.ai),
     sounds: pick(current.sounds, input.sounds),
     swear_jar: pick(current.swear_jar, input.swear_jar),
+    writing: pick(current.writing, input.writing),
     keybinds: input.keybinds ? { ...input.keybinds } : { ...current.keybinds },
     launch_at_login: input.launch_at_login ?? current.launch_at_login,
     onboarding_done: input.onboarding_done ?? current.onboarding_done,

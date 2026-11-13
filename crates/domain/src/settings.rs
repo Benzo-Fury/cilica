@@ -322,6 +322,20 @@ impl Default for SwearJarSettings {
     }
 }
 
+/// Settings › General › Writing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default)]
+pub struct WritingSettings {
+    /// Underline misspelt words in notes, titles and the assistant box, using the system's checker.
+    pub check_spelling: bool,
+}
+
+impl Default for WritingSettings {
+    fn default() -> Self {
+        Self { check_spelling: true }
+    }
+}
+
 /// App updates from GitHub Releases.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(default)]
@@ -346,6 +360,7 @@ pub struct Settings {
     pub ai: AiSettings,
     pub sounds: SoundSettings,
     pub swear_jar: SwearJarSettings,
+    pub writing: WritingSettings,
     /// Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R").
     pub keybinds: BTreeMap<String, String>,
     pub launch_at_login: bool,
@@ -362,6 +377,12 @@ mod tests {
         let face: HomeFace = serde_json::from_str("\"word\"").unwrap();
         assert_eq!(face, HomeFace::Tics);
         assert_eq!(serde_json::to_string(&HomeFace::Tics).unwrap(), "\"tics\"");
+    }
+
+    #[test]
+    fn settings_saved_before_writing_existed_check_spelling() {
+        let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
+        assert!(settings.writing.check_spelling);
     }
 }
 

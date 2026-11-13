@@ -59,7 +59,6 @@ export function TitleInput({
       readOnly={readOnly}
       aria-label={ariaLabel}
       placeholder={placeholder}
-      spellCheck
       className={cn("nt-note-title nt-title-input", className)}
       onChange={(e) => onChange(e.target.value.replace(/\n/g, " "))}
       onBlur={(e) => onCommit?.(e.target.value)}

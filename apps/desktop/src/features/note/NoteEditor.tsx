@@ -97,7 +97,8 @@ export function NoteEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: { "aria-label": "Note body", spellcheck: "true", class: "nt-selectable" },
+      // No `spellcheck` here: it inherits Check spelling from <html> (ThemeController).
+      attributes: { "aria-label": "Note body", class: "nt-selectable" },
     },
     onCreate: ({ editor: e }) => onTextChange?.(e.getText()),
     onUpdate: ({ editor: e }) => {

@@ -7,7 +7,7 @@ export function TextArea({
   ref,
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
-  return <textarea ref={ref} className={cn("nt-textarea", className)} spellCheck {...props} />;
+  return <textarea ref={ref} className={cn("nt-textarea", className)} {...props} />;
 }
 
 /** A label above a control, for forms in dialogs. */

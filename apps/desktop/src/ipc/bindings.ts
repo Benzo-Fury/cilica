@@ -1733,6 +1733,7 @@ export type Settings_Deserialize = {
 	ai?: AiSettings_Deserialize,
 	sounds?: SoundSettings_Deserialize,
 	swear_jar?: SwearJarSettings_Deserialize,
+	writing?: WritingSettings_Deserialize,
 	/**  Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R"). */
 	keybinds?: { [key in string]: string },
 	launch_at_login?: boolean,
@@ -1748,6 +1749,7 @@ export type Settings_Serialize = {
 	ai: AiSettings_Serialize,
 	sounds: SoundSettings_Serialize,
 	swear_jar: SwearJarSettings_Serialize,
+	writing: WritingSettings_Serialize,
 	/**  Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R"). */
 	keybinds: { [key in string]: string },
 	launch_at_login: boolean,
@@ -2529,6 +2531,21 @@ export type WritingHours = {
 	saves: number,
 	/**  The busiest hour, 0..=23. */
 	peak_hour: number,
+};
+
+/**  Settings › General › Writing. */
+export type WritingSettings = WritingSettings_Serialize | WritingSettings_Deserialize;
+
+/**  Settings › General › Writing. */
+export type WritingSettings_Deserialize = {
+	/**  Underline misspelt words in notes, titles and the assistant box, using the system's checker. */
+	check_spelling?: boolean,
+};
+
+/**  Settings › General › Writing. */
+export type WritingSettings_Serialize = {
+	/**  Underline misspelt words in notes, titles and the assistant box, using the system's checker. */
+	check_spelling: boolean,
 };
 
 /* Tauri Specta runtime */

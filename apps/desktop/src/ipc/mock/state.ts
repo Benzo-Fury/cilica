@@ -120,6 +120,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       price_cents: 100,
       clink: false,
     },
+    writing: { check_spelling: true },
     keybinds: {},
     launch_at_login: false,
     onboarding_done: onboardingDone,

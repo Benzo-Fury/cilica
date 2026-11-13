@@ -1,7 +1,8 @@
 /**
  * Applies appearance settings to <html>: `data-theme` (light / dark, absent for system),
  * `data-material="opaque"` (Reduce transparency or the
- * browser preview: floating glass turns opaque), the note font and the OS.
+ * browser preview: floating glass turns opaque), the note font, the OS and `spellcheck` (Check
+ * spelling; every text box that does not opt out inherits it).
  * Also mirrors `settings.keybinds` into the keybind store.
  */
 import { useLayoutEffect } from "react";
@@ -35,6 +36,11 @@ export function ThemeController() {
   useLayoutEffect(() => {
     document.documentElement.dataset.noteFont = appearance?.note_font ?? "sans";
   }, [appearance?.note_font]);
+
+  const checkSpelling = settings?.writing.check_spelling ?? true;
+  useLayoutEffect(() => {
+    document.documentElement.spellcheck = checkSpelling;
+  }, [checkSpelling]);
 
   const keybinds = settings?.keybinds;
   useLayoutEffect(() => {
