@@ -17,6 +17,16 @@ import {
   useRef,
 } from "react";
 import { cn } from "./cn";
+import {
+  CAMERA_EASE,
+  type CameraTarget,
+  clamp,
+  MAX_SCALE,
+  MIN_SCALE,
+  panBy,
+  stepCamera,
+  wheelZoomTarget,
+} from "./graphCamera";
 import { ForceSim } from "./graphSim";
 
 /** Which colour token a node takes. */
@@ -78,8 +88,6 @@ interface Colors {
 }
 
 const FADE = 0.14;
-const MIN_SCALE = 0.08;
-const MAX_SCALE = 5;
 const positions = new Map<string, Map<string, { x: number; y: number }>>();
 
 function readColors(el: Element): Colors {
@@ -127,7 +135,7 @@ export function Graph({
     focus: -1,
     highlight,
     camera: { x: 0, y: 0, k: 1 },
-    target: null as { x: number; y: number; k: number } | null,
+    target: null as CameraTarget | null,
     autoFit: true,
     hover: -1,
     hl: 0,
@@ -341,16 +349,7 @@ export function Graph({
     // While the first layout settles, the camera keeps it all in view.
     if (s.autoFit && !sim.settled) s.target = fitCamera(s, sim);
     if (s.target) {
-      const t = s.target;
-      const ease = s.reduced ? 1 : 0.18;
-      s.camera.x += (t.x - s.camera.x) * ease;
-      s.camera.y += (t.y - s.camera.y) * ease;
-      s.camera.k += (t.k - s.camera.k) * ease;
-      if (
-        Math.abs(t.k - s.camera.k) < 0.002 &&
-        Math.hypot(t.x - s.camera.x, t.y - s.camera.y) < 0.2
-      ) {
-        s.camera = { ...t };
+      if (stepCamera(s.camera, s.target, s.reduced ? 1 : CAMERA_EASE)) {
         s.target = null;
       } else {
         busy = true;
@@ -511,8 +510,8 @@ export function Graph({
       zoomBy: (factor: number) => {
         const s = live.current;
         s.autoFit = false;
-        const from = s.target ?? s.camera;
-        s.target = { ...from, k: clamp(from.k * factor, MIN_SCALE, MAX_SCALE) };
+        const { x, y, k } = s.target ?? s.camera;
+        s.target = { x, y, k: clamp(k * factor, MIN_SCALE, MAX_SCALE) };
         kick();
       },
       fit: () => {
@@ -658,20 +657,18 @@ export function Graph({
       if (!zoom && variant === "inline") return;
       e.preventDefault();
       s.autoFit = false;
-      s.target = null;
       if (zoom) {
+        // Glide toward the new scale with the point under the cursor held still, so a mouse
+        // wheel's coarse notches ease like a trackpad pinch. Line-mode wheels report lines.
         const rect = canvas.getBoundingClientRect();
         const px = e.clientX - rect.left - s.width / 2;
         const py = e.clientY - rect.top - s.height / 2;
-        const k0 = s.camera.k;
-        const k1 = clamp(k0 * Math.exp(-e.deltaY * 0.01), MIN_SCALE, MAX_SCALE);
-        // Keep the point under the cursor still.
-        s.camera.x += px / k0 - px / k1;
-        s.camera.y += py / k0 - py / k1;
-        s.camera.k = k1;
+        const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        s.target = wheelZoomTarget(s.camera, s.target?.anchor ? s.target : null, px, py, dy);
       } else {
-        s.camera.x += e.deltaX / s.camera.k;
-        s.camera.y += e.deltaY / s.camera.k;
+        // Pans stay immediate (they track the fingers) and carry any zoom glide along.
+        if (!s.target?.anchor) s.target = null;
+        panBy(s.camera, s.target, e.deltaX / s.camera.k, e.deltaY / s.camera.k);
       }
       kick();
     };
@@ -726,10 +723,6 @@ export function Graph({
       />
     </div>
   );
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v));
 }
 
 /** The camera that shows every node with some room around it. */
