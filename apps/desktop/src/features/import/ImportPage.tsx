@@ -1,19 +1,16 @@
 /**
  * Settings › Import: pick an app from a searchable list with icons; Margin says what it found on
  * this computer and exactly what to do, takes whatever that way needs (a folder, a file, a key or
- * pasted text), previews, imports in the background and keeps a history that can be undone.
- * Any app can be imported from any number of times; only new or changed notes come in again.
+ * pasted text), previews and imports in the background. The done toast can undo an import; no
+ * history is kept. Any app can be imported from any number of times: items that are already notes
+ * are skipped, and notes that were deleted or undone come back.
  */
-import { AlertTriangle, ChevronDown, Square, Undo2 } from "lucide-react";
+import { Square } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { ImportProgress, ImportRun, ImportRunStatus } from "@/ipc/types";
-import { relativeDate } from "@/lib/format";
+import type { ImportProgress, ImportRun } from "@/ipc/types";
 import {
   Button,
-  Chip,
-  Collapse,
   ConfirmDialog,
-  IconButton,
   IconPicker,
   type IconPickerGroup,
   Progress,
@@ -28,7 +25,6 @@ import {
   useCancelImport,
   useImportEvents,
   useImportProgress,
-  useImportRuns,
   useUndoImport,
 } from "./hooks";
 import { ProviderPanel } from "./ProviderPanel";
@@ -114,7 +110,6 @@ export function ImportPage() {
       )}
 
       <ActiveImports />
-      <PastImports />
     </SettingsPage>
   );
 }
@@ -183,100 +178,9 @@ function ProgressRow({ progress }: { progress: ImportProgress }) {
   );
 }
 
-// ── History ──────────────────────────────────────────────────────────────
-
-function PastImports() {
-  const { data: runs = [] } = useImportRuns();
-  const undo = useUndoImport();
-  const [confirm, setConfirm] = useState<ImportRun | null>(null);
-  const finished = runs.filter((r) => r.status !== "running");
-  if (finished.length === 0) return null;
-  return (
-    <SettingsGroup
-      title="Past imports"
-      footer="Undo moves the notes an import added to Trash, where they stay for 30 days. Notes you have edited since go too."
-    >
-      {finished.map((run) => (
-        <RunRow key={run.id} run={run} onUndo={() => setConfirm(run)} />
-      ))}
-      <ConfirmDialog
-        open={confirm !== null}
-        onOpenChange={(open) => !open && setConfirm(null)}
-        title={confirm ? `Undo the import from ${providerName(confirm.provider)}?` : ""}
-        body={
-          confirm
-            ? `${countNotes(confirm.imported)} it added will move to Trash. You can restore them from Trash for 30 days.`
-            : ""
-        }
-        confirmLabel="Move to Trash"
-        destructive
-        onConfirm={() => confirm && undo.mutate(confirm.id)}
-      />
-    </SettingsGroup>
-  );
-}
-
-const STATUS: Record<ImportRunStatus, { label: string; tone: "neutral" | "success" | "warning" }> =
-  {
-    running: { label: "Running", tone: "neutral" },
-    succeeded: { label: "Done", tone: "success" },
-    partial: { label: "Some skipped", tone: "warning" },
-    failed: { label: "Stopped", tone: "warning" },
-    cancelled: { label: "Stopped", tone: "neutral" },
-    undone: { label: "Undone", tone: "neutral" },
-  };
-
-function RunRow({ run, onUndo }: { run: ImportRun; onUndo: () => void }) {
-  const [open, setOpen] = useState(false);
-  const provider = providerById(run.provider);
-  const name = providerName(run.provider);
-  const status = STATUS[run.status];
-  return (
-    <div className="nt-settings-row">
-      <div className="nt-settings-row-main">
-        <ProviderIcon name={name} logo={provider?.logo} glyph={provider?.glyph} />
-        <div className="nt-settings-text">
-          <div className="nt-settings-label nt-model-name">
-            {name}
-            <Chip tone={status.tone}>{status.label}</Chip>
-          </div>
-          <div className="nt-settings-desc">
-            {run.origin} · {relativeDate(run.started_at)} · {runSummary(run)}
-          </div>
-        </div>
-        {run.report.length > 0 && (
-          <IconButton
-            label={open ? "Hide details" : "Show details"}
-            icon={ChevronDown}
-            className={open ? "nt-import-chevron is-open" : "nt-import-chevron"}
-            aria-expanded={open}
-            onClick={() => setOpen(!open)}
-          />
-        )}
-        {run.status !== "undone" && run.imported > 0 && (
-          <Button size="sm" variant="ghost" icon={Undo2} iconMotion="undo" onClick={onUndo}>
-            Undo
-          </Button>
-        )}
-      </div>
-      <Collapse open={open}>
-        <ul className="nt-import-report">
-          {run.report.map((line) => (
-            <li key={line}>
-              <AlertTriangle className="nt-ico nt-ico-sm" strokeWidth={1.75} aria-hidden />
-              {line}
-            </li>
-          ))}
-        </ul>
-      </Collapse>
-    </div>
-  );
-}
-
 function runSummary(run: ImportRun): string {
   const parts = [
     run.imported > 0 ? `${run.imported} imported` : null,
-    run.updated > 0 ? `${run.updated} updated` : null,
     run.skipped > 0 ? `${run.skipped} already here` : null,
     run.failed > 0 ? `${run.failed} could not be read` : null,
   ].filter(Boolean);

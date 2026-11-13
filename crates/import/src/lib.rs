@@ -3,8 +3,10 @@
 //!
 //! Every provider turns what it reads into [`model::ImportedNote`]s. The [`Importer`] previews
 //! them, writes them through the store one note per transaction, and reports progress through the
-//! event sink. Importing the same source again only brings in what is new or changed, and never
-//! overwrites a note the person edited in Margin. This crate never depends on Tauri.
+//! event sink. Importing the same source again skips items that are already notes in Margin;
+//! anything deleted, undone or in Trash comes back as a new note. Imports keep no history: the done
+//! toast can undo the run while the app is open, and after that the notes are ordinary notes.
+//! This crate never depends on Tauri.
 
 pub mod formats;
 pub mod http;
@@ -12,7 +14,7 @@ pub mod model;
 pub mod providers;
 pub mod text;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -25,7 +27,7 @@ use margin_domain::{
 use margin_store::{Db, ImportSegment, ImportSpeaker, ImportWrite};
 
 use crate::http::WaitNotice;
-use crate::model::{ImportedNote, SpeakerRef, note_hash};
+use crate::model::{ImportedNote, SpeakerRef};
 use crate::providers::{Cx, Provider, RemoteEntry, Scan};
 
 // ── Errors and setup ─────────────────────────────────────────────────────
@@ -108,11 +110,13 @@ pub struct Importer {
     secrets: Arc<dyn Secrets>,
     scans: Mutex<HashMap<Id, Arc<Pending>>>,
     running: Mutex<HashMap<Id, Arc<AtomicBool>>>,
+    /// Notes each import of this session created, for Undo. Kept in memory only.
+    created: Mutex<HashMap<Id, Vec<Id>>>,
 }
 
 impl Importer {
     pub fn new(db: Db, events: Events, paths: KnownPaths, secrets: Arc<dyn Secrets>) -> Arc<Self> {
-        Arc::new(Self { db, events, paths, secrets, scans: Mutex::new(HashMap::new()), running: Mutex::new(HashMap::new()) })
+        Arc::new(Self { db, events, paths, secrets, scans: Mutex::new(HashMap::new()), running: Mutex::new(HashMap::new()), created: Mutex::new(HashMap::new()) })
     }
 
     fn provider(id: &str) -> Result<Arc<dyn Provider>, ImportError> {
@@ -171,9 +175,9 @@ impl Importer {
             }
             return Err(ImportError::not_found(message));
         }
-        let links: HashMap<String, String> = self.db.import_links_for(provider_id).await.map_err(store_error)?.into_iter().collect();
+        let existing = self.db.live_import_ids(provider_id).await.map_err(store_error)?;
         let scan_id = new_id();
-        let preview = preview(scan_id, provider_id, &scan, &links);
+        let preview = preview(scan_id, provider_id, &scan, &existing);
         let origin = scan.origin.clone();
         let mut scans = self.scans.lock().unwrap_or_else(|e| e.into_inner());
         // Keep only a few previews around; each can hold a whole vault.
@@ -194,7 +198,18 @@ impl Importer {
             .unwrap_or_else(|e| e.into_inner())
             .remove(&scan_id)
             .ok_or_else(|| ImportError::not_found("That preview has expired. Check the source again, then import."))?;
-        let run = self.db.create_import_run(pending.provider.id(), &pending.origin).await.map_err(store_error)?;
+        let run = ImportRun {
+            id: new_id(),
+            provider: pending.provider.id().to_string(),
+            origin: pending.origin.clone(),
+            status: ImportRunStatus::Running,
+            imported: 0,
+            skipped: 0,
+            failed: 0,
+            report: Vec::new(),
+            started_at: now(),
+            finished_at: None,
+        };
         let cancel = Arc::new(AtomicBool::new(false));
         self.running.lock().unwrap_or_else(|e| e.into_inner()).insert(run.id, cancel.clone());
         let this = self.clone();
@@ -204,7 +219,6 @@ impl Importer {
             this.run(started, pending, options, cancel).await;
             this.running.lock().unwrap_or_else(|e| e.into_inner()).remove(&run_id);
         });
-        self.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Imports], note_id: None });
         Ok(run)
     }
 
@@ -215,28 +229,39 @@ impl Importer {
         }
     }
 
-    /// Move every note an import created to Trash.
+    /// Move every note an import of this session created to Trash. Importing again brings them back.
     pub async fn undo(&self, run_id: Id) -> Result<u32, ImportError> {
         self.cancel(run_id);
-        let moved = self.db.undo_import_run(run_id).await.map_err(store_error)?;
-        self.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes, DataScope::Trash, DataScope::Categories, DataScope::Imports], note_id: None });
+        let ids = self
+            .created
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&run_id)
+            .ok_or_else(|| ImportError::not_found("That import can no longer be undone. Select its notes in the sidebar and delete them instead."))?;
+        let moved = self.db.trash_notes(&ids).await.map_err(store_error)?;
+        self.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes, DataScope::Trash, DataScope::Categories], note_id: None });
         Ok(moved)
-    }
-
-    pub async fn runs(&self) -> Result<Vec<ImportRun>, ImportError> {
-        self.db.list_import_runs(50).await.map_err(store_error)
     }
 
     async fn run(&self, mut run: ImportRun, pending: Arc<Pending>, options: ImportOptions, cancel: Arc<AtomicBool>) {
         let provider = pending.provider.clone();
         let provider_id = provider.id().to_string();
-        let links: HashMap<String, String> = self.db.import_links_for(&provider_id).await.unwrap_or_default().into_iter().collect();
+        let existing = match self.db.live_import_ids(&provider_id).await {
+            Ok(ids) => ids,
+            Err(e) => {
+                run.status = ImportRunStatus::Failed;
+                report(&mut run, format!("Margin could not check which notes are already here: {e}. Try again."));
+                self.finish(run, &provider_id, 0);
+                return;
+            }
+        };
+        // Items that are already notes are skipped up front; account items are then not fetched
+        // again, which saves the provider's rate limit.
+        let all = pending.scan.notes.len() + pending.scan.remote.len();
         // Oldest first, so the newest note ends up at the top of its category.
-        let mut items: Vec<Item> = pending.scan.notes.iter().map(|n| Item::Ready(Box::new(n.clone()))).collect();
-        // Account items imported before are not fetched again: it saves the provider's rate limit.
-        items.extend(pending.scan.remote.iter().filter(|e| !links.contains_key(&e.external_id)).map(|e| Item::Remote(e.clone())));
-        let already = pending.scan.remote.len() - items.iter().filter(|i| matches!(i, Item::Remote(_))).count();
-        run.skipped += already as u32;
+        let mut items: Vec<Item> = pending.scan.notes.iter().filter(|n| !existing.contains(&n.external_id)).map(|n| Item::Ready(Box::new(n.clone()))).collect();
+        items.extend(pending.scan.remote.iter().filter(|e| !existing.contains(&e.external_id)).map(|e| Item::Remote(e.clone())));
+        run.skipped += (all - items.len()) as u32;
         items.sort_by_key(|i| i.date());
         let total = items.len() as u32;
         let waiting: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -254,11 +279,9 @@ impl Importer {
                 }
             })
         };
-        let mut writer = Writer { db: &self.db, provider: provider.as_ref(), options: &options, categories: HashMap::new() };
+        let mut writer = Writer { db: &self.db, provider: provider.as_ref(), options: &options, categories: HashMap::new(), existing };
         let mut last_emit = Instant::now() - Duration::from_secs(1);
         let mut since_refresh = 0;
-        let mut trashed = 0u32;
-        let mut kept_edits = 0u32;
         for (i, item) in items.into_iter().enumerate() {
             if cancel.load(Ordering::SeqCst) {
                 run.status = ImportRunStatus::Cancelled;
@@ -289,18 +312,12 @@ impl Importer {
                     None => continue,
                 },
             };
-            match writer.write(run.id, &note, &links).await {
-                Ok(Outcome::Imported) => run.imported += 1,
-                Ok(Outcome::Updated) => run.updated += 1,
-                Ok(Outcome::Unchanged) => run.skipped += 1,
-                Ok(Outcome::InTrash) => {
-                    run.skipped += 1;
-                    trashed += 1;
+            match writer.write(&note).await {
+                Ok(Some(id)) => {
+                    run.imported += 1;
+                    self.created.lock().unwrap_or_else(|e| e.into_inner()).entry(run.id).or_default().push(id);
                 }
-                Ok(Outcome::KeptEdits) => {
-                    run.skipped += 1;
-                    kept_edits += 1;
-                }
+                Ok(None) => run.skipped += 1,
                 Err(message) => {
                     run.failed += 1;
                     report(&mut run, format!("“{title}” was not saved: {message}"));
@@ -312,29 +329,22 @@ impl Importer {
                 self.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes, DataScope::Categories], note_id: None });
             }
         }
-        if trashed > 0 {
-            report(&mut run, format!("{} already imported before and now in Trash were left there. Restore them from Trash if you want them back.", text::plural(trashed as usize, "note", "notes")));
-        }
-        if kept_edits > 0 {
-            report(&mut run, format!("{} changed in the other app since the last import, but you had edited them in Margin, so your version was kept.", text::plural(kept_edits as usize, "note", "notes")));
-        }
         for w in &pending.scan.warnings {
             report(&mut run, w.clone());
         }
         if run.status == ImportRunStatus::Running {
             run.status = if run.failed > 0 { ImportRunStatus::Partial } else { ImportRunStatus::Succeeded };
         }
+        self.finish(run, &provider_id, total);
+    }
+
+    /// Say the run is over: refresh the lists and send the final counts for the done toast.
+    fn finish(&self, mut run: ImportRun, provider_id: &str, total: u32) {
         run.finished_at = Some(now());
-        if let Err(e) = self.db.save_import_run(&run).await {
-            tracing::warn!("import run not saved: {e}");
-        }
-        self.events.emit(AppEvent::DataChanged {
-            scopes: vec![DataScope::Notes, DataScope::Categories, DataScope::Transcript, DataScope::Versions, DataScope::Imports],
-            note_id: None,
-        });
-        let done = run.imported + run.updated + run.skipped + run.failed;
+        self.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes, DataScope::Categories, DataScope::Transcript, DataScope::Versions], note_id: None });
+        let done = run.imported + run.skipped + run.failed;
         self.events.emit(AppEvent::ImportProgress {
-            progress: ImportProgress { run_id: run.id, provider: provider_id, phase: ImportPhase::Done, done, total: done.max(total), current: None, run: Some(run) },
+            progress: ImportProgress { run_id: run.id, provider: provider_id.to_string(), phase: ImportPhase::Done, done, total: done.max(total), current: None, run: Some(run) },
         });
     }
 
@@ -378,52 +388,26 @@ impl Item {
 
 // ── Writing one note ──────────────────────────────────────────────────────
 
-enum Outcome {
-    Imported,
-    Updated,
-    Unchanged,
-    InTrash,
-    KeptEdits,
-}
-
 struct Writer<'a> {
     db: &'a Db,
     provider: &'a dyn Provider,
     options: &'a ImportOptions,
     categories: HashMap<String, Id>,
+    /// Item ids that are already notes outside Trash, including ones this run wrote.
+    existing: HashSet<String>,
 }
 
 impl Writer<'_> {
-    async fn write(&mut self, run_id: Id, note: &ImportedNote, _links: &HashMap<String, String>) -> Result<Outcome, String> {
-        let provider = self.provider.id();
-        let source_hash = note.source_hash();
-        let link = self.db.import_link(provider, &note.external_id).await.map_err(|e| e.to_string())?;
-        if let Some(link) = &link {
-            if link.source_hash == source_hash {
-                return Ok(Outcome::Unchanged);
-            }
-            if link.in_trash {
-                return Ok(Outcome::InTrash);
-            }
-            if note_hash(&link.title, &link.body_md) != link.note_hash {
-                return Ok(Outcome::KeptEdits);
-            }
+    /// Write one note. `None` when the item is already a note (a source listing it twice).
+    async fn write(&mut self, note: &ImportedNote) -> Result<Option<Id>, String> {
+        if self.existing.contains(&note.external_id) {
+            return Ok(None);
         }
-        let category_id = match &link {
-            Some(_) => None,
-            None => self.category(note).await?,
-        };
-        let w = self.to_write(note, source_hash, category_id);
-        match link {
-            Some(link) => {
-                self.db.update_imported_note(link.note_id, &w).await.map_err(|e| e.to_string())?;
-                Ok(Outcome::Updated)
-            }
-            None => {
-                self.db.insert_imported_note(run_id, &w).await.map_err(|e| e.to_string())?;
-                Ok(Outcome::Imported)
-            }
-        }
+        let category_id = self.category(note).await?;
+        let w = self.to_write(note, category_id);
+        let id = self.db.insert_imported_note(&w).await.map_err(|e| e.to_string())?;
+        self.existing.insert(note.external_id.clone());
+        Ok(Some(id))
     }
 
     async fn category(&mut self, note: &ImportedNote) -> Result<Option<Id>, String> {
@@ -444,7 +428,7 @@ impl Writer<'_> {
         Ok(Some(category.id))
     }
 
-    fn to_write(&self, note: &ImportedNote, source_hash: String, category_id: Option<Id>) -> ImportWrite {
+    fn to_write(&self, note: &ImportedNote, category_id: Option<Id>) -> ImportWrite {
         let title: String = {
             let t = note.title.chars().map(|c| if matches!(c, '\n' | '\r' | '\t') { ' ' } else { c }).collect::<String>();
             let t = t.trim().to_string();
@@ -498,8 +482,6 @@ impl Writer<'_> {
         ImportWrite {
             provider: self.provider.id().to_string(),
             external_id: note.external_id.clone(),
-            source_hash,
-            note_hash: note_hash(&title, &body),
             title,
             body_md: body,
             kind: if is_meeting { NoteKind::Meeting } else { NoteKind::Manual },
@@ -519,7 +501,7 @@ impl Writer<'_> {
 
 // ── The preview ─────────────────────────────────────────────────────────
 
-fn preview(scan_id: Id, provider: &str, scan: &Scan, links: &HashMap<String, String>) -> ImportPreview {
+fn preview(scan_id: Id, provider: &str, scan: &Scan, existing: &HashSet<String>) -> ImportPreview {
     let notes = &scan.notes;
     let meetings = notes.iter().filter(|n| n.is_meeting()).count() + scan.remote.len();
     let transcripts = notes.iter().filter(|n| n.transcript.as_ref().is_some_and(|t| !t.turns.is_empty())).count();
@@ -542,15 +524,7 @@ fn preview(scan_id: Id, provider: &str, scan: &Scan, links: &HashMap<String, Str
     let mut speakers: Vec<SpeakerCount> = speakers.into_values().map(|(name, meetings)| SpeakerCount { name, meetings }).collect();
     speakers.sort_by(|a, b| b.meetings.cmp(&a.meetings).then(a.name.cmp(&b.name)));
     speakers.truncate(24);
-    let (mut unchanged, mut changed) = (0, 0);
-    for n in notes {
-        match links.get(&n.external_id) {
-            Some(h) if *h == n.source_hash() => unchanged += 1,
-            Some(_) => changed += 1,
-            None => {}
-        }
-    }
-    unchanged += scan.remote.iter().filter(|e| links.contains_key(&e.external_id)).count();
+    let already = notes.iter().filter(|n| existing.contains(&n.external_id)).count() + scan.remote.iter().filter(|e| existing.contains(&e.external_id)).count();
     let includes = scan.declared.unwrap_or(ImportFidelity {
         summary: notes.iter().any(|n| n.summary_md.as_deref().is_some_and(|s| !s.trim().is_empty())),
         my_notes: notes.iter().any(|n| n.notes_md.as_deref().is_some_and(|s| !s.trim().is_empty())),
@@ -581,8 +555,7 @@ fn preview(scan_id: Id, provider: &str, scan: &Scan, links: &HashMap<String, Str
         includes,
         folders,
         speakers,
-        unchanged: unchanged as u32,
-        changed,
+        existing: already as u32,
         unsupported: scan.unsupported.clone(),
         warnings: scan.warnings.clone(),
         samples,
@@ -638,7 +611,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn importing_a_vault_twice_only_brings_in_changes_and_keeps_edits() {
+    async fn importing_again_skips_live_notes_and_brings_back_removed_ones() {
         let dir = tempfile::tempdir().unwrap();
         let vault = dir.path().join("Vault");
         write(&vault, ".obsidian/app.json", "{}");
@@ -656,7 +629,7 @@ mod tests {
         assert_eq!(preview.meetings, 1);
         assert_eq!(preview.folders, vec!["Work"]);
         assert!(preview.unsupported.iter().any(|u| u.kind == "Canvases"));
-        importer.start(preview.scan_id, options.clone()).await.unwrap();
+        let first = importer.start(preview.scan_id, options.clone()).await.unwrap();
         let run = wait_done(&sink).await;
         assert_eq!((run.imported, run.status), (2, ImportRunStatus::Succeeded));
         let cats = db.list_categories().await.unwrap();
@@ -668,32 +641,35 @@ mod tests {
         assert!(!t.timed);
         assert!(t.speakers.iter().any(|s| s.is_self), "Sam is the person importing");
 
-        // Nothing changed: everything is skipped.
-        let again = importer.scan("obsidian", input.clone()).await.unwrap();
-        assert_eq!(again.unchanged, 2);
-        importer.start(again.scan_id, options.clone()).await.unwrap();
-        let run = wait_done(&sink).await;
-        assert_eq!((run.imported, run.skipped), (0, 2));
-
-        // One file changes at the source; the other is edited in Margin and changes too.
+        // Everything is already here: everything is skipped, even notes edited in Margin.
         let ideas = notes.iter().find(|n| n.title == "Ideas").unwrap();
         db.set_note_body(ideas.id, "My own edit", margin_domain::Author::User, None).await.unwrap();
-        write(&vault, "Ideas.md", "# Ideas\n\nFirst idea, revised");
-        write(&vault, "Work/Standup.md", "---\ncreated: 2025-01-02\n---\nNotes, revised\n\n## Transcript\n\nSam: Hello\nAna: Hi Sam\nSam: Bye");
-        let third = importer.scan("obsidian", input).await.unwrap();
-        assert_eq!(third.changed, 2);
-        importer.start(third.scan_id, options).await.unwrap();
+        let again = importer.scan("obsidian", input.clone()).await.unwrap();
+        assert_eq!(again.existing, 2);
+        let second = importer.start(again.scan_id, options.clone()).await.unwrap();
         let run = wait_done(&sink).await;
-        assert_eq!((run.updated, run.skipped), (1, 1));
-        assert_eq!(db.get_note(ideas.id).await.unwrap().body_md, "My own edit");
-        assert!(db.get_note(standup.id).await.unwrap().body_md.contains("revised"));
-        assert!(run.report.iter().any(|l| l.contains("your version was kept")));
+        assert_eq!((run.imported, run.skipped), (0, 2));
+        assert!(importer.undo(second.id).await.is_err(), "an import that added nothing has nothing to undo");
 
         // Undo the first import: both notes go to Trash.
-        let runs = importer.runs().await.unwrap();
-        let first = runs.last().unwrap();
         assert_eq!(importer.undo(first.id).await.unwrap(), 2);
         assert!(db.list_notes().await.unwrap().is_empty());
+
+        // Importing again brings them back, whether they were undone, deleted or emptied from Trash.
+        let back = importer.scan("obsidian", input.clone()).await.unwrap();
+        assert_eq!(back.existing, 0);
+        importer.start(back.scan_id, options.clone()).await.unwrap();
+        let run = wait_done(&sink).await;
+        assert_eq!((run.imported, run.skipped), (2, 0));
+        let standup = db.list_notes().await.unwrap().into_iter().find(|n| n.title == "Standup").unwrap();
+        db.trash_note(standup.id).await.unwrap();
+        db.empty_trash().await.unwrap();
+        let after = importer.scan("obsidian", input).await.unwrap();
+        assert_eq!(after.existing, 1);
+        importer.start(after.scan_id, options).await.unwrap();
+        let run = wait_done(&sink).await;
+        assert_eq!((run.imported, run.skipped), (1, 1));
+        assert_eq!(db.list_notes().await.unwrap().len(), 2);
     }
 
     #[tokio::test]

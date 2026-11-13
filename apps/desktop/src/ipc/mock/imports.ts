@@ -5,7 +5,6 @@
  */
 import type {
   ImportDetection,
-  ImportedFrom,
   ImportInput,
   ImportKeyStatus,
   ImportOptions,
@@ -96,10 +95,16 @@ export function importsCommands(ctx: MockContext) {
   const timers = new Timers();
   const keys = new Set<string>();
   const scans = new Map<string, PendingScan>();
+  // Runs of this session, for Cancel and Undo. Nothing is kept once the app closes.
   const runs: ImportRun[] = [];
   const created = new Map<string, string[]>();
-  const imported = new Map<string, ImportedFrom>();
-  const seen = new Set<string>();
+  // Which note each source item became; it only counts while that note is outside Trash.
+  const sources = new Map<string, string>();
+  const isHere = (key: string) => {
+    const id = sources.get(key);
+    const note = id ? state.notes.get(id) : undefined;
+    return Boolean(note && !note.deleted_at);
+  };
 
   const detection = (provider: string): ImportDetection => {
     const found = FOUND[provider] ?? { app_installed: false, locations: [], note: null };
@@ -204,7 +209,7 @@ export function importsCommands(ctx: MockContext) {
       }
       const scanId = newId("scan");
       scans.set(scanId, { provider, origin, titles });
-      const unchanged = titles.filter((t) => seen.has(`${provider}:${t.title}`)).length;
+      const existing = titles.filter((t) => isHere(`${provider}:${t.title}`)).length;
       const meetings = titles.filter((t) => t.meeting).length;
       const dates = titles.map((t) => t.date).sort();
       return {
@@ -234,8 +239,7 @@ export function importsCommands(ctx: MockContext) {
               { name: "Marco Bianchi", meetings: 2 },
             ]
           : [],
-        unchanged,
-        changed: 0,
+        existing,
         unsupported:
           provider === "obsidian" ? (FOUND.obsidian?.locations[0]?.unsupported ?? []) : [],
         warnings:
@@ -274,7 +278,6 @@ export function importsCommands(ctx: MockContext) {
         origin: scan.origin,
         status: "running",
         imported: 0,
-        updated: 0,
         skipped: 0,
         failed: 0,
         report: [],
@@ -311,7 +314,7 @@ export function importsCommands(ctx: MockContext) {
           run.finished_at = iso();
           ctx.emit({
             type: "data_changed",
-            scopes: ["notes", "categories", "imports"],
+            scopes: ["notes", "categories"],
             note_id: null,
           });
           progress({
@@ -327,10 +330,9 @@ export function importsCommands(ctx: MockContext) {
         }
         i += 1;
         const key = `${scan.provider}:${item.title}`;
-        if (seen.has(key)) {
+        if (isHere(key)) {
           run.skipped += 1;
         } else {
-          seen.add(key);
           const categoryId = categoryFor(item.folder);
           const note: Note = {
             id: newId("note"),
@@ -359,7 +361,7 @@ export function importsCommands(ctx: MockContext) {
           };
           state.notes.set(note.id, note);
           created.get(run.id)?.push(note.id);
-          imported.set(note.id, { provider: scan.provider, imported_at: iso() });
+          sources.set(key, note.id);
           run.imported += 1;
         }
         progress({
@@ -398,31 +400,29 @@ export function importsCommands(ctx: MockContext) {
     },
 
     importUndo(runId: string): number {
+      const ids = created.get(runId);
+      if (!ids?.length)
+        throw appError(
+          "not_found",
+          "That import can no longer be undone. Select its notes in the sidebar and delete them instead.",
+        );
+      created.delete(runId);
       const run = runs.find((r) => r.id === runId);
-      if (!run) throw appError("not_found", "That import was not found.");
+      if (run?.status === "running") run.status = "cancelled";
       let moved = 0;
-      for (const id of created.get(runId) ?? []) {
+      for (const id of ids) {
         const note = state.notes.get(id);
         if (note && !note.deleted_at) {
           note.deleted_at = iso();
           moved += 1;
         }
       }
-      run.status = "undone";
       ctx.emit({
         type: "data_changed",
-        scopes: ["notes", "trash", "categories", "imports"],
+        scopes: ["notes", "trash", "categories"],
         note_id: null,
       });
       return moved;
-    },
-
-    importRuns(): ImportRun[] {
-      return runs.map((r) => ({ ...r }));
-    },
-
-    noteImportSource(noteId: string): ImportedFrom | null {
-      return imported.get(noteId) ?? null;
     },
   };
 }

@@ -25,7 +25,7 @@ Built on 12 Nov 2026 (`crates/import`, Settings › Import).
 
 1. **Detect, don't ask.** On the Import screen, show sources we found on this machine first ("Anarlog is on this Mac: 212 meetings"). If the user drops a file, work out what it is from the file itself.
 2. **Show a preview before anything is written.** The preview gives the number of notes, the date range and what will come across (summary, your notes, transcript, speakers, timestamps), what won't, and any duplicates.
-3. **Never lose data, never duplicate it.** Importing again only brings in what is new. A whole import can be undone in one step: it goes to Trash and can be restored.
+3. **Never lose data, never duplicate it.** Importing again skips what is already a note in Margin and brings back anything that was deleted or undone. A whole import can be undone in one step from its done toast: it goes to Trash and can be restored. Imports keep no history; once the toast is gone, imported notes are ordinary notes.
 4. **Stay local-first.** Reading files and local databases never touches the network. An account connection talks only to that vendor's own host. Margin makes no LLM calls during an import.
 5. **Work in the background.** An import can be cancelled and resumed, and it reports progress through the toast and event system. The user can keep working meanwhile.
 6. **Treat imported content as data.** It is untrusted text and gets the same prompt-injection isolation as transcripts.
@@ -139,7 +139,7 @@ Pick source ─▶ Provide input ─▶ Preview ─▶ Import (background) ─�
    │              │               │
    │              │               ├─ 214 notes · Mar 2024 – Nov 2026
    │              │               ├─ Summary ✓  Your notes ✓  Transcript ✓  Speakers ✓  Timestamps –
-   │              │               ├─ 12 already imported · 3 look like meetings you recorded in Margin
+   │              │               ├─ 12 already in your notes · 3 look like meetings you recorded in Margin
    │              │               ├─ Which of these is you?  [Sam Lee ▾]  (pre-filled from the most frequent "me" speaker)
    │              │               ├─ Folders: keep Granola's folders as categories  /  put everything in "From Granola"
    │              │               └─ Include audio (Anarlog, Fireflies takeout)  ☐
@@ -151,7 +151,7 @@ Pick source ─▶ Provide input ─▶ Preview ─▶ Import (background) ─�
 - **The preview shows five sample notes** rendered as Margin would show them, so the user can see the result before committing.
 - **Progress** appears as a `toast.promise`-style pill ("Importing from Granola · 84 of 214"). The import sheet can be closed. Cancelling keeps what has already been imported.
 - **The done toast** reads "Imported 214 notes from Granola", with a Review action that filters the sidebar to that import and an Undo action.
-- **Undo** sends every note from that import to Trash through the destructive confirm card ("Move 214 imported notes to Trash?").
+- **Undo** sends every note from that import to Trash through the destructive confirm card ("Move 214 imported notes to Trash?"). It is offered only by the done toast, while the app stays open; Margin keeps no list of past imports.
 - **Partial failures** go in a report: "211 imported, 3 skipped. Two had no content, and one could not be read; the file may be damaged." Each line names the source item.
 
 ### Copy
@@ -232,10 +232,10 @@ Categories in Margin are flat.
 
 ### Duplicates and re-import
 
-- **Same source, same item:** a `(source, external_id)` key.
-  - If the item is unchanged (same content hash), skip it.
-  - If it changed at the source but nobody edited it in Margin since import, update it and record a new version.
-  - If it was edited in Margin since import, keep Margin's version and report "kept your edits".
+- **Same source, same item:** each imported note keeps the provider and item id it came from (`notes.import_provider`, `notes.import_id`).
+  - If a note outside Trash already has that source, skip the item, whether or not it changed at the source or in Margin. Account items are skipped before they are fetched, which saves the provider's rate limit.
+  - If its note is in Trash, was deleted, or was undone, import the item again as a new note. Restoring the old note from Trash as well leaves two copies; the person deletes one.
+  - Changes made at the source after an import are not merged in. To take them, delete the note in Margin and import again.
 - **Same meeting from two places** (recorded in Margin and in Granola, or imported from both Otter and Fireflies): it is a likely duplicate when the start time is within 5 minutes and the titles share at least 60% of their tokens. The preview groups these. The default is to import anyway and tag the pair, so the Notes review task can suggest a merge through the normal destructive-tier flow. An import never merges anything silently.
 
 ## Architecture
@@ -278,41 +278,16 @@ pub trait Source: Send + Sync {
 }
 ```
 
-### Schema: `0004_imports.sql`
+### Schema: `0004_imports.sql`, `0007_import_source.sql`
 
 ```sql
-CREATE TABLE import_runs (
-  id            TEXT PRIMARY KEY NOT NULL,
-  source        TEXT NOT NULL,             -- 'granola', 'otter', 'files', …
-  route         TEXT NOT NULL CHECK (route IN ('local','account','file','paste')),
-  status        TEXT NOT NULL CHECK (status IN ('running','succeeded','partial','failed','cancelled','undone')),
-  options_json  TEXT NOT NULL,
-  imported      INTEGER NOT NULL DEFAULT 0,
-  updated       INTEGER NOT NULL DEFAULT 0,
-  skipped       INTEGER NOT NULL DEFAULT 0,
-  failed        INTEGER NOT NULL DEFAULT 0,
-  report_json   TEXT NOT NULL DEFAULT '[]', -- per-item skips and errors, written for people
-  started_at    TEXT NOT NULL,
-  finished_at   TEXT
-);
-
-CREATE TABLE import_links (
-  source        TEXT NOT NULL,
-  external_id   TEXT NOT NULL,
-  note_id       TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-  run_id        TEXT NOT NULL REFERENCES import_runs(id),
-  content_hash  TEXT NOT NULL,             -- of the ImportedNote as read
-  imported_at   TEXT NOT NULL,
-  PRIMARY KEY (source, external_id)
-);
-CREATE INDEX import_links_note ON import_links(note_id);
-CREATE INDEX import_links_run ON import_links(run_id);
-
-ALTER TABLE notes ADD COLUMN transcript_timing TEXT NOT NULL DEFAULT 'exact'
-  CHECK (transcript_timing IN ('exact','approximate','none'));
+ALTER TABLE notes ADD COLUMN transcript_timed INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE notes ADD COLUMN import_provider TEXT;  -- 'granola', 'obsidian', …; NULL for notes written in Margin
+ALTER TABLE notes ADD COLUMN import_id TEXT;        -- the item's id at the source
+CREATE INDEX notes_import_source ON notes(import_provider, import_id) WHERE import_provider IS NOT NULL;
 ```
 
-The note header reads "Imported from Granola · 4 Mar 2025" from `import_links`. There is no need for a column on `notes`.
+There is no import history. `0004` once added `import_runs` and `import_links`; `0007` copies each link onto its note and drops both tables. A run lives in memory while it runs and, for Undo, until the app quits.
 
 ### IPC
 
@@ -323,10 +298,9 @@ The commands live in `src-tauri/src/commands/import.rs`, which is a new area. Al
 | `import_sources() -> Vec<ImportSourceCard>` | The catalogue plus detection: id, name, group, route, input needed (`none \| api_key \| oauth \| file \| folder \| paste`), the fidelity that route gives, a help URL, and `detected: Option<{ label, count }>` |
 | `import_save_key(source, key) -> ()` | Store the key in the keychain (`app.margin.desktop`, account `import.<source>`) and verify it with one cheap call. Like the provider keys, it never comes back over IPC |
 | `import_connect(source) -> ()` | Run the OAuth flow (system browser, loopback, PKCE). Tokens go to the keychain |
-| `import_scan(source, input: ImportInput) -> ImportPreview` | `ImportInput` is `Local`, `Account`, `Paths { paths }` or `Paste { text }`. Returns `scan_id`, total, date range, fidelity flags, folders, speaker names with counts, how many were already imported, likely duplicates, warnings and 5 sample notes |
+| `import_scan(source, input: ImportInput) -> ImportPreview` | `ImportInput` is `Local`, `Account`, `Paths { paths }` or `Paste { text }`. Returns `scan_id`, total, date range, fidelity flags, folders, speaker names with counts, how many are already notes (`existing`), likely duplicates, warnings and 5 sample notes |
 | `import_start(scan_id, options: ImportOptions) -> ImportRun` | Options: `category_mode`, `self_names`, `link_people`, `save_frequent_speakers`, `include_audio`, `skip_external_ids` |
-| `import_cancel(run_id)` / `import_undo(run_id)` | Undo goes through the destructive confirm card in the UI before it is called |
-| `import_runs() -> Vec<ImportRun>` | History in Settings → Import |
+| `import_cancel(run_id)` / `import_undo(run_id)` | Undo goes through the destructive confirm card in the UI before it is called. It works for runs of this app session only |
 | `import_forget_account(source)` | Delete the stored key or token |
 
 There is one new event, `AppEvent::ImportProgress { run_id, phase: scanning|importing|finishing, done: u32, total: u32, current: Option<String> }`. The run also emits `data_changed { scopes: [Notes, Categories, Transcript, People] }`, at most once a second.
@@ -338,7 +312,7 @@ The UI side is `src/features/import/`, with `ImportView`, `SourceCard`, `ImportS
 - **One import at a time.** Imports never run while recording: the scheduler's `is_recording()` check is reused, and an import in progress pauses when a recording starts.
 - **Each source has a token bucket** set from its documented limits: Granola 5/s, burst 25; Fathom 30/min for transcript calls; Fireflies 30/min on Free; Read AI 100/min; Circleback 20/min on Free. A `429` with `Retry-After` is honoured. The UI shows an estimate when the wait is long.
 - **Big files are streamed.** ENEX and Fireflies takeout ZIPs are never loaded into memory whole.
-- **The writer commits one note per transaction**, so cancelling or crashing loses at most the note in flight. A resumed run skips anything already in `import_links`.
+- **The writer commits one note per transaction**, so cancelling or crashing loses at most the note in flight. Importing again after a crash skips the notes that were written.
 
 ## Format parsers (shared)
 
@@ -410,7 +384,7 @@ VTT (Teams, Zoom, Webex, Avoma), SRT, speaker TXT, Markdown folders (Obsidian, S
 ## Testing
 
 - **Golden tests per format and source:** each `fixtures/<source>/` holds a real export, anonymised (names and content replaced, structure kept exactly), with an expected `ImportedNote` JSON snapshot.
-- **Writer tests against in-memory SQLite:** check the field mapping, duplicate handling (unchanged, changed, edited in Margin), undo, resume after a crash mid-run, and untimed transcripts.
+- **Writer tests against in-memory SQLite:** check the field mapping, skipping items that are live notes, bringing back undone, trashed and deleted ones, undo, and untimed transcripts.
 - **HTTP adapters against a mock server** (`wiremock`) replaying recorded responses: pagination, `429` with `Retry-After`, expired key, plan-gated `403`.
 - **Local-database adapters** get a schema fixture built from that app's published migrations (Meetily, Anarlog) and a test that fails loudly when expected columns are missing.
 - **UI:** vitest for the preview reducers and sniff-result copy. A mock-backend scenario in `dev:web` covers each route.

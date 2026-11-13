@@ -88,7 +88,6 @@ export type {
   HapticKind,
   HardwareProfile,
   ImportCategoryMode,
-  ImportedFrom,
   ImportFidelity,
   ImportOptions,
   ImportPhase,

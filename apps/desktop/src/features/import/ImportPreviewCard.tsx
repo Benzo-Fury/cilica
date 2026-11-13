@@ -45,7 +45,7 @@ export function ImportPreviewCard({
     hasFolders ? "keep_folders" : "one_category",
   );
   const [me, setMe] = useState<string[]>([]);
-  const toImport = Math.max(0, preview.total - preview.unchanged);
+  const toImport = Math.max(0, preview.total - preview.existing);
   const fallback = `From ${provider.name}`;
   const modes = useMemo(
     () =>
@@ -120,14 +120,11 @@ export function ImportPreviewCard({
         )}
       </div>
 
-      {(preview.unchanged > 0 || preview.changed > 0) && (
+      {preview.existing > 0 && (
         <p className="nt-import-callout" role="note">
           <Icon icon={Check} size="sm" />
           <span>
-            {preview.unchanged > 0 &&
-              `${countNotes(preview.unchanged)} imported before ${preview.details_pending ? "will be skipped" : "and unchanged will be skipped"}. `}
-            {preview.changed > 0 &&
-              `${countNotes(preview.changed)} changed since and will be updated, unless you edited them in Margin.`}
+            {`${countNotes(preview.existing)} already in your notes will be skipped. Notes you deleted come back.`}
           </span>
         </p>
       )}

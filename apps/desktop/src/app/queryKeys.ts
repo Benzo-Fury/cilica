@@ -58,8 +58,6 @@ export const qk = {
   imports: ["imports"] as const,
   importDetect: (provider: string) => ["imports", "detect", provider] as const,
   importDetectAll: ["imports", "detect_all"] as const,
-  importRuns: ["imports", "runs"] as const,
-  importSource: (noteId: string) => ["imports", "source", noteId] as const,
 };
 
 /** The query keys a `data_changed` scope invalidates; `noteId` narrows per-note keys. */

@@ -45,12 +45,6 @@ fn known_paths(app: &AppHandle) -> KnownPaths {
 pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
     let importer = Importer::new(core.db.clone(), core.events.clone(), known_paths(app), Arc::new(Keychain));
     app.manage(importer);
-    let db = core.db.clone();
-    tauri::async_runtime::spawn(async move {
-        if let Err(error) = db.close_stale_import_runs().await {
-            tracing::warn!(%error, "could not close unfinished imports");
-        }
-    });
     Ok(())
 }
 
@@ -120,23 +114,9 @@ pub async fn import_cancel(importer: Svc<'_>, run_id: Id) -> AppResult<()> {
     Ok(())
 }
 
-/// Move every note an import created to Trash. Returns how many moved.
+/// Move every note an import of this session created to Trash. Returns how many moved.
 #[tauri::command]
 #[specta::specta]
 pub async fn import_undo(importer: Svc<'_>, run_id: Id) -> AppResult<u32> {
     Ok(importer.undo(run_id).await?)
-}
-
-/// Past imports, newest first.
-#[tauri::command]
-#[specta::specta]
-pub async fn import_runs(importer: Svc<'_>) -> AppResult<Vec<ImportRun>> {
-    Ok(importer.runs().await?)
-}
-
-/// The app a note was imported from and when, for the note's header.
-#[tauri::command]
-#[specta::specta]
-pub async fn note_import_source(core: State<'_, Core>, note_id: Id) -> AppResult<Option<ImportedFrom>> {
-    Ok(core.db.imported_from(note_id).await?.map(|(provider, imported_at)| ImportedFrom { provider, imported_at }))
 }

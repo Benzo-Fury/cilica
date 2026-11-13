@@ -82,7 +82,7 @@ async fn main() {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
-    println!("run: {:?} · imported {} · updated {} · skipped {} · failed {}", run.status, run.imported, run.updated, run.skipped, run.failed);
+    println!("run: {:?} · imported {} · skipped {} · failed {}", run.status, run.imported, run.skipped, run.failed);
     for line in &run.report {
         println!("  report: {line}");
     }

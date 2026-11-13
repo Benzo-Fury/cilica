@@ -112,10 +112,8 @@ pub struct ImportPreview {
     pub folders: Vec<String>,
     /// Named speakers, most frequent first.
     pub speakers: Vec<SpeakerCount>,
-    /// Already imported from this provider and unchanged since: skipped.
-    pub unchanged: u32,
-    /// Already imported and changed at the source: updated unless edited in Margin.
-    pub changed: u32,
+    /// Items that are already notes in Margin (outside Trash): skipped.
+    pub existing: u32,
     pub unsupported: Vec<UnsupportedItem>,
     /// Problems with single items ("2 files could not be read"), written for people.
     pub warnings: Vec<String>,
@@ -153,11 +151,10 @@ pub enum ImportRunStatus {
     Partial,
     Failed,
     Cancelled,
-    /// Its notes were moved to Trash.
-    Undone,
 }
 
-/// One import, as Settings › Import lists it.
+/// One import, as its done toast reports it. Not stored: once the toast is gone, the notes are
+/// ordinary notes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct ImportRun {
     pub id: Id,
@@ -165,7 +162,7 @@ pub struct ImportRun {
     pub origin: String,
     pub status: ImportRunStatus,
     pub imported: u32,
-    pub updated: u32,
+    /// Already notes in Margin.
     pub skipped: u32,
     pub failed: u32,
     /// Per-item problems, written for people.
@@ -207,9 +204,3 @@ pub struct ImportKeyStatus {
     pub account: Option<String>,
 }
 
-/// Where an imported note came from, for its header.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-pub struct ImportedFrom {
-    pub provider: String,
-    pub imported_at: Timestamp,
-}

@@ -246,12 +246,8 @@ export const commands = {
 	importStart: (scanId: string, options: ImportOptions) => __TAURI_INVOKE<ImportRun_Serialize>("import_start", { scanId, options }),
 	/**  Stop an import after the note in flight. Notes already imported stay. */
 	importCancel: (runId: string) => __TAURI_INVOKE<null>("import_cancel", { runId }),
-	/**  Move every note an import created to Trash. Returns how many moved. */
+	/**  Move every note an import of this session created to Trash. Returns how many moved. */
 	importUndo: (runId: string) => __TAURI_INVOKE<number>("import_undo", { runId }),
-	/**  Past imports, newest first. */
-	importRuns: () => __TAURI_INVOKE<ImportRun_Serialize[]>("import_runs"),
-	/**  The app a note was imported from and when, for the note's header. */
-	noteImportSource: (noteId: string) => __TAURI_INVOKE<ImportedFrom | null>("note_import_source", { noteId }),
 };
 
 /** Events */
@@ -417,6 +413,8 @@ export type AppearanceSettings_Deserialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency?: boolean,
 	note_font?: NoteFont,
+	/**  Under a theme with a scene, set note titles and headings in the serif. */
+	scene_headings?: boolean,
 	margin_placement?: MarginPlacement,
 	home_face?: HomeFace_Deserialize,
 };
@@ -426,6 +424,8 @@ export type AppearanceSettings_Serialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency: boolean,
 	note_font: NoteFont,
+	/**  Under a theme with a scene, set note titles and headings in the serif. */
+	scene_headings: boolean,
 	margin_placement: MarginPlacement,
 	home_face: HomeFace_Serialize,
 };
@@ -895,10 +895,8 @@ export type ImportPreview_Deserialize = {
 	folders: string[],
 	/**  Named speakers, most frequent first. */
 	speakers: SpeakerCount[],
-	/**  Already imported from this provider and unchanged since: skipped. */
-	unchanged: number,
-	/**  Already imported and changed at the source: updated unless edited in Margin. */
-	changed: number,
+	/**  Items that are already notes in Margin (outside Trash): skipped. */
+	existing: number,
 	unsupported: UnsupportedItem[],
 	/**  Problems with single items ("2 files could not be read"), written for people. */
 	warnings: string[],
@@ -928,10 +926,8 @@ export type ImportPreview_Serialize = {
 	folders: string[],
 	/**  Named speakers, most frequent first. */
 	speakers: SpeakerCount[],
-	/**  Already imported from this provider and unchanged since: skipped. */
-	unchanged: number,
-	/**  Already imported and changed at the source: updated unless edited in Margin. */
-	changed: number,
+	/**  Items that are already notes in Margin (outside Trash): skipped. */
+	existing: number,
 	unsupported: UnsupportedItem[],
 	/**  Problems with single items ("2 files could not be read"), written for people. */
 	warnings: string[],
@@ -969,23 +965,27 @@ export type ImportProgress_Serialize = {
 	run: ImportRun_Serialize | null,
 };
 
-/**  One import, as Settings › Import lists it. */
+/**
+ *  One import, as its done toast reports it. Not stored: once the toast is gone, the notes are
+ *  ordinary notes.
+ */
 export type ImportRun = ImportRun_Serialize | ImportRun_Deserialize;
 
 export type ImportRunStatus = "running" | "succeeded" | 
 /**  Finished, but some items were skipped or failed. */
-"partial" | "failed" | "cancelled" | 
-/**  Its notes were moved to Trash. */
-"undone";
+"partial" | "failed" | "cancelled";
 
-/**  One import, as Settings › Import lists it. */
+/**
+ *  One import, as its done toast reports it. Not stored: once the toast is gone, the notes are
+ *  ordinary notes.
+ */
 export type ImportRun_Deserialize = {
 	id: string,
 	provider: string,
 	origin: string,
 	status: ImportRunStatus,
 	imported: number,
-	updated: number,
+	/**  Already notes in Margin. */
 	skipped: number,
 	failed: number,
 	/**  Per-item problems, written for people. */
@@ -994,14 +994,17 @@ export type ImportRun_Deserialize = {
 	finished_at?: string | null,
 };
 
-/**  One import, as Settings › Import lists it. */
+/**
+ *  One import, as its done toast reports it. Not stored: once the toast is gone, the notes are
+ *  ordinary notes.
+ */
 export type ImportRun_Serialize = {
 	id: string,
 	provider: string,
 	origin: string,
 	status: ImportRunStatus,
 	imported: number,
-	updated: number,
+	/**  Already notes in Margin. */
 	skipped: number,
 	failed: number,
 	/**  Per-item problems, written for people. */
@@ -1027,12 +1030,6 @@ export type ImportSample_Serialize = {
 	date: string | null,
 	is_meeting: boolean,
 	excerpt: string,
-};
-
-/**  Where an imported note came from, for its header. */
-export type ImportedFrom = {
-	provider: string,
-	imported_at: string,
 };
 
 /**  Where the Dynamic Island sits, for its styling. */

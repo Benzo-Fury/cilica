@@ -1,5 +1,6 @@
 /**
- * Settings › Import: what Margin finds on this computer, previews, running imports and their history.
+ * Settings › Import: what Margin finds on this computer, previews and running imports. Imports keep
+ * no history: the done toast offers Undo, and after that the notes are ordinary notes.
  * Progress arrives as `import_progress` events and is kept per run in a small store, so it survives
  * leaving the page and coming back.
  */
@@ -31,10 +32,6 @@ export function useAllDetections() {
     queryFn: () => api.importDetectAll(),
     staleTime: 60_000,
   });
-}
-
-export function useImportRuns() {
-  return useQuery({ queryKey: qk.importRuns, queryFn: () => api.importRuns() });
 }
 
 // ── Keys ─────────────────────────────────────────────────────────────────
@@ -71,13 +68,11 @@ export function useImportScan() {
 }
 
 export function useStartImport() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ scanId, options }: { scanId: string; options: ImportOptions }) =>
       api.importStart(scanId, options),
     onSuccess: (run) => {
       useImportProgress.getState().started(run);
-      void queryClient.invalidateQueries({ queryKey: qk.importRuns });
     },
     onError: (error) =>
       toast.error("The import did not start", { description: errorMessage(error) }),
@@ -90,15 +85,13 @@ export function useCancelImport() {
 
 /** Move an import's notes to Trash. Callers confirm first. */
 export function useUndoImport() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (runId: string) => api.importUndo(runId),
     onSuccess: (moved) => {
-      void queryClient.invalidateQueries({ queryKey: qk.importRuns });
       toast(
         moved === 1 ? "Moved 1 imported note to Trash" : `Moved ${moved} imported notes to Trash`,
         {
-          description: "Restore them from Trash if you change your mind.",
+          description: "Import again or restore them from Trash if you change your mind.",
         },
       );
     },
@@ -158,13 +151,11 @@ export function providerName(id: string): string {
 
 /** Feed `import_progress` events into the store and say when an import finishes. Mounted once by the app. */
 export function useImportEvents(onUndo: (run: ImportRun) => void) {
-  const queryClient = useQueryClient();
   useBackendEvent("import_progress", (event) => {
     const { progress } = event;
     useImportProgress.getState().update(progress);
     const run = progress.run;
     if (progress.phase !== "done" || !run) return;
-    void queryClient.invalidateQueries({ queryKey: qk.importRuns });
     const name = providerName(run.provider);
     if (run.status === "failed" && run.imported === 0) {
       toast.error(`The import from ${name} stopped`, {
@@ -176,26 +167,27 @@ export function useImportEvents(onUndo: (run: ImportRun) => void) {
       toast(`Stopped importing from ${name}`);
       return;
     }
-    const brought = run.imported + run.updated;
-    if (brought === 0) {
+    if (run.imported === 0) {
       toast(`Nothing new from ${name}`, {
-        description: run.skipped > 0 ? "Everything was already imported." : undefined,
+        description:
+          run.failed > 0
+            ? `${run.failed} could not be read.`
+            : run.skipped > 0
+              ? "Everything is already in your notes."
+              : undefined,
       });
       return;
     }
-    const title =
-      run.imported > 0
-        ? `Imported ${countNotes(run.imported)} from ${name}`
-        : `Updated ${countNotes(run.updated)} from ${name}`;
     const description = [
-      run.imported > 0 && run.updated > 0 ? `${run.updated} updated` : null,
+      run.skipped > 0 ? `${run.skipped} already here` : null,
       run.failed > 0 ? `${run.failed} could not be read` : null,
     ]
       .filter(Boolean)
       .join(" · ");
-    if (run.imported > 0)
-      toast.undo(title, { description: description || undefined, onUndo: () => onUndo(run) });
-    else toast.success(title, { description: description || undefined });
+    toast.undo(`Imported ${countNotes(run.imported)} from ${name}`, {
+      description: description || undefined,
+      onUndo: () => onUndo(run),
+    });
   });
 }
 

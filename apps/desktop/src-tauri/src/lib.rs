@@ -136,9 +136,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::import::import_scan,
             commands::import::import_start,
             commands::import::import_cancel,
-            commands::import::import_undo,
-            commands::import::import_runs,
-            commands::import::note_import_source
+            commands::import::import_undo
         ])
         .events(collect_events![events::BackendEvent])
 }

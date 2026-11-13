@@ -92,11 +92,6 @@ impl ImportedNote {
         self.started_at.or(self.created_at).or(self.updated_at)
     }
 
-    /// Stable hash of everything read from the source, to notice changes on a later import.
-    pub fn source_hash(&self) -> String {
-        hex(&Sha256::digest(serde_json::to_vec(self).unwrap_or_default()))
-    }
-
     /// The note body Margin stores: the summary first, then the person's own notes, then action
     /// items and anything else the source kept, as Margin lays out its own meeting notes.
     pub fn body_md(&self) -> String {
@@ -131,7 +126,8 @@ impl ImportedNote {
     }
 }
 
-/// Hash of a note as stored, to tell later whether the person edited it.
+/// Stable hash of a note's title and body, ignoring surrounding whitespace. Pasted text has no id
+/// of its own, so this is its id.
 pub fn note_hash(title: &str, body_md: &str) -> String {
     let mut h = Sha256::new();
     h.update(title.trim().as_bytes());
@@ -174,12 +170,8 @@ mod tests {
     }
 
     #[test]
-    fn hashes_are_stable_and_notice_changes() {
-        let a = ImportedNote { title: "A".into(), ..Default::default() };
-        let mut b = a.clone();
-        assert_eq!(a.source_hash(), b.source_hash());
-        b.notes_md = Some("changed".into());
-        assert_ne!(a.source_hash(), b.source_hash());
+    fn hashes_are_stable_and_ignore_surrounding_space() {
+        assert_ne!(note_hash("T", "body"), note_hash("T", "other"));
         assert_eq!(note_hash("T", "body\n"), note_hash("T ", "body"));
     }
 }

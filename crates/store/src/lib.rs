@@ -14,7 +14,7 @@
 //! | `near`        | reads segments for close search matches (none) |
 //! | `written`     | reads notes and versions for Home (no tables)  |
 //! | `swears`      | swear_coins, swear_jar_emptied; reads segments |
-//! | `imports`     | import_runs, import_links                      |
+//! | `imports`     | writes imported notes (import_* on notes)      |
 //! | `links`       | note_links (the link index behind the graph)   |
 //! | `welcome`     | writes the welcome note after setup (none)     |
 
@@ -37,7 +37,7 @@ mod transcripts;
 mod welcome;
 mod written;
 
-pub use imports::{ImportLink, ImportSegment, ImportSpeaker, ImportWrite};
+pub use imports::{ImportSegment, ImportSpeaker, ImportWrite};
 pub use notes::NewNote;
 pub use swears::week_start;
 pub use sqlx;
