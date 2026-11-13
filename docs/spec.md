@@ -73,6 +73,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 - Header: editable title, a **SegmentedSlider** (Notes ↔ Transcript, animated thumb, `⌘E`), recording timer and Stop while live, overflow menu (export Markdown, copy, history, move to trash).
 - **Notes panel**: TipTap Markdown editor. The user can type during a meeting; those jottings are kept and woven into the AI summary, as Granola does.
+- **Spelling**: the webview's own checker underlines misspelt words as you type in the body, the title and the assistant box; right-click a word for suggestions. Code, inline code and tags are never checked. WebKit leaves the checker off for embedded webviews, so the shell turns it on (macOS: the `WebContinuousSpellCheckingEnabled` default before the first webview; Linux: the WebKitGTK context, in the `LANG` language). Settings › General › Writing › Check spelling (on by default) sets `spellcheck` on `<html>`, which every text box inherits. Words already in a note are only checked once you edit near them.
 
 - **Transcript panel**: segments grouped by speaker with timestamps, auto-scrolling while live (pauses when the user scrolls up). Click a speaker chip to rename or link a Saved person.
 - **History**: version list with author (you or AI) and a diff against current; one-click restore.
