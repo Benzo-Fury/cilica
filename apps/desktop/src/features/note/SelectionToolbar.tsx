@@ -2,7 +2,8 @@
  * The formatting toolbar that appears over selected text in a note: bold, italic,
  * strikethrough, inline code, headings, quote and link. Everything it offers round-trips
  * through Markdown. It waits until the mouse is released, hides on Esc, and follows the
- * selection as the page scrolls.
+ * selection as the page scrolls. A right-click selects the word under it for the system menu
+ * (spelling suggestions, Look Up), so that selection never brings the bar up.
  */
 import { type Editor, posToDOMRect } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
@@ -116,6 +117,8 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   const bar = useRef<HTMLDivElement>(null);
   const [pointerDown, setPointerDown] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // The selection came from a right-click: kept hidden until the next click or key.
+  const [fromContextMenu, setFromContextMenu] = useState(false);
   const [editingLink, setEditingLink] = useState(false);
   const [side, setSide] = useState<"above" | "below">("above");
 
@@ -154,13 +157,26 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   useEffect(() => {
     if (!editor) return;
     const dom = editor.view.dom;
-    const down = (event: PointerEvent) => event.button === 0 && setPointerDown(true);
+    const down = (event: PointerEvent) => {
+      // Marked before the system selects the word, so the bar never starts to appear.
+      // Control-click on a Mac is a primary-button press that opens the same menu.
+      const opensMenu = event.button === 2 || (isMac && event.button === 0 && event.ctrlKey);
+      setFromContextMenu(opensMenu);
+      if (event.button === 0 && !opensMenu) setPointerDown(true);
+    };
     const up = () => setPointerDown(false);
+    const menu = () => setFromContextMenu(true);
+    const key = () => setFromContextMenu(false);
     dom.addEventListener("pointerdown", down);
+    // Capture, so this lands before ProseMirror reads the new selection (the menu key has no pointer).
+    dom.addEventListener("contextmenu", menu, true);
+    dom.addEventListener("keydown", key);
     window.addEventListener("pointerup", up);
     window.addEventListener("blur", up);
     return () => {
       dom.removeEventListener("pointerdown", down);
+      dom.removeEventListener("contextmenu", menu, true);
+      dom.removeEventListener("keydown", key);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("blur", up);
     };
@@ -176,7 +192,11 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   }, [from, to]);
 
   const visible =
-    !!state?.selectable && !pointerDown && !dismissed && (state.focused || editingLink);
+    !!state?.selectable &&
+    !pointerDown &&
+    !dismissed &&
+    !fromContextMenu &&
+    (state.focused || editingLink);
 
   // Keep it mounted for the exit fade.
   const [mounted, setMounted] = useState(false);
