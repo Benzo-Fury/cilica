@@ -9,6 +9,7 @@
  *      src-tauri/tauri.windows-setup.conf.json`), as tauri-action does in CI.
  *   3. `package`: Setup again, with that NSIS installer inside (build.rs reads
  *      CILICA_SETUP_PAYLOAD), written to target/release/bundle/setup/Cilica_<version>_x64_Setup.exe.
+ *      It is the one thing Cilica ships on Windows: the download, and the updater's package.
  *
  * Run on Windows from the repo root:
  *   bun tools/build-windows-setup.ts              all three steps
@@ -18,6 +19,10 @@
  * Signing: set WINDOWS_SIGN_COMMAND to a command with `%1` for the file (for example
  * `signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /a "%1"`) and both
  * copies of Setup are signed. Unsigned, SmartScreen warns on first run.
+ *
+ * Updates: with TAURI_SIGNING_PRIVATE_KEY (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD) set, `package`
+ * also signs Setup for the updater, next to it as `.exe.sig`. The release workflow puts that
+ * signature in latest.json.
  */
 import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -108,6 +113,11 @@ function pack() {
   const out = join(OUT_DIR, `Cilica_${v}_x64_Setup.exe`);
   copyFileSync(built, out);
   sign(out);
+  // After Authenticode signing, which changes the file the updater checks.
+  if (process.env.TAURI_SIGNING_PRIVATE_KEY) {
+    run("bun", ["run", "--cwd", "apps/desktop", "tauri", "signer", "sign", "--app-version", v, out]);
+    console.log(`Updater signature: ${out}.sig`);
+  }
   console.log(`\nCilica Setup: ${out}`);
 }
 

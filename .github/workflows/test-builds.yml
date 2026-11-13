@@ -48,9 +48,7 @@ jobs:
             bundles: nsis
             # Bundles Cilica Setup's remove-only copy next to Cilica, as the release does.
             args: --config src-tauri/tauri.windows-setup.conf.json
-            files: |
-              target/release/bundle/setup/*.exe
-              target/release/bundle/nsis/*.exe
+            files: target/release/bundle/setup/*.exe
           - name: Linux
             os: ubuntu-24.04
             bundles: appimage,deb

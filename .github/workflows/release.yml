@@ -3,6 +3,7 @@
 # Publish a release with a tag like `v0.2.0`. The tag must match the version in the root Cargo.toml
 # (`[workspace.package]`), which is the one place to bump. Each platform builds on its own runner and attaches its installers,
 # plus the signed updater packages and `latest.json` that installed copies check for updates.
+# Windows ships one file, Cilica Setup, which is both the download and the updater's package.
 # See docs/releasing.md for the secrets this needs.
 
 name: Release
@@ -112,6 +113,7 @@ jobs:
 
       # Cilica Setup (apps/setup) is Cilica's installer window on Windows. Its remove-only copy is
       # built first so Tauri bundles it into the NSIS installer (tauri.windows-setup.conf.json).
+      # On Windows tauri-action only builds; Setup is what goes on the release.
       - name: Build Cilica Setup's remove-only copy
         if: runner.os == 'Windows'
         run: bun tools/build-windows-setup.ts prepare
@@ -136,17 +138,47 @@ jobs:
           projectPath: apps/desktop
           tauriScript: bun run tauri
           args: ${{ matrix.args }}
-          tagName: ${{ github.event.release.tag_name || inputs.tag }}
-          updaterJsonPreferNsis: true
+          tagName: ${{ runner.os != 'Windows' && (github.event.release.tag_name || inputs.tag) || '' }}
 
-      # Then Setup itself, carrying the NSIS installer Tauri just built. The NSIS installer stays
-      # on the release too: the updater downloads it.
+      # Then Setup itself, carrying the NSIS installer Tauri just built, signed for the updater.
+      # The `windows-updater` job adds it to latest.json once every platform is done.
       - name: Build Cilica Setup and attach it
         if: runner.os == 'Windows'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           bun tools/build-windows-setup.ts package
-          gh release upload "$TAG" target/release/bundle/setup/*.exe --clobber
+          gh release upload "$TAG" target/release/bundle/setup/*_Setup.exe target/release/bundle/setup/*_Setup.exe.sig --clobber
+
+  # Points latest.json's Windows entries at Cilica Setup. Runs after every platform, because each
+  # tauri-action run rewrites latest.json from what it found.
+  windows-updater:
+    needs: [platforms, build]
+    if: ${{ !cancelled() && contains(needs.platforms.outputs.matrix, '"Windows"') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Add Cilica Setup to latest.json
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          VERSION="${TAG#v}"
+          SETUP="Cilica_${VERSION}_x64_Setup.exe"
+          cd "$RUNNER_TEMP"
+          gh release download "$TAG" -p "$SETUP.sig"
+          if ! gh release download "$TAG" -p latest.json; then
+            jq -n --arg v "$VERSION" --arg d "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{version: $v, notes: "", pub_date: $d, platforms: {}}' > latest.json
+          fi
+          ENTRY=$(jq -n --arg sig "$(cat "$SETUP.sig")" \
+            --arg url "https://github.com/$GH_REPO/releases/download/$TAG/$SETUP" '{signature: $sig, url: $url}')
+          # Copies of Cilica look for windows-x86_64-nsis first, then windows-x86_64.
+          jq --argjson e "$ENTRY" '.platforms |= (with_entries(select(.key | startswith("windows-") | not))
+            + {"windows-x86_64": $e, "windows-x86_64-nsis": $e})' latest.json > latest.next.json
+          mv latest.next.json latest.json
+          gh release upload "$TAG" latest.json --clobber
