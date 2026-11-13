@@ -72,7 +72,7 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
     ...tasks,
     ...imports,
     ...windowCommands(),
-    ...updatesCommands(),
+    ...updatesCommands(ctx),
   };
 
   const wrap =

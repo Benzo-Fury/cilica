@@ -8,6 +8,7 @@
  */
 import { useEffect } from "react";
 import { create } from "zustand";
+import { useBackendEvent } from "@/app/backendEvents";
 import { useSettings } from "@/features/settings/hooks";
 import { api, errorMessage, isTauri } from "@/ipc/client";
 import type { UpdateInfo } from "@/ipc/types";
@@ -26,16 +27,24 @@ export type UpdatePhase =
   | "ready"
   | "error";
 
+/** How much of the update has downloaded. `total` is null when the server did not say. */
+export interface UpdateProgress {
+  downloaded: number;
+  total: number | null;
+}
+
 interface UpdateState {
   phase: UpdatePhase;
   update: UpdateInfo | null;
   error: string | null;
+  progress: UpdateProgress | null;
 }
 
 export const useUpdateState = create<UpdateState>()(() => ({
   phase: "idle",
   update: null,
   error: null,
+  progress: null,
 }));
 
 const setState = useUpdateState.setState;
@@ -64,14 +73,14 @@ function showReady(update: UpdateInfo) {
 export async function installUpdate() {
   const { update, phase } = useUpdateState.getState();
   if (!update || phase === "installing" || phase === "ready") return;
-  setState({ phase: "installing", error: null });
+  setState({ phase: "installing", error: null, progress: { downloaded: 0, total: null } });
   try {
     await api.installUpdate();
-    setState({ phase: "ready" });
+    setState({ phase: "ready", progress: null });
     showReady(update);
   } catch (error) {
     const message = errorMessage(error);
-    setState({ phase: "error", error: message });
+    setState({ phase: "error", error: message, progress: null });
     toast.error("The update did not install", { id: TOAST_ID, description: message });
   }
 }
@@ -118,10 +127,14 @@ export async function checkForUpdate({
 // ───────── Background checks ─────────
 
 /**
- * Mounted once by the shell. Skipped in `bun run dev`, where the build has no release to compare
+ * Mounted once by the shell. Tracks download progress; the checks are skipped in `bun run dev`, where the build has no release to compare
  * against; the browser preview still runs it so `?update` can be tried.
  */
 export function useBackgroundUpdates() {
+  useBackendEvent("update_download", ({ downloaded_bytes, total_bytes }) => {
+    if (useUpdateState.getState().phase !== "installing") return;
+    setState({ progress: { downloaded: downloaded_bytes ?? 0, total: total_bytes ?? null } });
+  });
   const { data: settings } = useSettings();
   const ready = Boolean(settings);
   const autoInstall = settings?.updates.auto_install ?? true;

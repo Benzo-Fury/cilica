@@ -4,8 +4,11 @@
 //! packages signed with the updater key whose public half is in that file.
 
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use cilica_domain::*;
+
+use crate::core::Core;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::{Error as UpdaterError, Update, UpdaterExt};
 
@@ -58,7 +61,7 @@ pub async fn check_for_update(
 /// Download and install the update found by the last check. Takes effect after a restart.
 #[tauri::command]
 #[specta::specta]
-pub async fn install_update(pending: State<'_, PendingUpdate>) -> AppResult<()> {
+pub async fn install_update(core: State<'_, Core>, pending: State<'_, PendingUpdate>) -> AppResult<()> {
     // Take the update found by the last check
     let update = pending
         .0
@@ -67,8 +70,23 @@ pub async fn install_update(pending: State<'_, PendingUpdate>) -> AppResult<()> 
         .take()
         .ok_or_else(|| AppError::invalid("There is no update to install. Check for updates first."))?;
 
-    // Download, verify the signature and install
-    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| {
+    // Download, reporting progress at most every 100 ms, then verify the signature and install
+    let events = core.events.clone();
+    let mut downloaded: u64 = 0;
+    let mut last: Option<Instant> = None;
+    let on_chunk = |chunk: usize, total: Option<u64>| {
+        downloaded += chunk as u64;
+        let finished = total.is_some_and(|t| downloaded >= t);
+        if !finished && last.is_some_and(|t| t.elapsed() < Duration::from_millis(100)) {
+            return;
+        }
+        last = Some(Instant::now());
+        events.emit(AppEvent::UpdateDownload {
+            downloaded_bytes: downloaded as f64,
+            total_bytes: total.map(|t| t as f64),
+        });
+    };
+    update.download_and_install(on_chunk, || {}).await.map_err(|e| {
         tracing::warn!("update install failed: {e}");
         install_error(&e)
     })

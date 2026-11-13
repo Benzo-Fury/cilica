@@ -113,6 +113,11 @@ pub enum AppEvent {
     ModelDownload {
         progress: ModelDownloadProgress,
     },
+    /// The app update is downloading. `total_bytes` is `None` when the server did not say.
+    UpdateDownload {
+        downloaded_bytes: f64,
+        total_bytes: Option<f64>,
+    },
     Assistant {
         event: AssistantEvent,
     },

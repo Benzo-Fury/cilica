@@ -359,7 +359,9 @@ export type AppEvent_Deserialize =
 /**  The note body is being streamed (end-of-meeting summary). `body_md` is the whole body so far. */
 { type: "note_body_stream"; note_id: string; body_md: string; done: boolean } | { type: "meeting_detected"; meeting: MeetingDetected_Deserialize } | 
 /**  The meeting app released the mic. */
-{ type: "meeting_ended"; app_name: string } | { type: "model_download"; progress: ModelDownloadProgress_Deserialize } | { type: "assistant"; event: AssistantEvent_Deserialize } | { type: "task_run_finished"; run: TaskRun_Deserialize } | { type: "settings_changed"; settings: Settings_Deserialize } | 
+{ type: "meeting_ended"; app_name: string } | { type: "model_download"; progress: ModelDownloadProgress_Deserialize } | 
+/**  The app update is downloading. `total_bytes` is `None` when the server did not say. */
+{ type: "update_download"; downloaded_bytes: number | null; total_bytes?: number | null } | { type: "assistant"; event: AssistantEvent_Deserialize } | { type: "task_run_finished"; run: TaskRun_Deserialize } | { type: "settings_changed"; settings: Settings_Deserialize } | 
 /**  The app is about to quit: the UI must save any unsaved edits now. The shell waits briefly. */
 { type: "will_quit" } | { type: "toast"; toast: ToastRequest_Deserialize } | 
 /**  An import from another app moved on (docs/import.md). */
@@ -384,7 +386,9 @@ export type AppEvent_Serialize =
 /**  The note body is being streamed (end-of-meeting summary). `body_md` is the whole body so far. */
 { type: "note_body_stream"; note_id: string; body_md: string; done: boolean } | { type: "meeting_detected"; meeting: MeetingDetected_Serialize } | 
 /**  The meeting app released the mic. */
-{ type: "meeting_ended"; app_name: string } | { type: "model_download"; progress: ModelDownloadProgress_Serialize } | { type: "assistant"; event: AssistantEvent_Serialize } | { type: "task_run_finished"; run: TaskRun_Serialize } | { type: "settings_changed"; settings: Settings_Serialize } | 
+{ type: "meeting_ended"; app_name: string } | { type: "model_download"; progress: ModelDownloadProgress_Serialize } | 
+/**  The app update is downloading. `total_bytes` is `None` when the server did not say. */
+{ type: "update_download"; downloaded_bytes: number | null; total_bytes: number | null } | { type: "assistant"; event: AssistantEvent_Serialize } | { type: "task_run_finished"; run: TaskRun_Serialize } | { type: "settings_changed"; settings: Settings_Serialize } | 
 /**  The app is about to quit: the UI must save any unsaved edits now. The shell waits briefly. */
 { type: "will_quit" } | { type: "toast"; toast: ToastRequest_Serialize } | 
 /**  An import from another app moved on (docs/import.md). */

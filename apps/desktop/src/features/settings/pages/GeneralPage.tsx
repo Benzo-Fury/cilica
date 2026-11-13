@@ -5,16 +5,17 @@ import {
   checkForUpdate,
   installUpdate,
   restartToUpdate,
+  type UpdateProgress,
   useUpdateState,
 } from "@/features/updates/hooks";
-import { Button, SettingsGroup, SettingsPage, SettingsRow, Switch } from "@/ui";
+import { Button, Progress, SettingsGroup, SettingsPage, SettingsRow, Switch } from "@/ui";
 import { useAppInfo, useSettings, useUpdateSettings } from "../hooks";
 
 export function GeneralPage() {
   const { data: settings } = useSettings();
   const { data: info } = useAppInfo();
   const { update } = useUpdateSettings();
-  const { phase, update: available } = useUpdateState();
+  const { phase, update: available, progress } = useUpdateState();
   const openSetup = useOpenSetup();
   if (!settings) return null;
   const autoInstall = settings.updates.auto_install;
@@ -67,7 +68,13 @@ export function GeneralPage() {
         />
         <SettingsRow
           label={updateLabel(phase, available?.version)}
-          description={info ? `You have version ${info.version}.` : undefined}
+          description={
+            phase === "installing" && progress
+              ? downloadedLabel(progress)
+              : info
+                ? `You have version ${info.version}.`
+                : undefined
+          }
           control={
             phase === "ready" ? (
               <Button size="sm" variant="primary" icon={RotateCw} onClick={restartToUpdate}>
@@ -94,7 +101,14 @@ export function GeneralPage() {
               </Button>
             )
           }
-        />
+        >
+          {phase === "installing" && progress && (
+            <Progress
+              value={progress.total ? progress.downloaded / progress.total : null}
+              label={`Downloading Cilica ${available?.version ?? ""}`.trim()}
+            />
+          )}
+        </SettingsRow>
       </SettingsGroup>
       <SettingsGroup title="Help">
         <SettingsRow
@@ -160,4 +174,15 @@ function updateLabel(phase: string, version: string | undefined): string {
     default:
       return "Updates";
   }
+}
+
+function megabytes(bytes: number): string {
+  return (bytes / 1_000_000).toFixed(1);
+}
+
+/** "4.2 of 18.4 MB", or just the amount so far when the size is unknown. */
+function downloadedLabel({ downloaded, total }: UpdateProgress): string {
+  return total
+    ? `${megabytes(downloaded)} of ${megabytes(total)} MB`
+    : `${megabytes(downloaded)} MB so far`;
 }
