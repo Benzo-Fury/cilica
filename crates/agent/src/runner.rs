@@ -150,6 +150,19 @@ fn day(t: cilica_domain::Timestamp) -> String {
     t.format("%Y-%m-%d").to_string()
 }
 
+/// A day (`YYYY-MM-DD`, its start in UTC) or an RFC 3339 moment from a tool argument.
+fn parse_date(field: &str, s: &str) -> Result<cilica_domain::Timestamp, String> {
+    let s = s.trim();
+    if let Ok(t) = cilica_domain::chrono::DateTime::parse_from_rfc3339(s) {
+        return Ok(t.with_timezone(&cilica_domain::chrono::Utc));
+    }
+    cilica_domain::chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .ok()
+        .and_then(|d| d.and_hms_opt(0, 0, 0))
+        .map(|d| d.and_utc())
+        .ok_or_else(|| format!("{field} must be a day like 2026-11-14 or an RFC 3339 time, not \"{s}\"."))
+}
+
 fn strip_marks(s: &str) -> String {
     s.replace("<mark>", "").replace("</mark>", "").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", "\"")
 }
@@ -453,6 +466,14 @@ impl ToolRunner {
                 struct A {
                     query: Option<String>,
                     category_id: Option<String>,
+                    after: Option<String>,
+                    before: Option<String>,
+                    date_field: Option<cilica_domain::DateField>,
+                    kind: Option<String>,
+                    person: Option<String>,
+                    tag: Option<String>,
+                    meeting_app: Option<String>,
+                    in_trash: Option<bool>,
                     limit: Option<u32>,
                 }
                 let a: A = parse(input)?;
@@ -461,6 +482,63 @@ impl ToolRunner {
                 let categories = e(self.notes.list_categories().await)?;
                 let cat_name = |id: Option<Id>| id.and_then(|id| categories.iter().find(|c| c.id == id).map(|c| c.name.clone()));
                 let query = a.query.unwrap_or_default();
+
+                // Details: dates, kind, person, tag, app, Trash
+                let mut filters = cilica_domain::NoteQuery {
+                    text: query.clone(),
+                    after: a.after.as_deref().map(|d| parse_date("after", d)).transpose()?,
+                    before: a.before.as_deref().map(|d| parse_date("before", d)).transpose()?,
+                    date_field: a.date_field.unwrap_or_default(),
+                    kind: match a.kind.as_deref() {
+                        Some("meeting") => Some(cilica_domain::NoteKind::Meeting),
+                        Some("note") => Some(cilica_domain::NoteKind::Manual),
+                        Some(other) => return Err(format!("kind must be \"meeting\" or \"note\", not \"{other}\".")),
+                        None => None,
+                    },
+                    tags: a.tag.into_iter().filter(|t| !t.trim().is_empty()).collect(),
+                    meeting_app: a.meeting_app.filter(|m| !m.trim().is_empty()),
+                    trash: if a.in_trash == Some(true) { cilica_domain::TrashScope::Only } else { cilica_domain::TrashScope::Exclude },
+                    category_ids: category.into_iter().collect(),
+                    ..Default::default()
+                };
+                if let Some(name) = a.person.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+                    let people = e(self.notes.list_people().await)?;
+                    let person = people
+                        .iter()
+                        .find(|p| p.name.eq_ignore_ascii_case(name))
+                        .or_else(|| people.iter().find(|p| p.name.to_lowercase().contains(&name.to_lowercase())))
+                        .ok_or_else(|| format!("Nobody called \"{name}\" is in People. Call list_people to see who is."))?;
+                    filters.person_ids.push(person.id);
+                }
+                let filtered = filters != cilica_domain::NoteQuery { text: query.clone(), category_ids: filters.category_ids.clone(), ..Default::default() };
+                if filtered {
+                    let hits = e(self.notes.find_notes(&filters, limit).await)?;
+                    let mut lines = Vec::new();
+                    for h in &hits {
+                        let at = h.at_ms.map(|ms| format!(" at {}", mmss(ms))).unwrap_or_default();
+                        let when = h.matched_at.map(|t| format!(", dated {}", t.format("%Y-%m-%d %H:%M UTC"))).unwrap_or_default();
+                        let matched = if h.source == cilica_domain::SearchSource::Details { String::new() } else { format!(" match in {:?}{at}", h.source) };
+                        lines.push(format!(
+                            "- \"{}\" (id: {}, {}, updated {}{}{}){}: {}",
+                            h.note.title,
+                            h.note.id,
+                            if h.note.kind == cilica_domain::NoteKind::Meeting { "meeting" } else { "note" },
+                            day(h.note.updated_at),
+                            when,
+                            cat_name(h.note.category_id).map(|c| format!(", category: {c}")).unwrap_or_default(),
+                            matched,
+                            strip_marks(&h.excerpt)
+                        ));
+                    }
+                    let n = lines.len();
+                    let summary = if query.trim().is_empty() {
+                        format!("Searched notes ({n} found)")
+                    } else {
+                        format!("Searched notes for “{}” ({n} found)", query.trim())
+                    };
+                    let content = if n == 0 { "No notes match.".to_string() } else { quoted("search_results", &[("query", &query)], &lines.join("\n")) };
+                    return Ok(Exec::Read { content, summary });
+                }
                 let mut lines = Vec::new();
                 if query.trim().is_empty() {
                     let notes = e(self.notes.list_notes().await)?;

@@ -823,6 +823,21 @@ async fn integration_with_the_real_store() {
 
     let found = agent.runner().call(&ctx, "search_notes", &json!({"query": "budget"})).await;
     assert!(found.content.contains("Acme kickoff"), "{}", found.content);
+
+    // Filters: dates, kind, tags, Trash, and errors the model can act on.
+    let today = cilica_domain::now().format("%Y-%m-%d").to_string();
+    let dated = agent.runner().call(&ctx, "search_notes", &json!({"after": today, "date_field": "created"})).await;
+    assert!(!dated.is_error, "{}", dated.content);
+    assert!(dated.content.contains("Acme kickoff") && dated.content.contains("dated "), "{}", dated.content);
+    assert_eq!(dated.action.summary, "Searched notes (2 found)");
+    let meetings = agent.runner().call(&ctx, "search_notes", &json!({"query": "budget", "kind": "meeting"})).await;
+    assert_eq!(meetings.content, "No notes match.");
+    let trash = agent.runner().call(&ctx, "search_notes", &json!({"query": "budget", "in_trash": true})).await;
+    assert_eq!(trash.content, "No notes match.");
+    let bad_date = agent.runner().call(&ctx, "search_notes", &json!({"after": "last tuesday"})).await;
+    assert!(bad_date.is_error && bad_date.content.contains("2026-11-14"), "{}", bad_date.content);
+    let nobody = agent.runner().call(&ctx, "search_notes", &json!({"person": "Zed"})).await;
+    assert!(nobody.is_error && nobody.content.contains("list_people"), "{}", nobody.content);
     let read = agent.runner().call(&ctx, "get_note", &json!({"note_id": note.id.to_string()})).await;
     assert!(read.content.contains("Budget is 40k."));
 

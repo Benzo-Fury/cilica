@@ -25,7 +25,7 @@ pub const TOOLS: &[ToolDef] = &[
     ToolDef {
         name: "search_notes",
         tier: ToolTier::Read,
-        description: "Full-text search over note titles, bodies and transcripts (notes in Trash are excluded). Without a query, lists notes, most recently updated first. Returns ids, titles, dates and short excerpts.",
+        description: "Full-text search over note titles, bodies and transcripts (notes in Trash are excluded unless asked). Narrow it by date, kind, person, tag, meeting app or category; with only filters it lists the notes that match, newest first. Without a query or filters, lists notes, most recently updated first. Returns ids, titles, dates and short excerpts.",
         running: "Searching notes",
         in_tasks: true,
     },
@@ -105,6 +105,14 @@ pub fn schema(name: &str) -> Value {
             json!({
                 "query": {"type": "string", "description": "Words to search for. Leave out to list notes."},
                 "category_id": {"type": "string", "description": "Only notes in this category."},
+                "after": {"type": "string", "description": "Only notes dated on or after this day (YYYY-MM-DD) or moment (RFC 3339)."},
+                "before": {"type": "string", "description": "Only notes dated before this day (YYYY-MM-DD, exclusive) or moment (RFC 3339)."},
+                "date_field": {"type": "string", "enum": ["any", "created", "edited", "met", "deleted"], "description": "Which date after/before apply to: when the meeting started or the note was made or last edited (any, the default), made, edited (including saved versions), the meeting started, or moved to Trash."},
+                "kind": {"type": "string", "enum": ["meeting", "note"], "description": "Only meetings or only written notes."},
+                "person": {"type": "string", "description": "Only meetings this person spoke in, by name (see list_people)."},
+                "tag": {"type": "string", "description": "Only notes with this tag, without the #."},
+                "meeting_app": {"type": "string", "description": "Only meetings recorded in this app, e.g. Zoom."},
+                "in_trash": {"type": "boolean", "description": "Search notes in Trash instead."},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "Default 20."}
             }),
             &[],
