@@ -30,6 +30,7 @@ import {
   zeroVelocity,
   zoomTargetAt,
 } from "./graphCamera";
+import { HoverFade } from "./graphHover";
 import { ForceSim } from "./graphSim";
 
 /** Which colour token a node takes. */
@@ -143,8 +144,8 @@ export function Graph({
     wheel: new WheelClassifier(),
     autoFit: true,
     hover: -1,
-    hl: 0,
-    hlNode: -1,
+    fade: new HoverFade(),
+    lit: new Float32Array(0),
     width: 0,
     height: 0,
     colors: null as Colors | null,
@@ -187,13 +188,17 @@ export function Graph({
     const sx = (i: number) => (sim.x[i] as number) * k + ox;
     const sy = (i: number) => (sim.y[i] as number) * k + oy;
 
-    const hot = s.hlNode;
-    const lit = hot >= 0 ? new Set([hot, ...(s.neighbours[hot] ?? [])]) : null;
-    const hl = s.hl;
+    // Hover: every glow (the hovered node's, and those just left) lights its node and
+    // neighbours; everything else falls back by the strongest glow.
+    const fade = s.fade;
+    const dim = fade.dim;
+    if (s.lit.length !== s.nodes.length) s.lit = new Float32Array(s.nodes.length);
+    const lit = fade.litness(s.neighbours, s.lit);
+    const fallBack = (i: number) => 1 - (1 - FADE) * Math.max(0, dim - (lit[i] ?? 0));
     const searched = s.highlight;
     const nodeAlpha = (i: number) => {
       let a = 1;
-      if (lit && !lit.has(i)) a *= 1 - (1 - FADE) * hl;
+      if (dim > 0) a *= fallBack(i);
       if (searched && !searched.has(s.nodes[i]?.key ?? "")) a *= 0.22;
       return a;
     };
@@ -204,22 +209,24 @@ export function Graph({
     for (const dotted of [false, true]) {
       ctx.setLineDash(dotted ? [2, 3] : []);
       ctx.strokeStyle = c.line;
-      ctx.globalAlpha = (searched ? 0.35 : 1) * (lit ? 1 - (1 - FADE) * hl : 1);
+      ctx.globalAlpha = (searched ? 0.35 : 1) * (1 - (1 - FADE) * dim);
       ctx.beginPath();
       for (const e of s.edges) {
         if (Boolean(e.dotted) !== dotted) continue;
-        if (lit && hl > 0 && (e.source === hot || e.target === hot)) continue;
         ctx.moveTo(sx(e.source), sy(e.source));
         ctx.lineTo(sx(e.target), sy(e.target));
       }
       ctx.stroke();
-      if (lit && hl > 0) {
+      // Each glow's edges in the accent, as strong as the glow.
+      for (const g of fade.glows) {
+        if (g.amount <= 0) continue;
         ctx.strokeStyle = c.lineHot;
-        ctx.globalAlpha = hl;
+        ctx.globalAlpha = g.amount;
         ctx.lineWidth = lineWidth * 1.4;
         ctx.beginPath();
         for (const e of s.edges) {
-          if (Boolean(e.dotted) !== dotted || (e.source !== hot && e.target !== hot)) continue;
+          if (Boolean(e.dotted) !== dotted || (e.source !== g.node && e.target !== g.node))
+            continue;
           ctx.moveTo(sx(e.source), sy(e.source));
           ctx.lineTo(sx(e.target), sy(e.target));
         }
@@ -252,7 +259,8 @@ export function Graph({
       const px = sx(i);
       const py = sy(i);
       if (!visible(px, py)) continue;
-      const r = Math.max(radiusOf(n.degree) * k, 1.6) * (i === hot ? 1 + 0.15 * hl : 1);
+      const grow = s.reduced ? 0 : 0.15 * fade.amountOf(i);
+      const r = Math.max(radiusOf(n.degree) * k, 1.6) * (1 + grow);
       ctx.globalAlpha = nodeAlpha(i);
       ctx.beginPath();
       if (n.tone === "tag" && i !== s.focus) {
@@ -312,15 +320,15 @@ export function Graph({
       if (!visible(px, py)) continue;
       const always =
         i === s.focus ||
-        (lit?.has(i) && hl > 0.05) ||
         (searched?.has(n.key) ?? false) ||
         (variant === "inline" && s.nodes.length <= 24);
       // Fade in between these zoom levels, earlier for well-linked nodes.
       // A short ramp: a label is readable or not drawn, rarely a faint smudge in between.
       const start = 0.72 - Math.min(0.32, Math.sqrt(n.degree) * 0.08);
       const zoomAlpha = Math.max(0, Math.min(1, (k - start) / 0.18));
-      let a = always ? 1 : zoomAlpha;
-      if (lit && !lit.has(i)) a *= 1 - (1 - FADE) * hl;
+      // Lit nodes' labels fade in with their glow.
+      let a = Math.max(always ? 1 : zoomAlpha, lit[i] ?? 0);
+      if (dim > 0) a *= fallBack(i);
       if (searched && !searched.has(n.key)) a *= 0.22;
       if (a < 0.02) continue;
       const r = Math.max(radiusOf(n.degree) * k, 1.6);
@@ -349,15 +357,8 @@ export function Graph({
         sim.tick();
         busy = true;
       }
-      // Hover highlight eases in and out.
-      const want = s.hover >= 0 ? 1 : 0;
-      if (s.hover >= 0) s.hlNode = s.hover;
-      if (s.hl !== want) {
-        s.hl = s.reduced ? want : s.hl + (want - s.hl) * 0.25;
-        if (Math.abs(s.hl - want) < 0.02) s.hl = want;
-        if (s.hl === 0) s.hlNode = -1;
-        busy = true;
-      }
+      // Hover highlight crossfades from node to node (an opacity fade, kept under Reduce motion).
+      if (s.fade.step(s.hover, dt)) busy = true;
       // While the first layout settles, the camera keeps it all in view.
       if (s.autoFit && !sim.settled) s.target = fitCamera(s, sim);
       if (s.target) {
@@ -437,8 +438,7 @@ export function Graph({
     s.neighbours = neighbours;
     s.focus = focusKey ? nodes.findIndex((n) => n.key === focusKey) : -1;
     s.hover = -1;
-    s.hlNode = -1;
-    s.hl = 0;
+    s.fade.reset();
     if (!prev) s.autoFit = !mostlyKnown;
     if (!prev && mostlyKnown && s.width) {
       s.camera = fitCamera(s, sim);
