@@ -44,7 +44,7 @@ spctl -a -vvv -t install target/aarch64-apple-darwin/release/bundle/macos/Cilica
 
 ## Windows installer
 
-People on Windows download **`Cilica_<version>_x64_Setup.exe`**, Cilica Setup (`apps/setup`, docs/architecture.md › Windows installer). Tauri's `Cilica_<version>_x64-setup.exe` (NSIS) and `.msi` stay on the release: Setup carries the NSIS installer inside it, the updater downloads it directly, and the MSI is for managed installs.
+People on Windows download **`Cilica_<version>_x64_Setup.exe`**, Cilica Setup (`apps/setup`, docs/architecture.md › Windows installer). Tauri's `Cilica_<version>_x64-setup.exe` (NSIS) and `.msi` stay on the release: Setup carries the NSIS installer inside it, the updater downloads it directly (and hands it to the copy of Setup next to Cilica to install), and the MSI is for managed installs.
 
 Setup is built on Windows around Tauri's build, by `tools/build-windows-setup.ts`:
 
@@ -58,7 +58,7 @@ bun run windows-setup
 
 CI runs `prepare` before tauri-action and `package` after it, then attaches the result to the release. To sign both copies of Setup, set `WINDOWS_SIGN_COMMAND` to a signing command with `%1` for the file; unsigned, SmartScreen warns the first time it runs. Tauri's own installers are signed through Tauri's Windows signing settings, which are not set up yet.
 
-Try the window without Windows: `bun run setup` (`-- --uninstall` for removal) runs it against a simulated backend; start `bun run dev:web` first. On Windows, try the real thing in a VM: install, update over it, remove from Settings › Apps with and without deleting notes, and a PC without WebView2.
+Try the window without Windows: `bun run setup` (`-- --uninstall` for removal, `-- --update x.exe --version 9.9.9` for an update) runs it against a simulated backend; start `bun run dev:web` first. On Windows, try the real thing in a VM: install, update over it with Setup, update from inside Cilica (Settings › General, then Restart), remove from Settings › Apps with and without deleting notes, and a PC without WebView2.
 
 ## Releasing from GitHub
 
@@ -93,6 +93,6 @@ Test builds use no secrets: they are unsigned and have no updater packages, so a
 
 ## Updates
 
-Installed copies check `latest.json` on the latest GitHub release 30 seconds after launch and every six hours. With **Settings › General › Install updates automatically** on (the default), a new version downloads and installs in the background, then a toast offers to restart. With it off, the toast offers to install. The same page has **Check for updates**. Checks are skipped in `bun run dev`. In the browser preview, add `?update` to the URL to see the update flow.
+Installed copies check `latest.json` on the latest GitHub release 30 seconds after launch and every six hours. With **Settings › General › Install updates automatically** on (the default), a new version downloads and installs in the background, then a toast offers to restart. On Windows it only downloads in the background; Restart closes Cilica and installs it in Cilica Setup's window, which opens Cilica again (copies installed before this shipped still update once through Tauri's NSIS window). With it off, the toast offers to install. The same page has **Check for updates**. Checks are skipped in `bun run dev`. In the browser preview, add `?update` to the URL to see the update flow.
 
 The updater only accepts packages signed with `~/.tauri/cilica-updater.key`. On Linux, automatic updates work for the AppImage only; `.deb` installs update through the package manager.
