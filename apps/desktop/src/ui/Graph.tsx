@@ -18,14 +18,17 @@ import {
 } from "react";
 import { cn } from "./cn";
 import {
-  CAMERA_EASE,
   type CameraTarget,
   clamp,
   MAX_SCALE,
   MIN_SCALE,
   panBy,
+  snapCamera,
   stepCamera,
-  wheelZoomTarget,
+  WheelClassifier,
+  wheelZoomAmount,
+  zeroVelocity,
+  zoomTargetAt,
 } from "./graphCamera";
 import { ForceSim } from "./graphSim";
 
@@ -136,6 +139,8 @@ export function Graph({
     highlight,
     camera: { x: 0, y: 0, k: 1 },
     target: null as CameraTarget | null,
+    velocity: zeroVelocity(),
+    wheel: new WheelClassifier(),
     autoFit: true,
     hover: -1,
     hl: 0,
@@ -144,6 +149,8 @@ export function Graph({
     height: 0,
     colors: null as Colors | null,
     frame: 0,
+    /** rAF time of the last frame while the loop runs, 0 when it is idle. */
+    lastFrame: 0,
     drag: null as null | {
       node: number;
       startX: number;
@@ -327,37 +334,48 @@ export function Graph({
   }, [variant]);
 
   // ── The loop: runs only while something moves ─────────────────────────────
-  const step = useCallback(() => {
-    const s = live.current;
-    s.frame = 0;
-    const sim = s.sim;
-    if (!sim) return;
-    let busy = false;
-    if (!sim.settled) {
-      sim.tick();
-      busy = true;
-    }
-    // Hover highlight eases in and out.
-    const want = s.hover >= 0 ? 1 : 0;
-    if (s.hover >= 0) s.hlNode = s.hover;
-    if (s.hl !== want) {
-      s.hl = s.reduced ? want : s.hl + (want - s.hl) * 0.25;
-      if (Math.abs(s.hl - want) < 0.02) s.hl = want;
-      if (s.hl === 0) s.hlNode = -1;
-      busy = true;
-    }
-    // While the first layout settles, the camera keeps it all in view.
-    if (s.autoFit && !sim.settled) s.target = fitCamera(s, sim);
-    if (s.target) {
-      if (stepCamera(s.camera, s.target, s.reduced ? 1 : CAMERA_EASE)) {
-        s.target = null;
-      } else {
+  const step = useCallback(
+    (now: number) => {
+      const s = live.current;
+      s.frame = 0;
+      const sim = s.sim;
+      if (!sim) return;
+      // Seconds since the last frame, so motion runs at the same speed at any refresh rate. A loop
+      // that was idle starts with one nominal frame; a long stall is capped so nothing leaps.
+      const dt = s.lastFrame ? clamp((now - s.lastFrame) / 1000, 0, 0.05) : 1 / 60;
+      s.lastFrame = now;
+      let busy = false;
+      if (!sim.settled) {
+        sim.tick();
         busy = true;
       }
-    }
-    draw();
-    if (busy) s.frame = requestAnimationFrame(step);
-  }, [draw]);
+      // Hover highlight eases in and out.
+      const want = s.hover >= 0 ? 1 : 0;
+      if (s.hover >= 0) s.hlNode = s.hover;
+      if (s.hl !== want) {
+        s.hl = s.reduced ? want : s.hl + (want - s.hl) * 0.25;
+        if (Math.abs(s.hl - want) < 0.02) s.hl = want;
+        if (s.hl === 0) s.hlNode = -1;
+        busy = true;
+      }
+      // While the first layout settles, the camera keeps it all in view.
+      if (s.autoFit && !sim.settled) s.target = fitCamera(s, sim);
+      if (s.target) {
+        if (s.reduced) {
+          snapCamera(s.camera, s.velocity, s.target);
+          s.target = null;
+        } else if (stepCamera(s.camera, s.velocity, s.target, dt)) {
+          s.target = null;
+        } else {
+          busy = true;
+        }
+      }
+      draw();
+      if (busy) s.frame = requestAnimationFrame(step);
+      else s.lastFrame = 0;
+    },
+    [draw],
+  );
 
   const kick = useCallback(() => {
     const s = live.current;
@@ -620,6 +638,7 @@ export function Graph({
       s.camera.x -= (e.clientX - d.lastX) / k;
       s.camera.y -= (e.clientY - d.lastY) / k;
       s.target = null;
+      s.velocity = zeroVelocity();
       if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
     }
     d.lastX = e.clientX;
@@ -646,28 +665,40 @@ export function Graph({
     kick();
   };
 
-  // Wheel: pinch (or ⌘/Ctrl + wheel) zooms at the pointer; two-finger scroll pans the full graph
-  // and scrolls the page past an inline one. Native listener: React's is passive.
+  // Wheel: a mouse wheel, a pinch, or ⌘/Ctrl + wheel zooms at the pointer; two-finger scroll
+  // pans the full graph. An inline graph zooms only with a pinch or ⌘/Ctrl, and otherwise leaves
+  // scrolling to the page. Native listener: React's is passive.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       const s = live.current;
-      const zoom = e.ctrlKey || e.metaKey;
+      const input = {
+        deltaMode: e.deltaMode,
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        wheelDeltaY: (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY,
+      };
+      const device = s.wheel.classify(input, e.timeStamp);
+      const mouseZoom = device === "mouse" && variant === "full" && !e.shiftKey;
+      const zoom = e.ctrlKey || e.metaKey || mouseZoom;
       if (!zoom && variant === "inline") return;
       e.preventDefault();
       s.autoFit = false;
       if (zoom) {
-        // Glide toward the new scale with the point under the cursor held still, so a mouse
-        // wheel's coarse notches ease like a trackpad pinch. Line-mode wheels report lines.
+        // Spring toward the new scale with the point under the cursor held still. A mouse notch
+        // is one fixed step, so a coarse wheel glides like a trackpad pinch instead of jumping.
         const rect = canvas.getBoundingClientRect();
         const px = e.clientX - rect.left - s.width / 2;
         const py = e.clientY - rect.top - s.height / 2;
-        const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-        s.target = wheelZoomTarget(s.camera, s.target?.anchor ? s.target : null, px, py, dy);
+        const amount = wheelZoomAmount(input, device);
+        s.target = zoomTargetAt(s.camera, s.target?.anchor ? s.target : null, px, py, amount);
       } else {
         // Pans stay immediate (they track the fingers) and carry any zoom glide along.
-        if (!s.target?.anchor) s.target = null;
+        if (!s.target?.anchor) {
+          s.target = null;
+          s.velocity = zeroVelocity();
+        }
         panBy(s.camera, s.target, e.deltaX / s.camera.k, e.deltaY / s.camera.k);
       }
       kick();
