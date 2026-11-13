@@ -2,7 +2,9 @@
  * Recording, transcripts, speakers, Saved people, permissions, input devices and speech models.
  *
  * A fake recording plays a canned conversation: segments arrive as growing partials then finals,
- * audio levels tick at 20 Hz, and Stop streams a summary into the note word by word.
+ * audio levels tick at 20 Hz, and Stop streams a summary into the note word by word. As the
+ * backend, speakers come from Cilica by default: a line has no speaker ("Pending") until a moment
+ * after it is final, then the call alternates between Person 1 and Person 2.
  *
  * A recording started for a detected meeting plays the script once; then the meeting app
  * "releases the mic" and `auto_stop_at` counts down 10 s before it stops on its own (Keep recording
@@ -22,12 +24,15 @@ import type {
   RecordingState,
   Segment,
   Speaker,
+  SpeakerModel,
+  SpeakerSource,
   SpeakerSuggestion,
   StartRecordingOptions,
   SttEngine,
   SttModel,
   SttProviderStatus,
   Transcript,
+  TranscriptionSettings,
   TranscriptionTest,
 } from "@/ipc/types";
 import { requireLiveNote, requireNote, writeBody } from "./notes";
@@ -35,6 +40,15 @@ import type { MockContext } from "./state";
 import { idleRecording } from "./state";
 import { Timers } from "./timers";
 import { appError, clock, iso, newId, notFound, wordChunks } from "./util";
+
+/** How long after a final line Cilica's speaker detection names who said it. */
+const PENDING_MS = 1_800;
+
+/** Who actually labels speakers live (crates/domain: `speaker_labels`). */
+export function speakerLabels(t: TranscriptionSettings): SpeakerSource {
+  const serviceCan = ["soniox", "deepgram", "assembly_ai"].includes(t.engine);
+  return t.speaker_source === "service" && !serviceCan ? "local" : t.speaker_source;
+}
 
 /** The canned conversation a fake recording plays, in order. */
 const SCRIPT: { channel: AudioChannel; text: string }[] = [
@@ -92,6 +106,19 @@ export function recordingCommands({ state, emit }: MockContext) {
   const onDownloaded = new Map<string, () => void>();
   /** Cloud speech services with a key in the "keychain". */
   const sttKeys = new Set<SttEngine>();
+  /** Call lines heard so far in this recording, to alternate the two people on the call. */
+  let callLines = 0;
+  const switchToSpeakerModel = (modelId: string) => {
+    state.settings = {
+      ...state.settings,
+      transcription: {
+        ...state.settings.transcription,
+        speaker_source: "local",
+        speaker_model: modelId,
+      },
+    };
+    emit({ type: "settings_changed", settings: JSON.parse(JSON.stringify(state.settings)) });
+  };
   const switchToSttModel = (modelId: string) => {
     state.settings = {
       ...state.settings,
@@ -184,9 +211,16 @@ export function recordingCommands({ state, emit }: MockContext) {
     if (!line || state.recording.phase !== "recording") return;
     scriptIndex += 1;
     const transcript = liveTranscript(noteId);
-    const speaker = transcript.speakers.find(
+    const labels = speakerLabels(state.settings.transcription);
+    const fallback = transcript.speakers.find(
       (s) => s.label === (line.channel === "mic" ? "You" : "Others"),
     );
+    const person =
+      labels === "off" || line.channel === "mic"
+        ? fallback
+        : personSpeaker(transcript, (callLines++ % 2) + 1);
+    // Cilica's own detection decides a moment after the words; a service labels at once.
+    const speaker = labels === "local" ? undefined : person;
     const words = line.text.split(" ");
     const start = Date.now() - startedMs;
     const id = newId("seg");
@@ -210,9 +244,35 @@ export function recordingCommands({ state, emit }: MockContext) {
     timers.later(steps.length * STEP_MS, () => {
       if (state.recording.phase !== "recording") return;
       upsertSegment(transcript, make(words.length, true));
+      if (labels === "local")
+        timers.later(PENDING_MS, () => {
+          upsertSegment(transcript, {
+            ...make(words.length, true),
+            speaker_id: person?.id ?? null,
+          });
+        });
       speaking = null;
       timers.later(PAUSE_MS, () => playUtterance(noteId));
     });
+  };
+
+  /** "Person n" on this note, added the first time they are heard. */
+  const personSpeaker = (transcript: Transcript, n: number): Speaker => {
+    const label = `Person ${n}`;
+    let speaker = transcript.speakers.find((s) => s.label === label);
+    if (!speaker) {
+      speaker = {
+        id: newId("spk"),
+        note_id: transcript.note_id,
+        label,
+        person_id: null,
+        color_index: n + 1,
+        is_self: false,
+      };
+      transcript.speakers.push(speaker);
+      emit({ type: "data_changed", scopes: ["transcript"], note_id: transcript.note_id });
+    }
+    return speaker;
   };
 
   const tickLevels = () => {
@@ -307,35 +367,6 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     });
   };
 
-  // ── Diarization ──
-
-  const diarize = (noteId: string) => {
-    const transcript = state.transcripts.get(noteId);
-    if (!transcript) return;
-    const others = transcript.speakers.find((s) => s.label === "Others" && !s.person_id);
-    if (!others) return;
-    const people: Speaker[] = [1, 2].map((n) => ({
-      id: newId("spk"),
-      note_id: noteId,
-      label: `Person ${n}`,
-      person_id: null,
-      color_index: n + 1,
-      is_self: false,
-    }));
-    let turn = 0;
-    let previous: string | null = null;
-    for (const segment of transcript.segments) {
-      if (segment.speaker_id !== others.id) {
-        previous = null;
-        continue;
-      }
-      if (previous !== null) turn += 1;
-      segment.speaker_id = people[turn % 2]?.id ?? others.id;
-      previous = segment.id;
-    }
-    transcript.speakers = transcript.speakers.filter((s) => s.id !== others.id).concat(people);
-  };
-
   // ── Speakers and people helpers ──
 
   const findSpeaker = (speakerId: string): Speaker => {
@@ -398,6 +429,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       liveTranscript(note.id);
       startedMs = now;
       scriptIndex = 0;
+      callLines = 0;
       detected = options.trigger === "detected";
       emit({ type: "data_changed", scopes: ["notes"], note_id: note.id });
       const t = state.settings.transcription;
@@ -407,9 +439,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         meeting_app: app,
         started_at: iso(now),
         auto_stop_at: null,
-        // As the backend: only cloud services that label speakers, with the setting on.
-        live_speakers:
-          t.live_speaker_labels && ["soniox", "deepgram", "assembly_ai"].includes(t.engine),
+        live_speakers: speakerLabels(t) !== "off",
       });
       const noteId = note.id;
       const title = note.title;
@@ -450,24 +480,30 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         transcript.duration_ms = Date.now() - startedMs;
       }
       setRecording({ phase: "stopping", auto_stop_at: null });
+      // Lines still pending go to You or Others; speakers left with nothing said are dropped.
+      if (transcript) {
+        const fallback = (channel: AudioChannel) =>
+          transcript.speakers.find((p) => p.label === (channel === "mic" ? "You" : "Others"))?.id ??
+          null;
+        for (const s of transcript.segments) s.speaker_id ??= fallback(s.channel);
+        transcript.speakers = transcript.speakers.filter((p) =>
+          transcript.segments.some((s) => s.speaker_id === p.id),
+        );
+      }
       timers.later(PHASE_MS, () => {
-        diarize(noteId);
-        setRecording({ phase: "diarizing" });
-        timers.later(PHASE_MS, () => {
-          setRecording({ phase: "summarizing" });
-          streamSummary(note, minutes, note.body_md, (actionItems) => {
-            state.recording = idleRecording();
-            emit({ type: "recording_state_changed", state: { ...state.recording } });
-            emit({
-              type: "toast",
-              toast: {
-                kind: "success",
-                title: "Notes ready",
-                description: `Summary and ${actionItems} action ${actionItems === 1 ? "item" : "items"} from ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`,
-                action_label: "Open",
-                action: { type: "open_note", note_id: noteId },
-              },
-            });
+        setRecording({ phase: "summarizing" });
+        streamSummary(note, minutes, note.body_md, (actionItems) => {
+          state.recording = idleRecording();
+          emit({ type: "recording_state_changed", state: { ...state.recording } });
+          emit({
+            type: "toast",
+            toast: {
+              kind: "success",
+              title: "Notes ready",
+              description: `Summary and ${actionItems} action ${actionItems === 1 ? "item" : "items"} from ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`,
+              action_label: "Open",
+              action: { type: "open_note", note_id: noteId },
+            },
           });
         });
       });
@@ -534,7 +570,9 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     },
 
     downloadSttModel(modelId: string): null {
-      const model = state.sttModels.find((m) => m.id === modelId);
+      const model: SttModel | SpeakerModel | undefined =
+        state.sttModels.find((m) => m.id === modelId) ??
+        state.speakerModels.find((m) => m.id === modelId);
       if (!model) throw notFound("model");
       if (model.downloaded || downloads.has(modelId)) return null;
       const total = model.size_mb * 1024 * 1024;
@@ -577,7 +615,28 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     },
 
     getHardwareProfile(): HardwareProfile {
-      return { cores: 10, ram_gb: 24, apple_silicon: true, suggest_cloud: false };
+      return {
+        cores: 10,
+        ram_gb: 24,
+        apple_silicon: true,
+        suggest_cloud: false,
+        local_speakers: true,
+      };
+    },
+
+    listSpeakerModels(): SpeakerModel[] {
+      return state.speakerModels;
+    },
+
+    downloadAndUseSpeakerModel(modelId: string): null {
+      const model = state.speakerModels.find((m) => m.id === modelId);
+      if (!model) throw notFound("model");
+      if (model.downloaded) {
+        switchToSpeakerModel(modelId);
+        return null;
+      }
+      onDownloaded.set(modelId, () => switchToSpeakerModel(modelId));
+      return commands.downloadSttModel(modelId);
     },
 
     getSttProviderStatus(engine: SttEngine): SttProviderStatus {
@@ -654,6 +713,18 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     },
 
     deleteSttModel(modelId: string): null {
+      const voice = state.speakerModels.find((m) => m.id === modelId);
+      if (voice) {
+        if (!voice.removable) throw appError("invalid", "Cilica needs this voice model.");
+        if (state.settings.transcription.speaker_model === modelId) {
+          throw appError(
+            "invalid",
+            "That model is in use. Pick another model first, then delete this one.",
+          );
+        }
+        voice.downloaded = false;
+        return null;
+      }
       const model = state.sttModels.find((m) => m.id === modelId);
       if (!model) throw notFound("model");
       if (state.settings.transcription.model_id === modelId) {

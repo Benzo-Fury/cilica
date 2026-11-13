@@ -6,7 +6,7 @@ import {
   hasUnknownSpeaker,
   segmentAt,
   speakerLook,
-  speakersPending,
+  speakersLive,
   TURN_GAP_MS,
   upsertSegment,
 } from "./model";
@@ -149,11 +149,11 @@ describe("speakers while recording", () => {
     ...patch,
   });
 
-  it("waits for the end of the meeting unless the service labels speakers live", () => {
-    expect(speakersPending(recording({}), "n1")).toBe(true);
-    expect(speakersPending(recording({ phase: "diarizing" }), "n1")).toBe(true);
-    expect(speakersPending(recording({ live_speakers: true }), "n1")).toBe(false);
-    expect(speakersPending(recording({ phase: "idle" }), "n1")).toBe(false);
-    expect(speakersPending(recording({}), "another note")).toBe(false);
+  it("shows lines without a speaker as pending only while speakers are told apart live", () => {
+    expect(speakersLive(recording({ live_speakers: true }), "n1")).toBe(true);
+    expect(speakersLive(recording({ live_speakers: true, phase: "stopping" }), "n1")).toBe(true);
+    expect(speakersLive(recording({}), "n1")).toBe(false);
+    expect(speakersLive(recording({ live_speakers: true, phase: "idle" }), "n1")).toBe(false);
+    expect(speakersLive(recording({ live_speakers: true }), "another note")).toBe(false);
   });
 });

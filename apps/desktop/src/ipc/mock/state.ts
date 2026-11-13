@@ -12,6 +12,7 @@ import type {
   ProviderKind,
   RecordingState,
   Settings,
+  SpeakerModel,
   SttModel,
   Task,
   TaskRun,
@@ -45,6 +46,7 @@ export interface MockState {
   tasks: Task[];
   taskRuns: TaskRun[];
   sttModels: SttModel[];
+  speakerModels: SpeakerModel[];
   permissions: Permissions;
   /** Providers with a key "in the keychain". The key itself is never kept. */
   providerKeys: ProviderKind[];
@@ -92,8 +94,8 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       model_id: "small",
       language: null,
       refine_after_meeting: true,
-      live_speaker_labels: true,
-      identify_speakers_after_meeting: true,
+      speaker_source: "local",
+      speaker_model: "campplus",
       recognise_voices: true,
       cloud: { base_url: null, model: null },
     },
@@ -157,6 +159,21 @@ export function defaultSttModels(): SttModel[] {
       multilingual: true,
       recommended: true,
       downloaded: false,
+    },
+  ];
+}
+
+/** Voice models for telling speakers apart, as `crates/stt` lists them. */
+export function defaultSpeakerModels(): SpeakerModel[] {
+  return [
+    {
+      id: "campplus",
+      name: "CAM++",
+      description: "Light and quick. Tells most voices apart on any computer.",
+      size_mb: 29,
+      recommended: true,
+      downloaded: true,
+      removable: false,
     },
   ];
 }

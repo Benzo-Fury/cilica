@@ -9,7 +9,7 @@
 //! [`SummarizerProvider`], so a whole session runs in tests from fixture audio.
 //!
 //! Phases (`AppEvent::RecordingStateChanged`): Idle → Starting → Recording → Stopping (the last
-//! audio is transcribed) → Diarizing → Summarizing → Idle.
+//! audio is transcribed) → Summarizing → Idle.
 
 mod backend;
 mod echo;

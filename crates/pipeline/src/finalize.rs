@@ -1,18 +1,17 @@
-//! After capture: finish the transcript, redo it carefully, keep the audio, find the speakers,
-//! write the summary.
+//! After capture: finish the transcript, redo it carefully (keeping who said what), keep the
+//! audio, tidy the speakers and name voices Cilica knows, write the summary.
 //! Each step is recorded in the sidecar so a recording interrupted by a quit or crash resumes at
 //! the first step it had not finished (see [`crate::files::Stage`]).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use cilica_audio::{SAMPLE_RATE, WavWriter, read_wav_16k, read_wav_channel_16k, recover_wav};
-use cilica_diarize::{Diarization, RECOGNISE_THRESHOLD, SUGGEST_THRESHOLD, assign_segments, cosine};
+use cilica_diarize::{RECOGNISE_THRESHOLD, SUGGEST_THRESHOLD};
 use cilica_domain::{
-    AppError, AppResult, AudioChannel, DataScope, ErrorCode, Id, RecordingPhase, Segment, ToastAction, ToastKind,
-    ToastRequest, Timestamp,
+    AppError, AppResult, AudioChannel, DataScope, ErrorCode, Id, RecordingPhase, Segment, ToastAction, ToastKind, ToastRequest,
+    Timestamp,
 };
-use cilica_store::{NewSpeaker, SELF_LABEL};
 
 use crate::echo::EchoFilter;
 use crate::files::{RecordingFiles, Sidecar, Stage, kept_audio};
@@ -29,13 +28,6 @@ pub(crate) struct Job {
     /// Recovered at launch: the tail of the audio was never transcribed live.
     pub recovered: bool,
 }
-
-/// Mic speech needed before the mic channel is diarized for in-person speakers.
-const MIC_DIARIZE_MIN_MS: u32 = 10_000;
-/// A second voice on the mic counts as a person in the room with at least this much speech,
-/// and only if it does not sound like anyone on the call (that would be echo).
-const ROOM_SPEAKER_MIN_MS: u32 = 3_000;
-const ROOM_SPEAKER_MAX_CALL_SIMILARITY: f32 = 0.5;
 
 /// Run every remaining step. Failures of optional steps (speakers, summary) are reported as
 /// toasts and do not stop the rest.
@@ -66,7 +58,6 @@ pub(crate) async fn finalize(inner: &Arc<Inner>, epoch: u64, mut job: Job) {
         advance(&job.files, &mut job.sidecar, Stage::Refined);
     }
 
-    let audio = audio_for_analysis(&job);
     if job.sidecar.stage < Stage::Encoded {
         match keep_audio(inner, &job).await {
             Ok(()) => inner.data_changed(&[DataScope::Notes, DataScope::Transcript], note_id),
@@ -79,20 +70,13 @@ pub(crate) async fn finalize(inner: &Arc<Inner>, epoch: u64, mut job: Job) {
     }
 
     if job.sidecar.stage < Stage::Diarized {
-        let identify = inner.db.get_settings().await.map(|s| s.transcription.identify_speakers_after_meeting).unwrap_or(true);
-        if identify {
-            inner.set_phase(epoch, RecordingPhase::Diarizing);
-            if let Some(wav) = audio.as_deref() {
-                match diarize(inner, note_id, wav).await {
-                    Ok(_) => {}
-                    Err(error) => tracing::warn!(message = %error.message, "speaker detection failed; keeping the live speakers"),
-                }
-            }
-        }
-        // Without the check (turned off, or it could not run) the live labels stay: drop any
-        // speaker left with nothing said, such as "Others" once the service labelled everyone.
+        // Speakers were told apart live; drop any left with nothing said (such as "Others" once
+        // everyone on the call was labelled) and name the voices Cilica knows.
         if let Err(error) = inner.db.drop_unused_speakers(note_id).await {
             tracing::warn!(%error, "could not tidy the note's speakers");
+        }
+        if let Err(error) = known_voices(inner, note_id).await {
+            tracing::warn!(message = %error.message, "could not compare voices with Saved people");
         }
         if let Err(error) = inner.db.reindex_note(note_id).await {
             tracing::warn!(%error, "could not reindex the note");
@@ -114,12 +98,6 @@ fn advance(files: &RecordingFiles, sidecar: &mut Sidecar, stage: Stage) {
     if let Err(error) = files.write_sidecar(sidecar) {
         tracing::warn!(%error, "could not update the recording sidecar");
     }
-}
-
-/// The WAV that holds the whole note's audio: the combined file when this recording was
-/// appended to an earlier one, otherwise the capture file.
-fn audio_for_analysis(job: &Job) -> Option<PathBuf> {
-    [job.files.combined_wav(), job.files.wav()].into_iter().find(|p| p.exists())
 }
 
 // ── Recovery ─────────────────────────────────────────────────────────────
@@ -216,6 +194,7 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
         Ok((y, o)) => (y.id, o.id),
         Err(_) => return false,
     };
+    let live = inner.db.list_segments(note_id).await.unwrap_or_default();
     let speech = inner.speech.clone();
     let started = std::time::Instant::now();
     let result = tokio::task::spawn_blocking(move || -> AppResult<Option<Vec<Segment>>> {
@@ -249,7 +228,11 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
         }
         Err(_) => return false,
     };
-    let live = inner.db.list_segments(note_id).await.unwrap_or_default();
+    // Each careful line goes to whoever said that stretch in the live transcript.
+    let segments: Vec<Segment> = segments
+        .into_iter()
+        .map(|s| Segment { speaker_id: live_speaker(&live, s.channel, s.start_ms, s.end_ms).or(s.speaker_id), ..s })
+        .collect();
     let mut changed = false;
     for channel in [AudioChannel::Mic, AudioChannel::System] {
         let words = |list: &mut dyn Iterator<Item = &Segment>| list.map(|s| s.text.split_whitespace().count()).sum::<usize>();
@@ -267,6 +250,32 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
     }
     tracing::info!(took = ?started.elapsed(), changed, "after-meeting pass");
     changed
+}
+
+/// Within this long of a line, the live speaker just before or after it is taken as theirs.
+const NEAREST_SPEAKER_MS: u32 = 2_000;
+
+/// Who said the stretch `start_ms..end_ms` of a channel in the live transcript: the speaker who
+/// talks most during it, or the nearest one within 2 s.
+fn live_speaker(live: &[Segment], channel: AudioChannel, start_ms: u32, end_ms: u32) -> Option<Id> {
+    let mut talk: Vec<(Id, u32)> = Vec::new();
+    let mut nearest: Option<(u32, Id)> = None;
+    for s in live.iter().filter(|s| s.channel == channel && s.is_final) {
+        let Some(speaker) = s.speaker_id else { continue };
+        let overlap = end_ms.min(s.end_ms).saturating_sub(start_ms.max(s.start_ms));
+        if overlap > 0 {
+            match talk.iter_mut().find(|(id, _)| *id == speaker) {
+                Some(t) => t.1 += overlap,
+                None => talk.push((speaker, overlap)),
+            }
+        } else {
+            let gap = if s.end_ms <= start_ms { start_ms - s.end_ms } else { s.start_ms.saturating_sub(end_ms) };
+            if gap <= NEAREST_SPEAKER_MS && nearest.is_none_or(|(g, _)| gap < g) {
+                nearest = Some((gap, speaker));
+            }
+        }
+    }
+    talk.iter().max_by_key(|(_, ms)| *ms).map(|(id, _)| *id).or(nearest.map(|(_, id)| id))
 }
 
 /// Drop mic segments that repeat what the call audio said at the same time (speaker echo).
@@ -382,91 +391,15 @@ pub(crate) fn person_color(n: usize) -> u8 {
     (n % 8) as u8 + 1
 }
 
-/// Who spoke when, on both channels, then voiceprint suggestions. Returns how many people were
-/// found on the call.
-async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize> {
-    let Some(models) = inner.speech.speaker_models().await else { return Ok(0) };
-    let segments: Vec<Segment> = inner.db.list_segments(note_id).await?.into_iter().filter(|s| s.is_final).collect();
-    let speech_ms = |ch: AudioChannel| segments.iter().filter(|s| s.channel == ch).map(|s| s.end_ms - s.start_ms).sum::<u32>();
-    let (want_system, want_mic) = (speech_ms(AudioChannel::System) > 0, speech_ms(AudioChannel::Mic) >= MIC_DIARIZE_MIN_MS);
-    if !want_system && !want_mic {
-        return Ok(0);
-    }
-    let speech = inner.speech.clone();
-    let wav = wav.to_path_buf();
-    let (system, mic) = tokio::task::spawn_blocking(move || -> AppResult<(Option<Diarization>, Option<Diarization>)> {
-        let started = std::time::Instant::now();
-        let mut d = speech.diarizer(&models)?;
-        let mut run = |want: bool, channel: usize| -> AppResult<Option<Diarization>> {
-            if !want {
-                return Ok(None);
-            }
-            let audio = read_wav_channel_16k(&wav, channel).map_err(AppError::from)?;
-            Ok(Some(d.diarize(&audio)?))
-        };
-        let system = run(want_system, 1)?;
-        let mic = run(want_mic, 0)?;
-        tracing::info!(took = ?started.elapsed(), "diarized");
-        Ok((system, mic))
-    })
-    .await
-    .map_err(|_| AppError::internal("Speaker detection stopped unexpectedly."))??;
-
-    let spans = |ch: AudioChannel| -> Vec<(Id, u32, u32)> {
-        segments.iter().filter(|s| s.channel == ch).map(|s| (s.id, s.start_ms, s.end_ms)).collect()
-    };
-    let recognise_on = inner.db.get_settings().await.map(|s| s.transcription.recognise_voices).unwrap_or(true);
-    let me_person = inner.db.ensure_self_person().await?;
-    let my_voice = if recognise_on { inner.db.list_voiceprints().await?.into_iter().find(|v| v.person_id == me_person.id) } else { None };
-    let mut people = 0;
-    if let Some(sys) = system.as_ref().filter(|d| !d.speakers.is_empty()) {
-        let speakers = sys
-            .speakers
-            .iter()
-            .map(|s| NewSpeaker { label: format!("Person {}", s.index + 1), color_index: person_color(s.index + 1), is_self: false, embedding: Some(s.embedding.clone()) })
-            .collect();
-        let assignments = assign_segments(&sys.turns, &spans(AudioChannel::System));
-        inner.db.apply_diarization(note_id, AudioChannel::System, speakers, &assignments, None).await?;
-        people = sys.speakers.len();
-    }
-    if let Some(mic) = mic.as_ref().filter(|d| !d.speakers.is_empty()) {
-        let call: Vec<&[f32]> = system.iter().flat_map(|d| d.speakers.iter().map(|s| s.embedding.as_slice())).collect();
-        // You: the voice that sounds most like your saved voice, or, until Cilica knows it, the
-        // one that talked most.
-        let by_voice = my_voice.as_ref().and_then(|v| {
-            mic.speakers.iter().map(|s| (s.index, v.similarity(&s.embedding))).filter(|(_, sim)| *sim >= SUGGEST_THRESHOLD).max_by(|a, b| a.1.total_cmp(&b.1)).map(|(i, _)| i)
-        });
-        let me = by_voice.unwrap_or_else(|| mic.speakers.iter().max_by_key(|s| s.speech_ms).map(|s| s.index).unwrap_or(0));
-        let room: Vec<usize> = mic
-            .speakers
-            .iter()
-            .filter(|s| s.index != me && s.speech_ms >= ROOM_SPEAKER_MIN_MS)
-            .filter(|s| call.iter().all(|c| cosine(c, &s.embedding) < ROOM_SPEAKER_MAX_CALL_SIMILARITY))
-            .map(|s| s.index)
-            .collect();
-        let mine = mic.speakers[me].embedding.clone();
-        if room.is_empty() {
-            let (you, _) = inner.db.ensure_channel_speakers(note_id).await?;
-            inner.db.set_speaker_embedding(you.id, Some(&mine)).await?;
-        } else {
-            // You first, then the people in the room, numbered after those on the call.
-            let mut speakers = vec![NewSpeaker { label: SELF_LABEL.into(), color_index: 1, is_self: true, embedding: Some(mine) }];
-            for (k, &i) in room.iter().enumerate() {
-                let n = people + k + 1;
-                speakers.push(NewSpeaker { label: format!("Person {n}"), color_index: person_color(n), is_self: false, embedding: Some(mic.speakers[i].embedding.clone()) });
-            }
-            let assignments: Vec<(Id, usize)> = assign_segments(&mic.turns, &spans(AudioChannel::Mic))
-                .into_iter()
-                .map(|(id, c)| (id, room.iter().position(|&r| r == c).map(|p| p + 1).unwrap_or(0)))
-                .collect();
-            inner.db.apply_diarization(note_id, AudioChannel::Mic, speakers, &assignments, Some(0)).await?;
-            people += room.len();
-        }
-    }
+/// Link "You", name the speakers whose voice Cilica recognised during the meeting, and suggest
+/// names it is less sure of.
+async fn known_voices(inner: &Arc<Inner>, note_id: Id) -> AppResult<()> {
     inner.db.link_self_speakers(note_id).await?;
-    if recognise_on {
-        name_known_voices(inner, note_id).await?;
+    let recognise_on = inner.db.get_settings().await.map(|s| s.transcription.recognise_voices).unwrap_or(true);
+    if !recognise_on {
+        return Ok(());
     }
+    name_known_voices(inner, note_id).await?;
 
     // Less sure: suggestions only, which the person confirms in the transcript.
     let suggestions = inner.db.speaker_suggestions(note_id, SUGGEST_THRESHOLD).await?;
@@ -480,7 +413,7 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
             Some(("Review", ToastAction::OpenNote { note_id })),
         );
     }
-    Ok(people)
+    Ok(())
 }
 
 /// Name the speakers whose voice clearly belongs to a Saved person (one speaker per person, the

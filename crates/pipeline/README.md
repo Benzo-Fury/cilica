@@ -1,7 +1,7 @@
 # cilica-pipeline
 
 One recording session end to end, independent of Tauri:
-capture → echo cancellation → VAD → speech-to-text → store → events → diarize → summarise.
+capture → echo cancellation → VAD → speech-to-text and live speakers → store → events → summarise.
 
 ## Public API
 
@@ -33,15 +33,24 @@ summarizer: SummarizerProvider, ServiceConfig, tokio Handle)`, cheap to clone:
 ### What a session emits
 
 - `RecordingStateChanged`: Idle → Starting → Recording → Stopping (the last audio is
-  transcribed) → Diarizing → Summarizing → Idle. Background work of an older session never
+  transcribed) → Summarizing → Idle. Background work of an older session never
   changes the state of a newer one.
 - `AudioLevels` at 20 Hz while capturing (0, 0 at the end).
 - `TranscriptSegment`: partials (`is_final: false`) upserted in place by id, then the final.
-  Mic segments are speaker "You", system segments "Others". A retracted partial or a mic
-  segment found to be echo of the call is deleted and announced with `DataChanged
+  Who said it depends on `transcription.speaker_labels()`. **This computer** (default): each
+  channel's audio also goes to a speaker-detection thread (`cilica-diarize`'s
+  `OnlineDiarizer`), and a segment is stored without a speaker ("Pending" in the UI) until
+  detection has decided the stretch it covers (about 3 s behind the audio), then re-emitted
+  with the speaker who talks most during it (or the speaker just before or after, within 2 s;
+  after 10 s more, the nearest one). The first voice on the mic is "You", others "Person N".
+  Speakers found to be one person are joined (`Db::merge_speakers`). If the voice model cannot
+  be loaded, lines fall back to "You" and "Others" with a toast. **The service**: its labels,
+  as above. **Off**: mic segments are "You", system segments "Others". A retracted partial or a
+  mic segment found to be echo of the call is deleted and announced with `DataChanged
   { Transcript }`.
 - `DataChanged` when the note is created, when capture ends (meeting times), when the audio is
-  kept, after diarization (Transcript, People, Notes) and after the summary.
+  kept, when a speaker is added or two are joined, after the speakers are tidied (Transcript,
+  People, Notes) and after the summary.
 - Toasts: device lost and back, mic only, transcription problems, a voice Cilica may know
   ("Is Person 2 Sam?": never applied silently), summary unavailable or failed (with
   `RegenerateSummary`), recovery at launch.
@@ -57,12 +66,12 @@ out of the recording.
 
 ### After capture
 
-Partial segments are removed; meeting times set; the audio kept (appended to the note's earlier
-audio when recording into an existing note); then diarization on the system channel (Person 1…n)
-and, when the mic has 10 s or more of speech, on the mic for people in the room (a second mic
-voice counts only with 3 s of speech that does not sound like anyone on the call); speakers'
-centroids stored; voiceprint suggestions computed; the note reindexed; the summariser called
-(a failure is a toast, never fatal).
+Partial segments are removed; meeting times set; the careful Whisper pass (local engine only)
+keeps each stretch's live speaker; the audio kept (appended to the note's earlier audio when
+recording into an existing note); speakers nobody spoke as dropped; You linked; speakers whose
+live voiceprint clearly matches a Saved person named and the rest suggested; the note
+reindexed; the summariser called (a failure is a toast, never fatal). Speakers are never told
+apart again after the meeting.
 
 ## Echo
 
@@ -86,4 +95,5 @@ provider closure.
 - `cargo test --release -p cilica-pipeline -- --ignored --nocapture` runs the same meeting through
   Whisper (tiny by default, `CILICA_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin` for the default
   model), Silero VAD and the speaker models in `target/test-models/`: word error rate, live lag,
-  no echo duplicates, two people on the call, a Saved person suggested and not linked.
+  no echo duplicates, two people on the call told apart live, a Saved person named or
+  suggested and not learnt from.

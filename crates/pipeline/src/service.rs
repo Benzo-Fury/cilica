@@ -287,7 +287,7 @@ impl RecordingService {
                 meeting_app: meeting_app.clone(),
                 started_at: Some(started_at),
                 auto_stop_at: None,
-                live_speakers: settings.transcription.live_speakers(),
+                live_speakers: settings.transcription.speaker_labels() != cilica_domain::SpeakerSource::Off,
             };
             sh.generation
         };
@@ -384,7 +384,7 @@ impl RecordingService {
     }
 
     /// Stop capturing. Returns once the audio file is closed; the transcript, speakers and
-    /// summary are finished in the background (phases Stopping → Diarizing → Summarizing → Idle).
+    /// summary are finished in the background (phases Stopping → Summarizing → Idle).
     pub async fn stop(&self) -> AppResult<RecordingState> {
         let inner = &self.inner;
         let _op = inner.op.lock().await;

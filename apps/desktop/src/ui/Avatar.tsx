@@ -10,6 +10,8 @@ export interface AvatarProps {
   className?: string;
   /** Position in a stack, used for the hover fan-out. */
   index?: number;
+  /** Nobody yet (a speaker Cilica is still working out): an empty dashed ring. */
+  pending?: boolean;
 }
 
 export function initials(name: string): string {
@@ -20,7 +22,7 @@ export function initials(name: string): string {
 }
 
 /** Initials on a soft speaker colour with a 1.5px ring in the full colour. */
-export function Avatar({ name, color, size = "md", className, index }: AvatarProps) {
+export function Avatar({ name, color, size = "md", className, index, pending }: AvatarProps) {
   const n = Math.min(8, Math.max(1, Math.round(color)));
   const style = {
     "--c": `var(--speaker-${n})`,
@@ -29,13 +31,18 @@ export function Avatar({ name, color, size = "md", className, index }: AvatarPro
   } as CSSProperties;
   return (
     <span
-      className={cn("nt-avatar", size !== "md" && `nt-avatar-${size}`, className)}
+      className={cn(
+        "nt-avatar",
+        size !== "md" && `nt-avatar-${size}`,
+        pending && "nt-avatar-pending",
+        className,
+      )}
       style={style}
       title={name}
       role="img"
       aria-label={name}
     >
-      {initials(name)}
+      {pending ? null : initials(name)}
     </span>
   );
 }

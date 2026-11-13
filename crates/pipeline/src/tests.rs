@@ -363,7 +363,6 @@ async fn whole_meeting_from_fixtures() {
             RecordingPhase::Starting,
             RecordingPhase::Recording,
             RecordingPhase::Stopping,
-            RecordingPhase::Diarizing,
             RecordingPhase::Summarizing,
             RecordingPhase::Idle
         ]
@@ -491,6 +490,7 @@ async fn live_speaker_labels_become_people() {
     let h = harness(FakeAudio::meeting(3.0), speech).await;
     let mut settings = h.db.get_settings().await.unwrap();
     settings.transcription.engine = SttEngine::Soniox;
+    settings.transcription.speaker_source = SpeakerSource::Service;
     h.db.set_settings(&settings).await.unwrap();
 
     let state = h.svc.start(manual(None, None)).await.unwrap();
@@ -517,40 +517,57 @@ async fn live_speaker_labels_become_people() {
     assert_eq!(who("Yes please."), "You");
 }
 
-/// Live labels off in Settings, or a service without them: speakers wait for the meeting's end.
+/// Who labels speakers: the service only where it can, otherwise this computer; off in Settings,
+/// nobody.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn live_speakers_follow_the_setting_and_the_service() {
-    let h = harness(FakeAudio::meeting(2.0), FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() }).await;
+    let h = harness(FakeAudio::meeting(3.0), FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() }).await;
     let mut settings = h.db.get_settings().await.unwrap();
-    for (engine, on, expected) in [(SttEngine::Soniox, false, false), (SttEngine::OpenAi, true, false), (SttEngine::WhisperLocal, true, false), (SttEngine::Deepgram, true, true)] {
+    assert_eq!(settings.transcription.speaker_source, SpeakerSource::Local, "Cilica tells speakers apart by default");
+    for (engine, source, expected) in [
+        (SttEngine::Soniox, SpeakerSource::Off, SpeakerSource::Off),
+        (SttEngine::OpenAi, SpeakerSource::Service, SpeakerSource::Local),
+        (SttEngine::WhisperLocal, SpeakerSource::Service, SpeakerSource::Local),
+        (SttEngine::WhisperLocal, SpeakerSource::Local, SpeakerSource::Local),
+        (SttEngine::Deepgram, SpeakerSource::Service, SpeakerSource::Service),
+    ] {
         settings.transcription.engine = engine;
-        settings.transcription.live_speaker_labels = on;
-        assert_eq!(settings.transcription.live_speakers(), expected, "{engine:?}, setting {on}");
+        settings.transcription.speaker_source = source;
+        assert_eq!(settings.transcription.speaker_labels(), expected, "{engine:?}, setting {source:?}");
     }
     settings.transcription.engine = SttEngine::Soniox;
-    settings.transcription.live_speaker_labels = false;
+    settings.transcription.speaker_source = SpeakerSource::Off;
     h.db.set_settings(&settings).await.unwrap();
     let state = h.svc.start(manual(None, None)).await.unwrap();
     assert!(!state.live_speakers);
+    tokio::time::sleep(Duration::from_millis(1_500)).await;
     h.svc.stop().await.unwrap();
     h.wait_idle(Duration::from_secs(20)).await;
+    // Off: the service's labels are ignored; the mic is You and the call is Others.
+    let transcript = h.db.get_transcript(state.note_id.unwrap()).await.unwrap();
+    let labels: std::collections::BTreeSet<&str> =
+        transcript.segments.iter().filter_map(|s| transcript.speakers.iter().find(|p| Some(p.id) == s.speaker_id)).map(|p| p.label.as_str()).collect();
+    assert_eq!(labels.into_iter().collect::<Vec<_>>(), ["Others", "You"]);
 }
 
-/// With "Identify speakers after the meeting" off, the step is skipped altogether.
+/// Cilica tells speakers apart, but its voice model cannot be had (offline on first use): every
+/// line falls back to You and Others, once, with a note saying so, and none is left pending.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn identifying_speakers_after_the_meeting_can_be_turned_off() {
-    for identify in [true, false] {
-        let h = harness(FakeAudio::meeting(2.0), FakeSpeech::scripted()).await;
-        let mut settings = h.db.get_settings().await.unwrap();
-        settings.transcription.identify_speakers_after_meeting = identify;
-        h.db.set_settings(&settings).await.unwrap();
-        h.svc.start(manual(None, None)).await.unwrap();
-        tokio::time::sleep(Duration::from_millis(1_000)).await;
-        h.svc.stop().await.unwrap();
-        h.wait_idle(Duration::from_secs(20)).await;
-        let diarized = h.events().iter().any(|e| matches!(e, AppEvent::RecordingStateChanged { state } if state.phase == RecordingPhase::Diarizing));
-        assert_eq!(diarized, identify, "identify after the meeting: {identify}");
+async fn without_the_voice_model_lines_fall_back() {
+    let h = harness(FakeAudio::meeting(3.0), FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() }).await;
+    let state = h.svc.start(manual(None, None)).await.unwrap();
+    assert!(state.live_speakers, "Cilica labels speakers live by default");
+    tokio::time::sleep(Duration::from_millis(1_500)).await;
+    h.svc.stop().await.unwrap();
+    h.wait_idle(Duration::from_secs(20)).await;
+    let transcript = h.db.get_transcript(state.note_id.unwrap()).await.unwrap();
+    assert!(!transcript.segments.is_empty());
+    for s in &transcript.segments {
+        let who = transcript.speakers.iter().find(|p| Some(p.id) == s.speaker_id).map(|p| p.label.as_str());
+        let expected = if s.channel == AudioChannel::Mic { "You" } else { "Others" };
+        assert_eq!(who, Some(expected), "{s:?}");
     }
+    assert_eq!(h.toasts().iter().filter(|t| t.title == "Speakers not labelled").count(), 1);
 }
 
 /// Two short recordings into one note: the second continues the timeline and the kept audio.
@@ -770,7 +787,7 @@ async fn whole_meeting_with_real_models() {
     // Karen is a Saved person from an earlier meeting (her first sentence).
     let system = mono("meeting_system.wav");
     let karen_turn = &truth()[2];
-    let mut d = cilica_diarize::Diarizer::load(&models.0, &models.1).unwrap();
+    let mut d = cilica_diarize::embedding::Embedder::load(&models.1).unwrap();
     let karen_print = d.embed(&system[karen_turn.start_ms as usize * 16..karen_turn.end_ms as usize * 16]).unwrap();
     let karen = h.db.create_person("Karen", Some(&karen_print)).await.unwrap();
 

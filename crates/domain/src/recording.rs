@@ -11,8 +11,6 @@ pub enum RecordingPhase {
     Recording,
     /// Capture has stopped; the last audio is being transcribed.
     Stopping,
-    /// Diarizing speakers after the meeting.
-    Diarizing,
     /// The summary is being written into the note.
     Summarizing,
 }
@@ -25,8 +23,9 @@ pub struct RecordingState {
     pub started_at: Option<Timestamp>,
     /// Set while a detected meeting has ended and recording will stop unless the user keeps it.
     pub auto_stop_at: Option<Timestamp>,
-    /// The engine labels who is speaking as the meeting goes. When false, speakers are only
-    /// known once the meeting is finished, so the live transcript does not show them.
+    /// Speakers are told apart as the meeting goes (by Cilica or the service). A line Cilica has
+    /// not placed yet has no speaker and shows as "Pending". When false, the microphone is "You"
+    /// and the call is "Others".
     #[serde(default)]
     pub live_speakers: bool,
 }
@@ -115,6 +114,19 @@ pub struct SttModel {
     pub downloaded: bool,
 }
 
+/// A voice model Cilica can tell speakers apart with, on this computer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct SpeakerModel {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub size_mb: u32,
+    pub recommended: bool,
+    pub downloaded: bool,
+    /// False for the default model, which voiceprints of Saved people are made with.
+    pub removable: bool,
+}
+
 /// Whether a cloud speech service is set up. Never carries the key itself.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct SttProviderStatus {
@@ -150,6 +162,9 @@ pub struct HardwareProfile {
     pub apple_silicon: bool,
     /// Too slow for good local transcription: suggest a cloud service.
     pub suggest_cloud: bool,
+    /// Fast enough to tell speakers apart on this computer while it records: recommend it over
+    /// the transcription service's labels.
+    pub local_speakers: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]

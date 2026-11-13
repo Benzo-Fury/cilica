@@ -1,17 +1,19 @@
 //! Recognising Saved people by voice while the meeting is live (docs/spec.md › Speakers and
 //! Saved people).
 //!
-//! The capture audio of each channel is kept for the last 90 seconds ([`VoiceTap`]). When the
-//! cloud service labels a new speaker, the audio of their finished lines is gathered; after 3,
-//! 8 and 15 seconds of it, Cilica turns it into a voiceprint (on this computer, with the same
-//! CAM++ model as the check after the meeting) and compares it with the Saved people. A close
+//! The capture audio of each channel is kept for the last 90 seconds ([`VoiceTap`]). When a new
+//! speaker is told apart (by Cilica or by the cloud service), the audio of their finished lines
+//! is gathered; after 3, 8 and 15 seconds of it, Cilica turns it into a voiceprint (on this
+//! computer, always with the default CAM++ voice model, whichever model tells speakers apart)
+//! and compares it with the Saved people. A close
 //! enough match names the speaker. It is only a guess: nothing is learnt from it until the
 //! person confirms or corrects the name ([`cilica_store::Db::link_speaker`]).
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use cilica_diarize::{Diarizer, RECOGNISE_THRESHOLD};
+use cilica_diarize::RECOGNISE_THRESHOLD;
+use cilica_diarize::embedding::Embedder;
 use cilica_domain::{AppEvent, AudioChannel, DataScope, Events, Id};
 use cilica_store::Db;
 use tokio::sync::mpsc;
@@ -125,7 +127,7 @@ impl Recogniser {
 }
 
 async fn work(db: Db, events: Events, speech: Arc<dyn SpeechBackend>, note_id: Id, mut jobs: mpsc::UnboundedReceiver<Job>, named: Arc<Mutex<HashSet<Id>>>) {
-    let mut diarizer: Option<Arc<Mutex<Diarizer>>> = None;
+    let mut diarizer: Option<Arc<Mutex<Embedder>>> = None;
     let mut unavailable = false;
     while let Some(job) = jobs.recv().await {
         if unavailable || named.lock().map(|n| n.contains(&job.speaker_id)).unwrap_or(true) {
@@ -158,10 +160,10 @@ async fn work(db: Db, events: Events, speech: Arc<dyn SpeechBackend>, note_id: I
 }
 
 /// The voice model, fetched and loaded on first use. `None` when it cannot be had.
-async fn load(speech: &Arc<dyn SpeechBackend>) -> Option<Arc<Mutex<Diarizer>>> {
-    let models = speech.speaker_models().await?;
+async fn load(speech: &Arc<dyn SpeechBackend>) -> Option<Arc<Mutex<Embedder>>> {
+    let (_, embedding) = speech.speaker_models().await?;
     let speech = speech.clone();
-    match tokio::task::spawn_blocking(move || speech.diarizer(&models)).await {
+    match tokio::task::spawn_blocking(move || speech.voice_embedder(&embedding)).await {
         Ok(Ok(d)) => Some(Arc::new(Mutex::new(d))),
         Ok(Err(error)) => {
             tracing::warn!(message = %error.message, "voice recognition is off for this meeting");

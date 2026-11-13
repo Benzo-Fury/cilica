@@ -1,14 +1,14 @@
 /**
  * Settings › Transcription: where speech is turned into text (a Whisper model on this computer,
- * or a cloud service with the person's own key), the careful pass after the meeting, and the
- * spoken language.
+ * or a cloud service with the person's own key), the careful pass after the meeting, who labels
+ * speakers live (and with which voice model), and the spoken language.
  */
-import { Check, CircleAlert, Cloud, Download, Laptop, Trash2, X } from "lucide-react";
+import { Check, CircleAlert, Cloud, Download, Laptop, Trash2, UserX, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { tweens } from "@/app/motion";
 import { toAppError } from "@/ipc/client";
-import type { SttModel } from "@/ipc/types";
+import type { SpeakerModel, SpeakerSource, SttEngine, SttModel } from "@/ipc/types";
 import {
   Button,
   Chip,
@@ -37,8 +37,10 @@ import {
   type CloudEngine,
   firstWordsLabel,
   hasLiveSpeakers,
-  liveSpeakersHint,
   providerName,
+  speakerAdvice,
+  speakerLabels,
+  speakerSourceHint,
 } from "../speech";
 import {
   type Download as DownloadState,
@@ -46,6 +48,8 @@ import {
   useDownloads,
   useHardwareProfile,
   useModelActions,
+  useSpeakerModelActions,
+  useSpeakerModels,
   useSttModels,
   useSttProviderKey,
   useSttProviderStatus,
@@ -185,13 +189,13 @@ export function TranscriptionPage() {
       )}
 
       <SpeakersGroup
-        live={t.live_speaker_labels}
-        supported={hasLiveSpeakers(t.engine)}
-        hint={liveSpeakersHint(t.engine, t.identify_speakers_after_meeting)}
-        identify={t.identify_speakers_after_meeting}
+        engine={t.engine}
+        source={speakerLabels(t.speaker_source, t.engine)}
+        modelId={t.speaker_model}
+        comfortable={hardware?.local_speakers ?? true}
         recognise={t.recognise_voices}
-        onLive={(on) => patch("transcription", { live_speaker_labels: on })}
-        onIdentify={(on) => patch("transcription", { identify_speakers_after_meeting: on })}
+        downloads={downloads}
+        onSource={(source) => patch("transcription", { speaker_source: source })}
         onRecognise={(on) => patch("transcription", { recognise_voices: on })}
       />
 
@@ -225,74 +229,179 @@ export function TranscriptionPage() {
   );
 }
 
-/** Who is speaking: live labels from the service (where it can), and the check after the meeting. */
+/**
+ * Who labels speakers live: Cilica on this computer (with a choice of voice model), the
+ * transcription service where it can, or nobody. Recommends this computer only where it keeps
+ * up comfortably.
+ */
 function SpeakersGroup({
-  live,
-  supported,
-  hint,
-  identify,
+  engine,
+  source,
+  modelId,
+  comfortable,
   recognise,
-  onLive,
-  onIdentify,
+  downloads,
+  onSource,
   onRecognise,
 }: {
-  live: boolean;
-  supported: boolean;
-  hint: string;
-  identify: boolean;
+  engine: SttEngine;
+  /** What actually labels speakers (the service only where it can). */
+  source: SpeakerSource;
+  modelId: string;
+  /** This computer tells speakers apart comfortably while it records. */
+  comfortable: boolean;
   recognise: boolean;
-  onLive: (on: boolean) => void;
-  onIdentify: (on: boolean) => void;
+  downloads: Record<string, DownloadState>;
+  onSource: (source: SpeakerSource) => void;
   onRecognise: (on: boolean) => void;
 }) {
-  const liveOn = live && supported;
+  const { data: models } = useSpeakerModels();
+  const { downloadAndUse, remove } = useSpeakerModelActions();
+  const { cancel } = useModelActions();
+  const service = hasLiveSpeakers(engine);
   return (
-    <SettingsGroup title="Speakers">
+    <SettingsGroup title="Speakers" footer={speakerAdvice(comfortable, engine)}>
       <SettingsRow
-        label="Show who's speaking live"
-        description={hint}
+        label="Label speakers"
+        description={speakerSourceHint(source, engine)}
         control={
-          <Switch
-            checked={liveOn}
-            disabled={!supported}
-            onCheckedChange={onLive}
-            label="Show who's speaking live"
+          <SegmentedControl<SpeakerSource>
+            label="Who labels speakers"
+            value={source}
+            onChange={onSource}
+            options={[
+              { value: "local", label: "This computer", icon: Laptop },
+              ...(service
+                ? [{ value: "service" as const, label: providerName(engine), icon: Cloud }]
+                : []),
+              { value: "off", label: "Off", icon: UserX },
+            ]}
           />
         }
       />
-      <SettingsRow
-        label="Identify speakers after the meeting"
-        description={
-          identify
-            ? "Once the meeting ends, Cilica tells voices apart on this computer, which is more accurate than live labels, and suggests names for voices it knows."
-            : liveOn
-              ? "Off: the live labels are kept as they are."
-              : "Off: the transcript shows only You and Others."
-        }
-        control={
-          <Switch
-            checked={identify}
-            onCheckedChange={onIdentify}
-            label="Identify speakers after the meeting"
+      {source === "local" &&
+        models &&
+        models.length > 1 &&
+        models.map((model) => (
+          <VoiceModelRow
+            key={model.id}
+            model={model}
+            active={model.id === modelId}
+            download={downloads[model.id]}
+            onUse={() => downloadAndUse.mutate(model.id)}
+            onCancel={() => cancel.mutate(model.id)}
+            onDelete={() => remove.mutate(model.id)}
           />
-        }
-      />
+        ))}
       <SettingsRow
         label="Recognise saved voices"
         description={
-          recognise
-            ? "Names speakers who sound like someone in Saved people, including you, and asks when it's less sure. Pick the right person to teach it. Voiceprints stay on this computer; some places require people's consent before you keep one."
-            : "Off: speakers stay Person 1, Person 2 and so on until you name them."
+          source === "off"
+            ? "Needs speakers to be labelled."
+            : recognise
+              ? "Names speakers who sound like someone in Saved people, including you, and asks when it's less sure. Pick the right person to teach it. Voiceprints stay on this computer; some places require people's consent before you keep one."
+              : "Off: speakers stay Person 1, Person 2 and so on until you name them."
         }
         control={
           <Switch
-            checked={recognise}
+            checked={recognise && source !== "off"}
+            disabled={source === "off"}
             onCheckedChange={onRecognise}
             label="Recognise saved voices"
           />
         }
       />
     </SettingsGroup>
+  );
+}
+
+/** One voice model for telling speakers apart: download, use or delete it. */
+function VoiceModelRow({
+  model,
+  active,
+  download,
+  onUse,
+  onCancel,
+  onDelete,
+}: {
+  model: SpeakerModel;
+  active: boolean;
+  download: DownloadState | undefined;
+  onUse: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}) {
+  const fraction = download?.total ? (download.downloaded ?? 0) / download.total : null;
+  return (
+    <SettingsRow
+      label={
+        <span className="nt-model-name">
+          {model.name}
+          {model.recommended && <Chip tone="accent">Recommended for this computer</Chip>}
+        </span>
+      }
+      description={
+        <>
+          {model.description} {formatBytes(model.size_mb * 1024 * 1024)}
+        </>
+      }
+      control={
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={download ? "dl" : model.downloaded ? (active ? "active" : "ready") : "get"}
+            className="nt-model-control"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: tweens.base }}
+            exit={{ opacity: 0, transition: tweens.exit }}
+          >
+            {download ? (
+              <DownloadProgress name={model.name} fraction={fraction} onCancel={onCancel} />
+            ) : model.downloaded ? (
+              <>
+                {active ? (
+                  <Chip tone="success" icon={Check}>
+                    In use
+                  </Chip>
+                ) : (
+                  <Button size="sm" variant="secondary" onClick={onUse}>
+                    Use this model
+                  </Button>
+                )}
+                {model.removable && (
+                  <Tooltip
+                    label={active ? "Choose another model before deleting this one" : "Delete"}
+                    side="top"
+                  >
+                    <span>
+                      <IconButton
+                        icon={Trash2}
+                        iconMotion="trash"
+                        label={`Delete ${model.name}`}
+                        noTooltip
+                        disabled={active}
+                        onClick={onDelete}
+                      />
+                    </span>
+                  </Tooltip>
+                )}
+              </>
+            ) : (
+              <Tooltip label="Downloads, then Cilica switches to it" side="top">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={Download}
+                  iconMotion="up"
+                  onClick={onUse}
+                >
+                  Download
+                </Button>
+              </Tooltip>
+            )}
+          </motion.span>
+        </AnimatePresence>
+      }
+    />
   );
 }
 

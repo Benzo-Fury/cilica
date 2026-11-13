@@ -120,6 +120,8 @@ export type {
   SearchFacets,
   SearchSource,
   SpeakerCount,
+  SpeakerModel,
+  SpeakerSource,
   SpeakerSuggestion,
   SttEngine,
   SttModel,

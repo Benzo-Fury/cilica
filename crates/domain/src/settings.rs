@@ -184,6 +184,23 @@ impl SttEngine {
     }
 }
 
+/// Who tells speakers apart while the meeting is live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SpeakerSource {
+    /// Cilica, on this computer, from their voices: works with every engine, costs nothing and
+    /// keeps the audio here. A line shows "Pending" until Cilica is sure who said it.
+    #[default]
+    Local,
+    /// The cloud transcription service (only where [`SttEngine::has_live_speakers`]).
+    Service,
+    /// Nobody: the microphone is "You" and the call is "Others".
+    Off,
+}
+
+/// The voice model used for live speakers unless the person picks another.
+pub const DEFAULT_SPEAKER_MODEL: &str = "campplus";
+
 /// Settings for cloud engines that need more than a key.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Type)]
 #[serde(default)]
@@ -206,12 +223,11 @@ pub struct TranscriptionSettings {
     /// Large v3 Turbo on this computer (if it is downloaded), replacing the live transcript.
     /// Only with the local engine: a cloud service's transcript is kept as it is.
     pub refine_after_meeting: bool,
-    /// Ask the cloud service to label who is speaking, on the call and on the microphone, while
-    /// the meeting is live (only services where [`SttEngine::has_live_speakers`]).
-    pub live_speaker_labels: bool,
-    /// When the meeting ends, tell speakers apart on this computer from their voices (more
-    /// accurate than live labels) and suggest names for voices Cilica knows.
-    pub identify_speakers_after_meeting: bool,
+    /// Who labels speakers while the meeting is live.
+    pub speaker_source: SpeakerSource,
+    /// Id of the voice model Cilica tells speakers apart with on this computer (see
+    /// `SpeakerModel`).
+    pub speaker_model: String,
     /// Name speakers whose voice sounds like a Saved person, live (with live labels) and after
     /// the meeting. Voiceprints stay on this computer.
     pub recognise_voices: bool,
@@ -219,9 +235,13 @@ pub struct TranscriptionSettings {
 }
 
 impl TranscriptionSettings {
-    /// The engine will be asked to label speakers on the call as the meeting goes.
-    pub fn live_speakers(&self) -> bool {
-        self.live_speaker_labels && self.engine.has_live_speakers()
+    /// Who actually labels speakers live: the service only where it can, otherwise this
+    /// computer.
+    pub fn speaker_labels(&self) -> SpeakerSource {
+        match self.speaker_source {
+            SpeakerSource::Service if !self.engine.has_live_speakers() => SpeakerSource::Local,
+            source => source,
+        }
     }
 }
 
@@ -232,8 +252,8 @@ impl Default for TranscriptionSettings {
             model_id: "large-v3-turbo-q5_0".into(),
             language: None,
             refine_after_meeting: true,
-            live_speaker_labels: true,
-            identify_speakers_after_meeting: true,
+            speaker_source: SpeakerSource::Local,
+            speaker_model: DEFAULT_SPEAKER_MODEL.into(),
             recognise_voices: true,
             cloud: CloudSttSettings::default(),
         }

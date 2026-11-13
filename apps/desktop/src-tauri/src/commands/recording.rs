@@ -181,6 +181,46 @@ pub async fn download_and_use_stt_model(core: State<'_, Core>, area: State<'_, R
     Ok(())
 }
 
+/// The voice models Cilica can tell speakers apart with, with what is downloaded and which one
+/// suits this computer.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_speaker_models(area: State<'_, RecordingArea>) -> AppResult<Vec<SpeakerModel>> {
+    Ok(area.models.list_speaker_models())
+}
+
+/// Download a voice model if needed, then tell speakers apart with it on this computer. Returns
+/// at once; progress arrives as ModelDownload events and Settings changes when it is ready.
+#[tauri::command]
+#[specta::specta]
+pub async fn download_and_use_speaker_model(core: State<'_, Core>, area: State<'_, RecordingArea>, model_id: String) -> AppResult<()> {
+    let ready = area.models.download_and_wait(&model_id)?;
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        // A failed or cancelled download is already reported through its progress event.
+        if let Ok(Ok(())) = ready.await
+            && let Err(error) = use_speaker_model(&core, &model_id).await
+        {
+            tracing::warn!(message = %error.message, "could not switch to the downloaded voice model");
+        }
+    });
+    Ok(())
+}
+
+/// Point Settings at a voice model, telling speakers apart on this computer.
+async fn use_speaker_model(core: &Core, model_id: &str) -> AppResult<()> {
+    let mut settings = core.db.get_settings().await?;
+    if settings.transcription.speaker_source == SpeakerSource::Local && settings.transcription.speaker_model == model_id {
+        return Ok(());
+    }
+    settings.transcription.speaker_source = SpeakerSource::Local;
+    settings.transcription.speaker_model = model_id.to_string();
+    core.db.set_settings(&settings).await?;
+    let saved = core.db.get_settings().await?;
+    core.events.emit(AppEvent::SettingsChanged { settings: saved });
+    Ok(())
+}
+
 /// Point Settings at a local Whisper model.
 async fn use_stt_model(core: &Core, model_id: &str) -> AppResult<()> {
     let mut settings = core.db.get_settings().await?;

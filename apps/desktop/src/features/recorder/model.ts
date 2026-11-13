@@ -10,10 +10,10 @@ export type CapsuleMode =
       /** Set while a detected meeting has ended: ms until recording stops on its own. */
       autoStopInMs: number | null;
     }
-  | { kind: "finishing"; label: string; step: "stopping" | "diarizing" | "summarizing" };
+  | { kind: "finishing"; label: string; step: "stopping" | "summarizing" };
 
 export const isFinishing = (state: RecordingState) =>
-  state.phase === "stopping" || state.phase === "diarizing" || state.phase === "summarizing";
+  state.phase === "stopping" || state.phase === "summarizing";
 
 export function capsuleMode(state: RecordingState, now: number): CapsuleMode {
   switch (state.phase) {
@@ -31,7 +31,6 @@ export function capsuleMode(state: RecordingState, now: number): CapsuleMode {
       };
     }
     case "stopping":
-    case "diarizing":
     case "summarizing":
       // The design shows one message for the whole wrap-up; the step is for screen readers.
       return { kind: "finishing", label: "Writing notes…", step: state.phase };

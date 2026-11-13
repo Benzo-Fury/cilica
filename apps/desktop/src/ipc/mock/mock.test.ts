@@ -302,7 +302,6 @@ describe("recording", () => {
       "starting",
       "recording",
       "stopping",
-      "diarizing",
       "summarizing",
       "idle",
     ]);
@@ -389,25 +388,51 @@ describe("tasks", () => {
 });
 
 describe("speech engines", () => {
-  it("records with live speakers only when the service labels them", async () => {
+  it("labels speakers on this computer by default: pending first, then a person", async () => {
     vi.useFakeTimers();
-    await api().updateSettings({ transcription: { engine: "soniox" } });
     const live = await api().startRecording({
       note_id: null,
       meeting_app: null,
       trigger: "manual",
     });
     expect(live.live_speakers).toBe(true);
+    const noteId = live.note_id as string;
+    await vi.advanceTimersByTimeAsync(12_000);
+    const finals = ofType("transcript_segment").filter((e) => e.segment.is_final);
+    const first = finals[0]?.segment;
+    expect(first?.speaker_id).toBeNull();
+    // The same line again, a moment later, with its speaker.
+    const placed = finals.find((e) => e.segment.id === first?.id && e.segment.speaker_id);
+    expect(placed).toBeDefined();
     await api().stopRecording();
-    await api().updateSettings({ transcription: { engine: "open_ai" } });
     await vi.advanceTimersByTimeAsync(30_000);
-    expect((await api().getRecordingState()).phase).toBe("idle");
-    const later = await api().startRecording({
+    const transcript = await api().getTranscript(noteId);
+    expect(transcript.segments.every((s) => s.speaker_id !== null)).toBe(true);
+  });
+
+  it("uses the service's labels only where it has them, and none when off", async () => {
+    vi.useFakeTimers();
+    await api().updateSettings({ transcription: { engine: "soniox", speaker_source: "service" } });
+    const service = await api().startRecording({
       note_id: null,
       meeting_app: null,
       trigger: "manual",
     });
-    expect(later.live_speakers).toBe(false);
+    expect(service.live_speakers).toBe(true);
+    await vi.advanceTimersByTimeAsync(6_000);
+    const finals = ofType("transcript_segment").filter((e) => e.segment.is_final);
+    expect(finals.length).toBeGreaterThan(0);
+    expect(finals.every((e) => e.segment.speaker_id !== null)).toBe(true);
+    await api().stopRecording();
+    await api().updateSettings({ transcription: { speaker_source: "off" } });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect((await api().getRecordingState()).phase).toBe("idle");
+    const off = await api().startRecording({
+      note_id: null,
+      meeting_app: null,
+      trigger: "manual",
+    });
+    expect(off.live_speakers).toBe(false);
   });
 
   it("tests a cloud service with the sample clip, word by word", async () => {

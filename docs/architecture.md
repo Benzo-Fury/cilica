@@ -30,8 +30,8 @@ crates/
   audio/              mic + system capture, echo cancellation, resampling, Opus/WAV writing
   detect/             meeting detection per OS
   stt/                Transcriber trait: whisper_local (+ model catalogue, download, hardware recommendation), cloud adapters (Soniox, Deepgram, AssemblyAI over WebSocket; OpenAI-compatible over HTTP)
-  diarize/            VAD, segmentation, embeddings, clustering, voiceprint matching
-  pipeline/           one recording session end to end: capture → VAD → STT → store → events → diarize → summarise
+  diarize/            live speaker detection (segmentation, embeddings), voiceprints
+  pipeline/           one recording session end to end: capture → VAD → STT + live speakers → store → events → summarise
   llm/                Provider trait: anthropic, openai_compat, ollama, claude_code
   agent/              tool registry, view context, tiers, proposals, audit log, undo, summariser, prompt chips
   scheduler/          task runner, the default Notes review

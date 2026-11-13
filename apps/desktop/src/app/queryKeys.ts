@@ -43,6 +43,7 @@ export const qk = {
   audioPath: (noteId: string) => ["audio_path", noteId] as const,
   audioPathPrefix: ["audio_path"] as const,
   sttModels: ["stt_models"] as const,
+  speakerModels: ["speaker_models"] as const,
   hardwareProfile: ["hardware_profile"] as const,
   sttProviderStatus: (engine: string) => ["stt_provider_status", engine] as const,
   sttProviderStatusPrefix: ["stt_provider_status"] as const,

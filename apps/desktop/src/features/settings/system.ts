@@ -14,6 +14,7 @@ import type {
   PermissionKind,
   Permissions,
   ProviderKind,
+  SpeakerModel,
   SttEngine,
   SttModel,
 } from "@/ipc/types";
@@ -66,6 +67,11 @@ export function useSttModels() {
   return useQuery({ queryKey: qk.sttModels, queryFn: () => api.listSttModels() });
 }
 
+/** Voice models for telling speakers apart on this computer. */
+export function useSpeakerModels() {
+  return useQuery({ queryKey: qk.speakerModels, queryFn: () => api.listSpeakerModels() });
+}
+
 export interface Download {
   downloaded: number | null;
   total: number | null;
@@ -106,14 +112,27 @@ export function useModelDownloadEvents() {
       return;
     }
     const speakerModels = progress.model_id === SPEAKER_MODELS;
+    const voiceModel = queryClient
+      .getQueryData<SpeakerModel[]>(qk.speakerModels)
+      ?.find((m) => m.id === progress.model_id);
     const name = speakerModels
       ? "The speaker models"
-      : (queryClient.getQueryData<SttModel[]>(qk.sttModels)?.find((m) => m.id === progress.model_id)
-          ?.name ?? "The speech model");
+      : voiceModel
+        ? `The ${voiceModel.name} voice model`
+        : (queryClient
+            .getQueryData<SttModel[]>(qk.sttModels)
+            ?.find((m) => m.id === progress.model_id)?.name ?? "The speech model");
     if (progress.done) {
       store.set(progress.model_id, null);
       cancelled.delete(progress.model_id);
       if (speakerModels) return;
+      if (voiceModel) {
+        void queryClient.invalidateQueries({ queryKey: qk.speakerModels });
+        toast.success(`${name} is ready`, {
+          description: "Cilica tells speakers apart with it on this Mac.",
+        });
+        return;
+      }
       queryClient.setQueryData<SttModel[]>(qk.sttModels, (list) =>
         list?.map((m) => (m.id === progress.model_id ? { ...m, downloaded: true } : m)),
       );
@@ -188,6 +207,38 @@ export function useModelActions() {
     },
   });
   return { download, downloadAndUse, cancel, remove };
+}
+
+/** Download a voice model (if needed) and tell speakers apart with it; delete one. */
+export function useSpeakerModelActions() {
+  const queryClient = useQueryClient();
+  const downloadAndUse = useMutation({
+    mutationFn: (modelId: string) => api.downloadAndUseSpeakerModel(modelId),
+    onMutate: (modelId) => {
+      const model = queryClient
+        .getQueryData<SpeakerModel[]>(qk.speakerModels)
+        ?.find((m) => m.id === modelId);
+      if (!model?.downloaded) {
+        useDownloads.getState().set(modelId, { downloaded: 0, total: null, error: null });
+      }
+    },
+    onError: (error, modelId) => {
+      useDownloads.getState().set(modelId, null);
+      toast.error("The download did not start", { description: errorMessage(error) });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (modelId: string) => api.deleteSttModel(modelId),
+    onSuccess: (_r, modelId) => {
+      queryClient.setQueryData<SpeakerModel[]>(qk.speakerModels, (list) =>
+        list?.map((m) => (m.id === modelId ? { ...m, downloaded: false } : m)),
+      );
+      toast("Deleted the voice model");
+    },
+    onError: (error) =>
+      toast.error("The model was not deleted", { description: errorMessage(error) }),
+  });
+  return { downloadAndUse, remove };
 }
 
 /** What this computer can run (cores, memory, chip) and whether a cloud service suits it better. */

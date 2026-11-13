@@ -68,7 +68,7 @@ pub fn set_recording(app: &AppHandle, phase: RecordingPhase) {
     let (label, enabled, live) = match phase {
         RecordingPhase::Starting | RecordingPhase::Recording => ("Stop recording", true, true),
         RecordingPhase::Stopping => ("Stopping…", false, true),
-        RecordingPhase::Idle | RecordingPhase::Diarizing | RecordingPhase::Summarizing => ("Start recording", true, false),
+        RecordingPhase::Idle | RecordingPhase::Summarizing => ("Start recording", true, false),
     };
     let _ = items.record.set_text(label);
     let _ = items.record.set_enabled(enabled);

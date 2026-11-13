@@ -259,6 +259,6 @@ export function useRecordingEffects() {
       if (!useRecorderUi.getState().stopCued) cue(sounds, "stop");
       useRecorderUi.getState().setStopCued(false);
     }
-    if (to === "idle" && (from === "summarizing" || from === "diarizing")) cue(sounds, "ready");
+    if (to === "idle" && from === "summarizing") cue(sounds, "ready");
   }, [state.phase, state.note_id]);
 }

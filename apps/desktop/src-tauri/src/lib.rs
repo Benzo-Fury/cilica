@@ -74,6 +74,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::recording::list_stt_models,
             commands::recording::download_stt_model,
             commands::recording::download_and_use_stt_model,
+            commands::recording::list_speaker_models,
+            commands::recording::download_and_use_speaker_model,
             commands::recording::get_hardware_profile,
             commands::recording::get_stt_provider_status,
             commands::recording::set_stt_provider_key,

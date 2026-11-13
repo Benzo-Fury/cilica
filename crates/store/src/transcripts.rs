@@ -432,77 +432,40 @@ impl Db {
         Ok(())
     }
 
-    /// Replace the provisional speaker of one channel with the speakers diarization found.
-    ///
-    /// `assignments` maps segment ids to an index into `speakers`. Segments of that channel that
-    /// are not listed keep `fallback` (the index of the speaker to give them), or their current
-    /// speaker when `fallback` is `None`. Speakers of the channel left with no segments and no
-    /// person link are removed. Returns the stored speakers in the order given.
-    pub async fn apply_diarization(
-        &self,
-        note_id: Id,
-        channel: AudioChannel,
-        speakers: Vec<NewSpeaker>,
-        assignments: &[(Id, usize)],
-        fallback: Option<usize>,
-    ) -> StoreResult<Vec<Speaker>> {
+    /// Two of a note's speakers turned out to be one person: every line of one moves to the
+    /// other, which keeps a person link or voiceprint either had. "You" is kept over anyone, a
+    /// speaker linked to a person over one that is not, otherwise `into`. Returns the speaker
+    /// that is left.
+    pub async fn merge_speakers(&self, from: Id, into: Id) -> StoreResult<Id> {
+        if from == into {
+            return Ok(into);
+        }
+        let (a, b) = (self.get_speaker(from).await?, self.get_speaker(into).await?);
+        let keep_from = (a.is_self && !b.is_self) || (!b.is_self && a.person_id.is_some() && b.person_id.is_none());
+        let (keep, gone) = if keep_from { (a, b) } else { (b, a) };
         let mut tx = self.pool().begin().await?;
-        let mut ids = Vec::with_capacity(speakers.len());
-        for new in &speakers {
-            let id = cilica_domain::new_id();
-            sqlx::query("INSERT INTO speakers (id, note_id, label, color_index, is_self, embedding) VALUES (?, ?, ?, ?, ?, ?)")
-                .bind(id.to_string())
-                .bind(note_id.to_string())
-                .bind(&new.label)
-                .bind(clamp_color(new.color_index) as i64)
-                .bind(new.is_self)
-                .bind(new.embedding.as_deref().map(|e| vec_to_blob(&normalized(e))))
-                .execute(&mut *tx)
-                .await?;
-            ids.push(id);
-        }
-        if let Some(f) = fallback.and_then(|f| ids.get(f)) {
-            sqlx::query("UPDATE segments SET speaker_id = ? WHERE note_id = ? AND channel = ?")
-                .bind(f.to_string())
-                .bind(note_id.to_string())
-                .bind(channel_str(channel))
-                .execute(&mut *tx)
-                .await?;
-        }
-        for (segment_id, idx) in assignments {
-            let Some(speaker) = ids.get(*idx) else {
-                continue;
-            };
-            sqlx::query("UPDATE segments SET speaker_id = ? WHERE id = ? AND note_id = ?")
-                .bind(speaker.to_string())
-                .bind(segment_id.to_string())
-                .bind(note_id.to_string())
-                .execute(&mut *tx)
-                .await?;
-        }
-        // Drop the channel's old, now unused speakers (never ones a person is linked to).
-        let new_ids: HashSet<String> = ids.iter().map(|i| i.to_string()).collect();
-        let rows = sqlx::query(
-            "SELECT s.id FROM speakers s WHERE s.note_id = ? AND s.person_id IS NULL \
-             AND NOT EXISTS (SELECT 1 FROM segments g WHERE g.speaker_id = s.id)",
+        sqlx::query("UPDATE segments SET speaker_id = ? WHERE speaker_id = ?")
+            .bind(keep.id.to_string())
+            .bind(gone.id.to_string())
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "UPDATE speakers SET person_id = COALESCE(person_id, (SELECT person_id FROM speakers WHERE id = ?)), \
+             embedding = COALESCE(embedding, (SELECT embedding FROM speakers WHERE id = ?)) WHERE id = ?",
         )
-        .bind(note_id.to_string())
-        .fetch_all(&mut *tx)
+        .bind(gone.id.to_string())
+        .bind(gone.id.to_string())
+        .bind(keep.id.to_string())
+        .execute(&mut *tx)
         .await?;
-        for row in rows {
-            let id: String = row.try_get("id")?;
-            if !new_ids.contains(&id) {
-                sqlx::query("DELETE FROM speakers WHERE id = ?").bind(id).execute(&mut *tx).await?;
-            }
-        }
+        sqlx::query("UPDATE voice_samples SET speaker_id = ? WHERE speaker_id = ?")
+            .bind(keep.id.to_string())
+            .bind(gone.id.to_string())
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM speakers WHERE id = ?").bind(gone.id.to_string()).execute(&mut *tx).await?;
         tx.commit().await?;
-        let mut out = Vec::with_capacity(ids.len());
-        for id in ids {
-            if let Ok(s) = self.get_speaker(id).await {
-                out.push(s);
-            }
-        }
-        Ok(out)
+        Ok(keep.id)
     }
 
     // ── People ───────────────────────────────────────────────────────────
@@ -1076,46 +1039,40 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn diarization_and_suggestions() {
+    async fn merged_speakers_and_suggestions() {
         let db = Db::open_in_memory().await.unwrap();
         let sam = db.create_person("Sam", Some(&[1.0, 0.0, 0.0])).await.unwrap();
         let _kim = db.create_person("Kim", Some(&[0.0, 0.0, 1.0])).await.unwrap();
         let n = note(&db).await;
-        let (you, others) = db.ensure_channel_speakers(n).await.unwrap();
-        let s1 = seg(n, Some(others.id), AudioChannel::System, 0, "One");
-        let s2 = seg(n, Some(others.id), AudioChannel::System, 2000, "Two");
-        let m1 = seg(n, Some(you.id), AudioChannel::Mic, 1000, "Mine");
+        let (you, _) = db.ensure_channel_speakers(n).await.unwrap();
+        let new = |label: &str, embedding: Option<Vec<f32>>| NewSpeaker { label: label.into(), color_index: 3, is_self: false, embedding };
+        let p1 = db.create_speaker(n, new("Person 1", None)).await.unwrap();
+        let p2 = db.create_speaker(n, new("Person 2", Some(vec![0.9, 0.1, 0.0]))).await.unwrap();
+        let p3 = db.create_speaker(n, new("Person 3", Some(vec![0.0, 1.0, 0.0]))).await.unwrap();
+        let s1 = seg(n, Some(p1.id), AudioChannel::System, 0, "One");
+        let s2 = seg(n, Some(p2.id), AudioChannel::System, 2000, "Two");
+        let m1 = seg(n, Some(p3.id), AudioChannel::Mic, 1000, "Mine");
         for s in [&s1, &s2, &m1] {
             db.upsert_segment(s).await.unwrap();
         }
-        let speakers = db
-            .apply_diarization(
-                n,
-                AudioChannel::System,
-                vec![
-                    NewSpeaker { label: "Person 1".into(), color_index: 3, is_self: false, embedding: Some(vec![0.9, 0.1, 0.0]) },
-                    NewSpeaker { label: "Person 2".into(), color_index: 4, is_self: false, embedding: Some(vec![0.0, 1.0, 0.0]) },
-                ],
-                &[(s1.id, 0), (s2.id, 1)],
-                Some(0),
-            )
-            .await
-            .unwrap();
+
+        // Person 2 was Person 1 all along: one speaker left, with Person 2's voiceprint.
+        assert_eq!(db.merge_speakers(p2.id, p1.id).await.unwrap(), p1.id);
+        // "You" is kept whichever way round.
+        assert_eq!(db.merge_speakers(you.id, p3.id).await.unwrap(), you.id);
         let t = db.get_transcript(n).await.unwrap();
-        // "Others" is gone, "You" stays.
-        assert_eq!(t.speakers.iter().map(|s| s.label.as_str()).collect::<Vec<_>>(), ["You", "Person 1", "Person 2"]);
         let by_id: HashMap<Id, Option<Id>> = t.segments.iter().map(|s| (s.id, s.speaker_id)).collect();
-        assert_eq!(by_id[&s1.id], Some(speakers[0].id));
-        assert_eq!(by_id[&s2.id], Some(speakers[1].id));
-        assert_eq!(by_id[&m1.id], Some(you.id));
+        assert_eq!((by_id[&s1.id], by_id[&s2.id], by_id[&m1.id]), (Some(p1.id), Some(p1.id), Some(you.id)));
+        assert!(t.speakers.iter().all(|s| s.id != p2.id && s.id != p3.id));
+        assert!(db.speaker_embedding(p1.id).await.unwrap().is_some());
 
         let sugg = db.speaker_suggestions(n, 0.7).await.unwrap();
         assert_eq!(sugg.len(), 1);
-        assert_eq!((sugg[0].speaker_id, sugg[0].person_id, sugg[0].person_name.as_str()), (speakers[0].id, sam.id, "Sam"));
+        assert_eq!((sugg[0].speaker_id, sugg[0].person_id, sugg[0].person_name.as_str()), (p1.id, sam.id, "Sam"));
         assert!(sugg[0].similarity > 0.9);
 
         // Once linked, no more suggestions for that person or speaker.
-        db.link_speaker(speakers[0].id, Some(sam.id)).await.unwrap();
+        db.link_speaker(p1.id, Some(sam.id)).await.unwrap();
         assert!(db.speaker_suggestions(n, 0.7).await.unwrap().is_empty());
     }
 

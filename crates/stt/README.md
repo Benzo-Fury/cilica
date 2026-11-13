@@ -31,9 +31,14 @@ Speech-to-text for Cilica. Local Whisper is the default and keeps audio on the m
   downloads with progress as `AppEvent::ModelDownload` (`start_download`, `cancel`, `delete`),
   `speech_paths(id)` (or `ModelMissing`, whose message names the fix), and the speaker models
   for `cilica-diarize` (`ensure_speaker_models`, fetched on first use, progress id
-  `speaker-models`).
+  `speaker-models`). `SPEAKER_MODELS` lists the voice models for live speakers with thresholds
+  tuned for each (`list_speaker_models`, `speaker_model_path`); they download and delete
+  through the same calls as speech models. The default (CAM++) is never deleted: voiceprints
+  are made with it.
 - `recommend`: which model suits a computer (`recommended_model(cores, ram_gb, apple_silicon)`,
-  `suggest_cloud`); `ModelManager::set_hardware` makes `list()` mark it recommended, and
+  `suggest_cloud`), whether it tells speakers apart comfortably while it records
+  (`local_speakers_comfortable`: Apple silicon or 8+ cores, with 16 GB) and which voice model
+  to suggest (`recommended_speaker_model`); `ModelManager::set_hardware` makes `list()` mark it recommended, and
   `download_and_wait` reports when a download ends (download-then-use).
 - `cloud::CloudTranscriber` with a `CloudConfig` (engine, a `KeyLoader` the shell reads from the
   keychain, base URL and model for OpenAI-compatible services). Each stream runs its connection

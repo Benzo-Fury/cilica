@@ -8,6 +8,8 @@ Transcript lines show who said what, when, with the speaker's colour only on the
 
 **Playback**: the current word gets an `accent-soft` wash; clicking a timecode seeks.
 
+**Pending lines**: while a meeting records with speakers told apart on this computer, a line Cilica has not placed yet shows "Pending" in `ink-3` with a dashed avatar ring, and moves under its speaker a few seconds later. Pending lines are not counted in the speakers chip.
+
 **Unknown speakers** show "Speaker 3" and a "Name this speaker" chip that assigns or creates a Saved Person (and stores the voiceprint).
 
 ## Lines worth keeping

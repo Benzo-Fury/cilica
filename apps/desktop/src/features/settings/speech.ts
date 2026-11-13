@@ -1,7 +1,7 @@
 /**
  * The cloud speech services Cilica supports, shared by Settings › Transcription and setup.
  */
-import type { SttEngine } from "@/ipc/types";
+import type { SpeakerSource, SttEngine } from "@/ipc/types";
 
 export type CloudEngine = Exclude<SttEngine, "whisper_local">;
 
@@ -60,19 +60,42 @@ export function hasLiveSpeakers(engine: SttEngine): boolean {
   return engine === "soniox" || engine === "deepgram" || engine === "assembly_ai";
 }
 
-/** The description under "Show who's speaking live" for this engine. */
-export function liveSpeakersHint(engine: SttEngine, identifyAfter: boolean): string {
-  const after = identifyAfter ? " Speakers appear once the meeting is finished." : "";
-  switch (engine) {
-    case "soniox":
-      return "Soniox labels each person as they talk, on the call and in the room.";
-    case "deepgram":
-      return "Deepgram labels each person as they talk, on the call and in the room. Adds about $0.12 an hour for each.";
-    case "assembly_ai":
-      return "AssemblyAI labels each person as they talk, on the call and in the room. In beta: very short turns may stay unlabelled.";
-    case "whisper_local":
-      return `Whisper on this computer can't tell people apart live.${after}`;
-    default:
-      return `${providerName(engine).replace(/^your/, "Your")} can't tell people apart live.${after}`;
+/** Who actually labels speakers (crates/domain: `speaker_labels`): the service only where it can. */
+export function speakerLabels(source: SpeakerSource, engine: SttEngine): SpeakerSource {
+  return source === "service" && !hasLiveSpeakers(engine) ? "local" : source;
+}
+
+/** What the chosen way of labelling speakers does, under "Label speakers". */
+export function speakerSourceHint(source: SpeakerSource, engine: SttEngine): string {
+  switch (source) {
+    case "local":
+      return "Cilica tells voices apart on this computer as people talk. A line shows Pending for a few seconds until Cilica is sure who said it. Audio stays here.";
+    case "service":
+      switch (engine) {
+        case "soniox":
+          return "Soniox labels each person as they talk, on the call and in the room.";
+        case "deepgram":
+          return "Deepgram labels each person as they talk, on the call and in the room. Adds about $0.12 an hour for each.";
+        default:
+          return "AssemblyAI labels each person as they talk, on the call and in the room. In beta: very short turns may stay unlabelled.";
+      }
+    case "off":
+      return "The transcript shows You for your microphone and Others for the call.";
   }
+}
+
+/**
+ * Which way of labelling speakers suits this computer: on this computer is more accurate and
+ * free, but only recommended where it keeps up comfortably alongside recording.
+ */
+export function speakerAdvice(comfortable: boolean, engine: SttEngine): string {
+  if (comfortable) {
+    return "Recommended: this computer. In Cilica's tests on recorded meetings it named the right person more often than transcription services did, and it costs nothing.";
+  }
+  const cost =
+    "Telling voices apart on this computer is free and usually more accurate, but it adds work while you record, and this computer may not keep up.";
+  if (hasLiveSpeakers(engine)) {
+    return `${cost} ${providerName(engine)}'s labels are the lighter choice here.`;
+  }
+  return `${cost} Turn it off if recording feels slow.`;
 }

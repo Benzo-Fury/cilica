@@ -35,11 +35,11 @@ export function upsertSegment(transcript: Transcript, segment: Segment): Transcr
 }
 
 /**
- * Who is speaking is not shown yet: this note's meeting is being recorded or finished, and the
- * engine does not label speakers live. They appear once the meeting is done.
+ * Speakers are being told apart as this note's meeting is recorded: a line with no speaker yet
+ * is "Pending" (Cilica has not decided who said it), not "You" or "Others".
  */
-export function speakersPending(recording: RecordingState, noteId: string): boolean {
-  return recording.note_id === noteId && recording.phase !== "idle" && !recording.live_speakers;
+export function speakersLive(recording: RecordingState, noteId: string): boolean {
+  return recording.note_id === noteId && recording.phase !== "idle" && recording.live_speakers;
 }
 
 /** True when the transcript does not know a segment's speaker yet (fetch speakers again). */
@@ -97,7 +97,17 @@ export interface SpeakerLook {
   color: number;
   /** Not yet named: show "Name this speaker". */
   unnamed: boolean;
+  /** Cilica has not decided who said it yet. */
+  pending?: boolean;
 }
+
+/** A line whose speaker Cilica is still working out. */
+export const PENDING_LOOK: SpeakerLook = {
+  name: "Pending",
+  color: 1,
+  unnamed: false,
+  pending: true,
+};
 
 const GENERIC = /^(speaker|person)\s+\d+$/i;
 

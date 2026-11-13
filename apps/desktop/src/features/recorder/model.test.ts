@@ -18,7 +18,7 @@ describe("capsuleMode", () => {
   it("maps each phase to what the capsule shows", () => {
     expect(capsuleMode(state({}), NOW)).toEqual({ kind: "idle" });
     expect(capsuleMode(state({ phase: "starting" }), NOW)).toEqual({ kind: "starting" });
-    for (const phase of ["stopping", "diarizing", "summarizing"] as const) {
+    for (const phase of ["stopping", "summarizing"] as const) {
       expect(capsuleMode(state({ phase }), NOW)).toEqual({
         kind: "finishing",
         label: "Writing notes…",

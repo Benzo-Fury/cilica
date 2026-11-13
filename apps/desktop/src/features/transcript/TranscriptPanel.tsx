@@ -6,16 +6,7 @@
  * Turns are windowed, so an hour-long meeting scrolls as smoothly as a short one.
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  AudioLines,
-  ChevronDown,
-  ChevronUp,
-  Mic,
-  Search,
-  Settings2,
-  UsersRound,
-  X,
-} from "lucide-react";
+import { AudioLines, ChevronDown, ChevronUp, Mic, Search, Settings2, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import {
   type KeyboardEvent,
@@ -35,7 +26,6 @@ import { useBandSlot } from "@/features/note/bandSlot";
 import { useNote } from "@/features/notes/hooks";
 import { usePeople } from "@/features/people/hooks";
 import { isLive, useRecordingState, useToggleRecording } from "@/features/recorder/hooks";
-import { useSettings } from "@/features/settings/hooks";
 import { useSwearMarks } from "@/features/swearjar/hooks";
 import type { Person, Quote, Segment, Speaker, SpeakerSuggestion } from "@/ipc/types";
 import { clock, plural } from "@/lib/format";
@@ -70,10 +60,11 @@ import {
   type FindMatch,
   findMatches,
   groupTurns,
+  PENDING_LOOK,
   type SpeakerLook,
   segmentAt,
   speakerLook,
-  speakersPending,
+  speakersLive,
   type Turn,
   turnIndexAt,
 } from "./model";
@@ -91,8 +82,7 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
   const recording = useRecordingState();
   const live = isLive(recording) && recording.note_id === noteId;
   const toggle = useToggleRecording();
-  const { data: settings } = useSettings();
-  const hideSpeakers = speakersPending(recording, noteId);
+  const pendingSpeakers = speakersLive(recording, noteId);
 
   if (isLoading || !transcript) {
     return (
@@ -167,8 +157,7 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
       }
       live={live}
       idle={recording.phase === "idle"}
-      hideSpeakers={hideSpeakers}
-      speakersLater={settings?.transcription.identify_speakers_after_meeting ?? true}
+      pendingSpeakers={pendingSpeakers}
       atMs={atMs}
     />
   );
@@ -186,8 +175,7 @@ function TranscriptBody({
   durationMs,
   live,
   idle,
-  hideSpeakers,
-  speakersLater,
+  pendingSpeakers,
   atMs,
 }: {
   noteId: string;
@@ -200,10 +188,8 @@ function TranscriptBody({
   durationMs: number;
   live: boolean;
   idle: boolean;
-  /** The engine does not label speakers live: leave them out until the meeting is finished. */
-  hideSpeakers: boolean;
-  /** Speakers will be identified once the meeting is finished (Settings › Transcription). */
-  speakersLater: boolean;
+  /** Speakers are told apart live: a line without one is "Pending", not You or Others. */
+  pendingSpeakers: boolean;
   atMs?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -395,8 +381,10 @@ function TranscriptBody({
     }
   };
 
-  const speakerCount = new Set(turns.map((t) => t.speakerId ?? t.channel)).size;
-  const stack = [...new Set(turns.map((t) => t.speakerId))]
+  // Pending lines are nobody yet.
+  const placed = pendingSpeakers ? turns.filter((t) => t.speakerId) : turns;
+  const speakerCount = new Set(placed.map((t) => t.speakerId ?? t.channel)).size;
+  const stack = [...new Set(placed.map((t) => t.speakerId))]
     .map((id) => speakerLook(id ? speakerById.get(id) : undefined, people))
     .slice(0, 3)
     .map((l) => ({ name: l.name, color: l.color }));
@@ -474,9 +462,7 @@ function TranscriptBody({
                 )
               }
             />
-            {hideSpeakers ? (
-              speakersLater && <Chip icon={UsersRound}>Speakers appear when it's finished</Chip>
-            ) : (
+            {speakerCount > 0 && (
               <Chip leading={<AvatarStack people={stack} />}>
                 {plural(speakerCount, "speaker")}
               </Chip>
@@ -504,10 +490,13 @@ function TranscriptBody({
                     noteId={noteId}
                     turn={turn}
                     speaker={speaker}
-                    look={speakerLook(speaker, people, turn.channel)}
+                    look={
+                      !turn.speakerId && pendingSpeakers
+                        ? PENDING_LOOK
+                        : speakerLook(speaker, people, turn.channel)
+                    }
                     people={people}
                     live={live}
-                    anonymous={hideSpeakers}
                     hit={hitTurn === turn.id}
                     playingId={playingSegment?.id ?? null}
                     marks={matchesBySegment}
@@ -600,7 +589,6 @@ const TurnRow = memo(function TurnRow({
   look,
   people,
   live,
-  anonymous,
   hit,
   playingId,
   marks,
@@ -617,8 +605,6 @@ const TurnRow = memo(function TurnRow({
   look: SpeakerLook;
   people: readonly Person[];
   live: boolean;
-  /** Leave out who is speaking (not known yet). */
-  anonymous: boolean;
   hit: boolean;
   playingId: string | null;
   marks: Map<string, { start: number; end: number; current: boolean }[]>;
@@ -631,10 +617,10 @@ const TurnRow = memo(function TurnRow({
   return (
     <Utterance
       hit={hit}
-      className={anonymous ? "nt-utt-anon" : undefined}
-      avatar={anonymous ? null : <Avatar name={look.name} color={look.color} />}
+      className={look.pending ? "nt-utt-pending" : undefined}
+      avatar={<Avatar name={look.name} color={look.color} pending={look.pending} />}
       name={
-        anonymous ? null : speaker ? (
+        speaker ? (
           <SpeakerMenu
             noteId={noteId}
             speaker={speaker}

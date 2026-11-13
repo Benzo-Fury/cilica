@@ -5,9 +5,15 @@
 //!
 //! ```text
 //! capture thread ──CaptureEvent──▶ router ──levels, toasts──▶ Events
-//!                                     ├──mic audio──▶ stt (mic) ──┐
-//!                                     └──sys audio──▶ stt (sys) ──┴─SttMsg─▶ persister ─▶ Db + Events
+//!                                     ├──mic audio──▶ stt (mic) ──────┐
+//!                                     ├──sys audio──▶ stt (sys) ──────┤
+//!                                     ├──mic audio──▶ speakers (mic) ─┤  (who is speaking, on
+//!                                     └──sys audio──▶ speakers (sys) ─┴─Msg─▶ persister ─▶ Db + Events
 //! ```
+//!
+//! Speakers are told apart on this computer by default ([`SpeakerSource::Local`]): a line is
+//! stored without a speaker ("Pending" in the transcript) until the speaker detection has heard
+//! enough of it, a few seconds behind the words, and then given to that person.
 //!
 //! Stopping the capture closes the chain from the left, so every stage drains and finishes on
 //! its own: no audio captured before the stop is lost.
@@ -19,9 +25,10 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender};
 use cilica_audio::{CaptureConfig, CaptureEvent, CaptureSession, CaptureSummary, SourceKind};
+use cilica_diarize::online::{Label, Span};
 use cilica_domain::{
-    AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, ToastAction, ToastKind, ToastRequest,
-    new_id,
+    AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, SpeakerSource, ToastAction, ToastKind,
+    ToastRequest, new_id,
 };
 use cilica_store::{Db, NewSpeaker, OTHERS_LABEL};
 use cilica_stt::{StreamOptions, SttError, SttEvent, Transcriber};
@@ -35,10 +42,20 @@ use crate::recognise::{Recogniser, VoiceTap};
 /// One channel's audio on the recording timeline: (first sample index, 16 kHz mono samples).
 type Chunk = (u64, Vec<f32>);
 
-/// A transcription result on its way to the store.
-struct SttMsg {
-    channel: AudioChannel,
-    event: SttEvent,
+/// What the persister hears: transcription results, and who is speaking.
+enum Msg {
+    Stt { channel: AudioChannel, event: SttEvent },
+    Speakers { channel: AudioChannel, update: SpeakerUpdate },
+}
+
+/// News from one channel's live speaker detection.
+enum SpeakerUpdate {
+    /// Newly decided stretches, in order, on the capture timeline.
+    Spans(Vec<Span>),
+    /// Speakers found to be someone already heard: (from, into).
+    Merged(Vec<(usize, usize)>),
+    /// It could not run: lines fall back to "You" (mic) and "Others" (call).
+    Unavailable,
 }
 
 /// Everything a live session needs to start.
@@ -73,13 +90,14 @@ pub(crate) struct LiveSession {
 pub(crate) struct Draining {
     router: Option<JoinHandle<()>>,
     stt: Option<JoinHandle<()>>,
+    speakers: Option<JoinHandle<()>>,
     persister: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl Draining {
     /// Wait until every captured sample is transcribed and stored.
     pub async fn finish(mut self) {
-        let threads: Vec<JoinHandle<()>> = [self.router.take(), self.stt.take()].into_iter().flatten().collect();
+        let threads: Vec<JoinHandle<()>> = [self.router.take(), self.stt.take(), self.speakers.take()].into_iter().flatten().collect();
         let _ = tokio::task::spawn_blocking(move || {
             for t in threads {
                 let _ = t.join();
@@ -109,23 +127,44 @@ impl LiveSession {
 
         let (mic_tx, mic_rx) = crossbeam_channel::unbounded::<Chunk>();
         let (sys_tx, sys_rx) = crossbeam_channel::unbounded::<Chunk>();
-        let (stt_tx, stt_rx) = mpsc::unbounded_channel::<SttMsg>();
+        let (msg_tx, msg_rx) = mpsc::unbounded_channel::<Msg>();
         let stopping = Arc::new(AtomicBool::new(false));
 
-        // Saved voices are recognised live only for speakers the service labels.
         let t = &p.settings.transcription;
-        let tap = (t.recognise_voices && t.live_speakers()).then(|| Arc::new(VoiceTap::default()));
+        let labels = t.speaker_labels();
+        // Saved voices are recognised live for every speaker someone labelled.
+        let tap = (t.recognise_voices && labels != SpeakerSource::Off).then(|| Arc::new(VoiceTap::default()));
         let recogniser = tap.clone().map(|tap| Recogniser::start(p.db.clone(), p.events.clone(), p.speech.clone(), p.note_id, tap, &rt));
-        let persister = rt.spawn(persist(p.db.clone(), p.events.clone(), p.note_id, p.you, p.others, p.offset_ms, recogniser, stt_rx));
-        let stt = spawn_stt(p.speech.clone(), p.settings.clone(), p.events.clone(), mic_rx, sys_rx, stt_tx, tap)?;
+        let persister = rt.spawn(persist(Persist {
+            db: p.db.clone(),
+            events: p.events.clone(),
+            note_id: p.note_id,
+            you: p.you,
+            others: p.others,
+            offset_ms: p.offset_ms,
+            labels,
+            recogniser,
+            rx: msg_rx,
+        }));
+        let (mut mic_out, mut sys_out) = (vec![mic_tx], vec![sys_tx]);
+        let speakers = if labels == SpeakerSource::Local {
+            let (mic_tx, mic_rx) = crossbeam_channel::unbounded::<Chunk>();
+            let (sys_tx, sys_rx) = crossbeam_channel::unbounded::<Chunk>();
+            mic_out.push(mic_tx);
+            sys_out.push(sys_tx);
+            Some(spawn_speakers(p.speech.clone(), t.speaker_model.clone(), p.events.clone(), rt.clone(), mic_rx, sys_rx, msg_tx.clone())?)
+        } else {
+            None
+        };
+        let stt = spawn_stt(p.speech.clone(), p.settings.clone(), p.events.clone(), mic_rx, sys_rx, msg_tx, tap)?;
         let router = {
             let (events, stopping, on_failed) = (p.events.clone(), stopping.clone(), p.on_capture_failed);
             std::thread::Builder::new()
                 .name("cilica-router".into())
-                .spawn(move || route(capture_rx, mic_tx, sys_tx, events, stopping, on_failed))
+                .spawn(move || route(capture_rx, mic_out, sys_out, events, stopping, on_failed))
                 .map_err(|e| AppError::internal(format!("Cilica could not start recording: {e}")))?
         };
-        Ok(Self { capture, stopping, draining: Draining { router: Some(router), stt: Some(stt), persister: Some(persister) } })
+        Ok(Self { capture, stopping, draining: Draining { router: Some(router), stt: Some(stt), speakers, persister: Some(persister) } })
     }
 
     /// Stop capturing now and finish the audio file. Blocking (joins the capture thread). The
@@ -147,23 +186,30 @@ fn toast(events: &Events, kind: ToastKind, title: &str, description: impl Into<S
     });
 }
 
-/// The router thread: levels and device changes become app events; audio goes to transcription.
+/// Hand a chunk to every consumer of its channel (transcription, then speaker detection).
+fn fan_out(to: &[Sender<Chunk>], start: u64, samples: Vec<f32>) {
+    if let Some((last, rest)) = to.split_last() {
+        for tx in rest {
+            let _ = tx.send((start, samples.clone()));
+        }
+        let _ = last.send((start, samples));
+    }
+}
+
+/// The router thread: levels and device changes become app events; audio goes to transcription
+/// and speaker detection.
 fn route(
     rx: Receiver<CaptureEvent>,
-    mic: Sender<Chunk>,
-    sys: Sender<Chunk>,
+    mic: Vec<Sender<Chunk>>,
+    sys: Vec<Sender<Chunk>>,
     events: Events,
     stopping: Arc<AtomicBool>,
     on_failed: Box<dyn FnOnce(String) + Send>,
 ) {
     for event in rx.iter() {
         match event {
-            CaptureEvent::Audio { kind: SourceKind::Mic, start, samples } => {
-                let _ = mic.send((start, samples));
-            }
-            CaptureEvent::Audio { kind: SourceKind::System, start, samples } => {
-                let _ = sys.send((start, samples));
-            }
+            CaptureEvent::Audio { kind: SourceKind::Mic, start, samples } => fan_out(&mic, start, samples),
+            CaptureEvent::Audio { kind: SourceKind::System, start, samples } => fan_out(&sys, start, samples),
             CaptureEvent::Levels(levels) => events.emit(AppEvent::AudioLevels { levels }),
             CaptureEvent::SourceLost { kind: SourceKind::Mic, message } => {
                 tracing::warn!(%message, "microphone lost");
@@ -228,7 +274,7 @@ fn spawn_stt(
     events: Events,
     mic: Receiver<Chunk>,
     sys: Receiver<Chunk>,
-    out: mpsc::UnboundedSender<SttMsg>,
+    out: mpsc::UnboundedSender<Msg>,
     tap: Option<Arc<VoiceTap>>,
 ) -> AppResult<JoinHandle<()>> {
     std::thread::Builder::new()
@@ -273,7 +319,7 @@ fn transcribe_channel(
     channel: AudioChannel,
     language: Option<String>,
     rx: Receiver<Chunk>,
-    out: mpsc::UnboundedSender<SttMsg>,
+    out: mpsc::UnboundedSender<Msg>,
     events: Events,
     notices: &Notices,
     tap: Option<&VoiceTap>,
@@ -295,7 +341,7 @@ fn transcribe_channel(
     };
     let send = |evs: Vec<SttEvent>| {
         for event in evs {
-            let _ = out.send(SttMsg { channel, event });
+            let _ = out.send(Msg::Stt { channel, event });
         }
     };
     let mut failures = 0u32;
@@ -347,9 +393,104 @@ fn transcribe_channel(
     }
 }
 
-/// The people a cloud service told apart, by channel and its label ("1", "A"), as the note's
-/// speakers. Labels are per stream, so "1" on the mic is not "1" on the call. The first voice on
-/// the microphone is "You"; everyone else is "Person N", numbered after the ones the note has.
+// ── Speakers ─────────────────────────────────────────────────────────────
+
+/// Load the voice models (fetching the default ones on first use), then tell speakers apart on
+/// each channel on its own thread. The returned thread ends when both channels have drained.
+#[allow(clippy::too_many_arguments)]
+fn spawn_speakers(
+    speech: Arc<dyn SpeechBackend>,
+    model_id: String,
+    events: Events,
+    rt: tokio::runtime::Handle,
+    mic: Receiver<Chunk>,
+    sys: Receiver<Chunk>,
+    out: mpsc::UnboundedSender<Msg>,
+) -> AppResult<JoinHandle<()>> {
+    std::thread::Builder::new()
+        .name("cilica-speakers".into())
+        .spawn(move || {
+            let models = rt.block_on(speech.live_speaker_models(&model_id));
+            let workers: Vec<JoinHandle<()>> = [(AudioChannel::Mic, mic), (AudioChannel::System, sys)]
+                .into_iter()
+                .filter_map(|(channel, rx)| {
+                    let diarizer = match &models {
+                        Some(m) => speech.online_diarizer(m).map_err(|e| e.message),
+                        None => Err("Cilica's voice model could not be downloaded; check your connection.".to_string()),
+                    };
+                    let out = out.clone();
+                    let diarizer = match diarizer {
+                        Ok(d) => d,
+                        Err(message) => {
+                            tracing::warn!(%message, ?channel, "live speaker detection is off");
+                            if channel == AudioChannel::Mic {
+                                toast(
+                                    &events,
+                                    ToastKind::Error,
+                                    "Speakers not labelled",
+                                    format!("{message} This meeting's transcript shows You and Others instead."),
+                                    None,
+                                );
+                            }
+                            let _ = out.send(Msg::Speakers { channel, update: SpeakerUpdate::Unavailable });
+                            // Keep the queue empty until capture ends.
+                            return std::thread::Builder::new().name("cilica-speakers-idle".into()).spawn(move || for _ in rx.iter() {}).ok();
+                        }
+                    };
+                    std::thread::Builder::new()
+                        .name(format!("cilica-speakers-{channel:?}").to_lowercase())
+                        .spawn(move || label_channel(diarizer, channel, rx, out))
+                        .ok()
+                })
+                .collect();
+            drop(out);
+            for w in workers {
+                let _ = w.join();
+            }
+        })
+        .map_err(|e| AppError::internal(format!("Cilica could not start telling speakers apart: {e}")))
+}
+
+/// One channel's speaker detection: feed whatever audio is queued, forward what it decides.
+fn label_channel(mut d: cilica_diarize::online::OnlineDiarizer, channel: AudioChannel, rx: Receiver<Chunk>, out: mpsc::UnboundedSender<Msg>) {
+    let send = |update| {
+        let _ = out.send(Msg::Speakers { channel, update });
+    };
+    // The next sample the detection expects on the capture timeline.
+    let mut next = 0u64;
+    while let Ok((start, samples)) = rx.recv() {
+        let mut spans = Vec::new();
+        if start > next {
+            spans.extend(d.skip((start - next) as usize));
+            next = start;
+        }
+        let from = ((next - start) as usize).min(samples.len());
+        match d.push(&samples[from..]) {
+            Ok(s) => spans.extend(s),
+            Err(error) => {
+                tracing::warn!(%error, ?channel, "live speaker detection failed; lines fall back to You and Others");
+                send(SpeakerUpdate::Spans(spans));
+                send(SpeakerUpdate::Unavailable);
+                for _ in rx.iter() {}
+                return;
+            }
+        }
+        next = start + samples.len() as u64;
+        let merges = d.take_merges();
+        if !merges.is_empty() {
+            send(SpeakerUpdate::Merged(merges));
+        }
+        if !spans.is_empty() {
+            send(SpeakerUpdate::Spans(spans));
+        }
+    }
+    send(SpeakerUpdate::Spans(d.finish()));
+}
+
+/// The people told apart on each channel, by channel and label ("1" from a service, "local 0"
+/// from Cilica), as the note's speakers. Labels are per stream, so "1" on the mic is not "1" on
+/// the call. The first voice on the microphone is "You"; everyone else is "Person N", numbered
+/// after the ones the note has.
 struct LiveSpeakers {
     by_label: HashMap<(AudioChannel, String), Id>,
     next: usize,
@@ -369,7 +510,7 @@ impl LiveSpeakers {
             return Some(*id);
         }
         // The first voice on the microphone is you; any other is someone in the room (or audio
-        // from another device). The check after the meeting can still change who is who.
+        // from another device).
         if channel == AudioChannel::Mic && !self.mic_has_you {
             self.mic_has_you = true;
             self.by_label.insert(key, you);
@@ -385,37 +526,214 @@ impl LiveSpeakers {
                 Some(speaker.id)
             }
             Err(error) => {
-                tracing::warn!(%error, "could not add a speaker the service heard");
+                tracing::warn!(%error, "could not add a speaker");
                 None
+            }
+        }
+    }
+
+    /// Cilica found that `from` is someone already heard as `into`: their lines move to one
+    /// speaker ("You" or a named one is kept over a "Person N").
+    async fn merge(&mut self, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, from: &str, into: &str) {
+        let (from_key, into_key) = ((channel, from.to_string()), (channel, into.to_string()));
+        let Some(gone) = self.by_label.remove(&from_key) else { return };
+        let Some(&kept) = self.by_label.get(&into_key) else {
+            // Nothing was given to `into` yet: it simply carries on as `from`'s speaker.
+            self.by_label.insert(into_key, gone);
+            return;
+        };
+        if gone == kept {
+            return;
+        }
+        match db.merge_speakers(gone, kept).await {
+            Ok(survivor) => {
+                for id in self.by_label.values_mut() {
+                    if *id == gone || *id == kept {
+                        *id = survivor;
+                    }
+                }
+                events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Transcript], note_id: Some(note_id) });
+            }
+            Err(error) => {
+                tracing::warn!(%error, "could not join two speakers");
+                self.by_label.insert(from_key, gone);
             }
         }
     }
 }
 
-/// Store and emit segments as they arrive. Partials are upserted in place by id; a final
-/// replaces its partial; an empty final or echo retracts it. Audio the service labelled by speaker
-/// goes to that person; the rest is "You" (mic) or "Others" (call).
-#[allow(clippy::too_many_arguments)]
-async fn persist(
+/// Within this long of a line, the speaker heard just before or after it is taken as theirs when
+/// Cilica could not tell who said the line itself.
+const NEIGHBOUR_MS: u32 = 2_000;
+/// A line still undecided once Cilica has heard this much after it goes to the nearest speaker.
+const GIVE_UP_MS: u32 = 10_000;
+
+/// What speaker detection decided for one channel so far.
+#[derive(Default)]
+struct Track {
+    /// Decided stretches in time order, on the capture timeline.
+    spans: Vec<Span>,
+    /// Everything before this is decided.
+    horizon_ms: u32,
+    /// Speakers folded into another: from → into.
+    alias: HashMap<usize, usize>,
+    unavailable: bool,
+}
+
+/// Who said a line, as far as speaker detection can tell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Decision {
+    Speaker(usize),
+    /// Nobody can tell: "You" on the mic, "Others" on the call.
+    Fallback,
+    /// Not decided yet: "Pending".
+    Wait,
+}
+
+impl Track {
+    fn resolve(&self, mut c: usize) -> usize {
+        while let Some(&next) = self.alias.get(&c) {
+            if next == c {
+                break;
+            }
+            c = next;
+        }
+        c
+    }
+
+    fn add(&mut self, spans: Vec<Span>) {
+        // Only speakers are kept; silence and pending stretches just say how far detection got.
+        for span in spans {
+            self.horizon_ms = self.horizon_ms.max(span.end_ms);
+            if matches!(span.label, Label::Speaker(_)) {
+                self.spans.push(span);
+            }
+        }
+    }
+
+    /// The speaker of a line between these capture-timeline times. `last` is the end of the
+    /// meeting: nothing more will be decided, so the nearest speaker wins.
+    fn decide(&self, start_ms: u32, end_ms: u32, last: bool) -> Decision {
+        if self.unavailable {
+            return Decision::Fallback;
+        }
+        if !last && self.horizon_ms < end_ms {
+            return Decision::Wait;
+        }
+        // The speaker who talks most during the line.
+        let first = self.spans.partition_point(|s| s.end_ms <= start_ms);
+        let mut talk: Vec<(usize, u32)> = Vec::new();
+        for span in self.spans[first..].iter().take_while(|s| s.start_ms < end_ms) {
+            let Label::Speaker(c) = span.label else { continue };
+            let c = self.resolve(c);
+            let overlap = end_ms.min(span.end_ms).saturating_sub(start_ms.max(span.start_ms));
+            match talk.iter_mut().find(|(sp, _)| *sp == c) {
+                Some(t) => t.1 += overlap,
+                None => talk.push((c, overlap)),
+            }
+        }
+        if let Some(&(c, _)) = talk.iter().filter(|(_, ms)| *ms > 0).max_by_key(|(_, ms)| *ms) {
+            return Decision::Speaker(c);
+        }
+        // Nobody clearly speaking during it: whoever spoke right before or after.
+        let before = self.spans[..first].last().map(|s| (start_ms.saturating_sub(s.end_ms), s.label));
+        let after = self.spans.get(first).map(|s| (s.start_ms.saturating_sub(end_ms), s.label));
+        let nearest = [before, after].into_iter().flatten().min_by_key(|(gap, _)| *gap);
+        let settled = last || self.horizon_ms >= end_ms.saturating_add(GIVE_UP_MS);
+        match nearest {
+            Some((gap, Label::Speaker(c))) if gap <= NEIGHBOUR_MS || settled => Decision::Speaker(self.resolve(c)),
+            _ if settled => Decision::Fallback,
+            // Someone may yet be decided just after it.
+            _ => Decision::Wait,
+        }
+    }
+}
+
+/// Everything the persister needs.
+struct Persist {
     db: Db,
     events: Events,
     note_id: Id,
     you: Id,
     others: Id,
     offset_ms: u32,
-    mut recogniser: Option<Recogniser>,
-    mut rx: mpsc::UnboundedReceiver<SttMsg>,
-) {
+    labels: SpeakerSource,
+    recogniser: Option<Recogniser>,
+    rx: mpsc::UnboundedReceiver<Msg>,
+}
+
+/// A finished line that still waits for its speaker.
+struct Waiting {
+    segment: Segment,
+    /// Capture-timeline times (the segment's own are on the note's timeline).
+    start_ms: u32,
+    end_ms: u32,
+}
+
+/// Store and emit segments as they arrive. Partials are upserted in place by id; a final
+/// replaces its partial; an empty final or echo retracts it. Each line goes to the person who
+/// said it: as labelled by the service, or as Cilica tells from the voices (stored without a
+/// speaker, "Pending", until it is sure); otherwise "You" (mic) or "Others" (call).
+async fn persist(p: Persist) {
+    let Persist { db, events, note_id, you, others, offset_ms, labels, mut recogniser, mut rx } = p;
     let mut live_speakers = LiveSpeakers::new(&db, note_id).await;
+    let mut tracks: HashMap<AudioChannel, Track> = HashMap::new();
+    let mut waiting: Vec<Waiting> = Vec::new();
     let mut ids: HashMap<(AudioChannel, u64), Id> = HashMap::new();
     let mut echo = EchoFilter::default();
+    let fallback = |channel: AudioChannel| if channel == AudioChannel::Mic { you } else { others };
     let retract = async |db: &Db, id: Id| {
         if let Err(error) = db.delete_segment(id).await {
             tracing::warn!(%error, "could not remove a transcript segment");
         }
         events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Transcript], note_id: Some(note_id) });
     };
-    while let Some(SttMsg { channel, event }) = rx.recv().await {
+    let store = async |db: &Db, segment: Segment| {
+        match db.upsert_segment(&segment).await {
+            Ok(()) => events.emit(AppEvent::TranscriptSegment { segment }),
+            Err(error) => tracing::warn!(%error, "could not store a transcript segment"),
+        }
+    };
+    while let Some(msg) = rx.recv().await {
+        let (channel, event) = match msg {
+            Msg::Stt { channel, event } => (channel, event),
+            Msg::Speakers { channel, update } => {
+                let track = tracks.entry(channel).or_default();
+                match update {
+                    SpeakerUpdate::Spans(spans) => track.add(spans),
+                    SpeakerUpdate::Unavailable => track.unavailable = true,
+                    SpeakerUpdate::Merged(merges) => {
+                        for (from, into) in merges {
+                            track.alias.insert(from, into);
+                            live_speakers.merge(&db, &events, note_id, channel, &local_label(from), &local_label(into)).await;
+                        }
+                    }
+                }
+                // Lines this news settles get their speaker.
+                let mut still = Vec::with_capacity(waiting.len());
+                for w in std::mem::take(&mut waiting) {
+                    if w.segment.channel != channel {
+                        still.push(w);
+                        continue;
+                    }
+                    let decision = tracks.get(&channel).map(|t| t.decide(w.start_ms, w.end_ms, false)).unwrap_or(Decision::Wait);
+                    match settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await {
+                        Some(speaker) => {
+                            let segment = Segment { speaker_id: Some(speaker.unwrap_or(fallback(channel))), ..w.segment };
+                            if let (Some(r), Some(id)) = (recogniser.as_mut(), speaker)
+                                && id != you
+                            {
+                                r.heard(id, channel, w.start_ms, w.end_ms);
+                            }
+                            store(&db, segment).await;
+                        }
+                        None => still.push(w),
+                    }
+                }
+                waiting = still;
+                continue;
+            }
+        };
         let (u, is_final) = match event {
             SttEvent::Partial(u) => (u, false),
             SttEvent::Final(u) => (u, true),
@@ -444,40 +762,124 @@ async fn persist(
                 }
                 Some(drop) => {
                     tracing::debug!("dropped an earlier mic segment that echoed the call audio");
+                    waiting.retain(|w| w.segment.id != drop);
                     retract(&db, drop).await;
                 }
                 None => {}
             }
         }
-        let fallback = if channel == AudioChannel::Mic { you } else { others };
-        let speaker_id = match u.speaker.as_deref() {
-            None => fallback,
-            Some(label) => live_speakers.speaker(&db, &events, note_id, channel, label, you).await.unwrap_or(fallback),
+        // Who said it: `Some(None)` is the channel's fallback, `None` is not known yet.
+        let speaker: Option<Option<Id>> = match labels {
+            SpeakerSource::Off => Some(None),
+            SpeakerSource::Service => match u.speaker.as_deref() {
+                None => Some(None),
+                Some(label) => Some(live_speakers.speaker(&db, &events, note_id, channel, label, you).await),
+            },
+            SpeakerSource::Local => {
+                let decision = tracks.get(&channel).map(|t| t.decide(u.start_ms, u.end_ms, false)).unwrap_or(Decision::Wait);
+                settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await
+            }
         };
         let segment = Segment {
             id,
             note_id,
-            speaker_id: Some(speaker_id),
+            speaker_id: speaker.map(|s| s.unwrap_or(fallback(channel))),
             channel,
             start_ms,
             end_ms,
             text: u.text.trim().to_string(),
             is_final,
         };
-        match db.upsert_segment(&segment).await {
-            Ok(()) => events.emit(AppEvent::TranscriptSegment { segment }),
-            Err(error) => tracing::warn!(%error, "could not store a transcript segment"),
+        if is_final && speaker.is_none() {
+            waiting.push(Waiting { segment: segment.clone(), start_ms: u.start_ms, end_ms: u.end_ms });
         }
-        // A finished line by someone the service labelled: listen for a voice Cilica knows.
+        store(&db, segment).await;
+        // A finished line by someone told apart: listen for a voice Cilica knows.
         if is_final
-            && u.speaker.is_some()
+            && let Some(Some(speaker_id)) = speaker
             && speaker_id != you
             && let Some(r) = recogniser.as_mut()
         {
             r.heard(speaker_id, channel, u.start_ms, u.end_ms);
         }
     }
+    // The meeting is over: every line still waiting goes to the nearest speaker.
+    for w in waiting {
+        let channel = w.segment.channel;
+        let decision = tracks.get(&channel).map(|t| t.decide(w.start_ms, w.end_ms, true)).unwrap_or(Decision::Fallback);
+        let speaker = settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await.flatten();
+        store(&db, Segment { speaker_id: Some(speaker.unwrap_or(fallback(channel))), ..w.segment }).await;
+    }
     if let Some(r) = recogniser {
         r.finish().await;
+    }
+}
+
+/// How Cilica's own speaker numbers are keyed among the note's labels.
+fn local_label(c: usize) -> String {
+    format!("local {c}")
+}
+
+/// Turn a decision into a speaker: `Some(Some(id))` a person, `Some(None)` the channel's
+/// fallback, `None` still pending.
+async fn settle(decision: Decision, live: &mut LiveSpeakers, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, you: Id) -> Option<Option<Id>> {
+    match decision {
+        Decision::Wait => None,
+        Decision::Fallback => Some(None),
+        Decision::Speaker(c) => Some(live.speaker(db, events, note_id, channel, &local_label(c), you).await),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn span(start_ms: u32, end_ms: u32, label: Label) -> Span {
+        Span { start_ms, end_ms, label }
+    }
+
+    fn track(spans: Vec<Span>) -> Track {
+        let mut t = Track::default();
+        t.add(spans);
+        t
+    }
+
+    #[test]
+    fn a_line_waits_until_detection_has_heard_it() {
+        let t = track(vec![span(0, 2_000, Label::Speaker(0))]);
+        assert_eq!(t.decide(500, 1_500, false), Decision::Speaker(0));
+        assert_eq!(t.decide(1_500, 2_500, false), Decision::Wait, "the end of the line is not decided yet");
+        assert_eq!(t.decide(1_500, 2_500, true), Decision::Speaker(0), "at the end of the meeting it is");
+    }
+
+    #[test]
+    fn the_person_who_talks_most_during_a_line_said_it() {
+        let t = track(vec![span(0, 1_000, Label::Speaker(0)), span(1_000, 4_000, Label::Speaker(1)), span(4_000, 5_000, Label::Pending)]);
+        assert_eq!(t.decide(500, 3_000, false), Decision::Speaker(1));
+        assert_eq!(t.decide(0, 1_200, false), Decision::Speaker(0));
+    }
+
+    #[test]
+    fn an_unclear_line_takes_its_neighbour_or_waits() {
+        let mut t = track(vec![span(0, 1_000, Label::Speaker(2)), span(1_000, 3_000, Label::Pending), span(3_000, 4_000, Label::Silence)]);
+        assert_eq!(t.decide(1_500, 2_500, false), Decision::Speaker(2), "the speaker just before it, within 2 s");
+        t.add(vec![span(4_000, 20_000, Label::Silence)]);
+        assert_eq!(t.decide(15_000, 16_000, false), Decision::Wait, "nobody near it and not settled");
+        t.add(vec![span(20_000, 30_000, Label::Silence)]);
+        assert_eq!(t.decide(15_000, 16_000, false), Decision::Speaker(2), "long after, the nearest speaker");
+        assert_eq!(Track::default().decide(0, 1_000, true), Decision::Fallback, "nobody at all");
+    }
+
+    #[test]
+    fn folded_speakers_count_as_the_one_they_joined() {
+        let mut t = track(vec![span(0, 1_000, Label::Speaker(3)), span(1_000, 1_500, Label::Speaker(0))]);
+        t.alias.insert(3, 0);
+        assert_eq!(t.decide(0, 1_500, false), Decision::Speaker(0));
+    }
+
+    #[test]
+    fn without_detection_lines_fall_back_at_once() {
+        let t = Track { unavailable: true, ..Track::default() };
+        assert_eq!(t.decide(0, 1_000, false), Decision::Fallback);
     }
 }

@@ -135,6 +135,16 @@ export const commands = {
 	 *  once; progress arrives as ModelDownload events and Settings changes when the model is ready.
 	 */
 	downloadAndUseSttModel: (modelId: string) => __TAURI_INVOKE<null>("download_and_use_stt_model", { modelId }),
+	/**
+	 *  The voice models Cilica can tell speakers apart with, with what is downloaded and which one
+	 *  suits this computer.
+	 */
+	listSpeakerModels: () => __TAURI_INVOKE<SpeakerModel[]>("list_speaker_models"),
+	/**
+	 *  Download a voice model if needed, then tell speakers apart with it on this computer. Returns
+	 *  at once; progress arrives as ModelDownload events and Settings changes when it is ready.
+	 */
+	downloadAndUseSpeakerModel: (modelId: string) => __TAURI_INVOKE<null>("download_and_use_speaker_model", { modelId }),
 	/**  What this computer can run, and whether a cloud service would serve it better. */
 	getHardwareProfile: () => __TAURI_INVOKE<HardwareProfile>("get_hardware_profile"),
 	getSttProviderStatus: (engine: SttEngine) => __TAURI_INVOKE<SttProviderStatus_Serialize>("get_stt_provider_status", { engine }),
@@ -684,6 +694,11 @@ export type HardwareProfile = {
 	apple_silicon: boolean,
 	/**  Too slow for good local transcription: suggest a cloud service. */
 	suggest_cloud: boolean,
+	/**
+	 *  Fast enough to tell speakers apart on this computer while it records: recommend it over
+	 *  the transcription service's labels.
+	 */
+	local_speakers: boolean,
 };
 
 /**  What Home shows when no note is open. */
@@ -1757,8 +1772,6 @@ export type ReadySound = "chime" | "bloom" | "ready" | "glass";
 export type RecordingPhase = "idle" | "starting" | "recording" | 
 /**  Capture has stopped; the last audio is being transcribed. */
 "stopping" | 
-/**  Diarizing speakers after the meeting. */
-"diarizing" | 
 /**  The summary is being written into the note. */
 "summarizing";
 
@@ -1802,8 +1815,9 @@ export type RecordingState_Deserialize = {
 	/**  Set while a detected meeting has ended and recording will stop unless the user keeps it. */
 	auto_stop_at?: string | null,
 	/**
-	 *  The engine labels who is speaking as the meeting goes. When false, speakers are only
-	 *  known once the meeting is finished, so the live transcript does not show them.
+	 *  Speakers are told apart as the meeting goes (by Cilica or the service). A line Cilica has
+	 *  not placed yet has no speaker and shows as "Pending". When false, the microphone is "You"
+	 *  and the call is "Others".
 	 */
 	live_speakers?: boolean,
 };
@@ -1816,8 +1830,9 @@ export type RecordingState_Serialize = {
 	/**  Set while a detected meeting has ended and recording will stop unless the user keeps it. */
 	auto_stop_at: string | null,
 	/**
-	 *  The engine labels who is speaking as the meeting goes. When false, speakers are only
-	 *  known once the meeting is finished, so the live transcript does not show them.
+	 *  Speakers are told apart as the meeting goes (by Cilica or the service). A line Cilica has
+	 *  not placed yet has no speaker and shows as "Pending". When false, the microphone is "You"
+	 *  and the call is "Others".
 	 */
 	live_speakers: boolean,
 };
@@ -2005,6 +2020,30 @@ export type SpeakerCount = {
 	/**  Meetings this name speaks in. */
 	meetings: number,
 };
+
+/**  A voice model Cilica can tell speakers apart with, on this computer. */
+export type SpeakerModel = {
+	id: string,
+	name: string,
+	description: string,
+	size_mb: number,
+	recommended: boolean,
+	downloaded: boolean,
+	/**  False for the default model, which voiceprints of Saved people are made with. */
+	removable: boolean,
+};
+
+/**  Who tells speakers apart while the meeting is live. */
+export type SpeakerSource = 
+/**
+ *  Cilica, on this computer, from their voices: works with every engine, costs nothing and
+ *  keeps the audio here. A line shows "Pending" until Cilica is sure who said it.
+ */
+"local" | 
+/**  The cloud transcription service (only where [`SttEngine::has_live_speakers`]). */
+"service" | 
+/**  Nobody: the microphone is "You" and the call is "Others". */
+"off";
 
 /**  "Is Person 2 Sam?" Suggested, never applied silently. */
 export type SpeakerSuggestion = {
@@ -2517,16 +2556,13 @@ export type TranscriptionSettings_Deserialize = {
 	 *  Only with the local engine: a cloud service's transcript is kept as it is.
 	 */
 	refine_after_meeting?: boolean,
+	/**  Who labels speakers while the meeting is live. */
+	speaker_source?: SpeakerSource,
 	/**
-	 *  Ask the cloud service to label who is speaking, on the call and on the microphone, while
-	 *  the meeting is live (only services where [`SttEngine::has_live_speakers`]).
+	 *  Id of the voice model Cilica tells speakers apart with on this computer (see
+	 *  `SpeakerModel`).
 	 */
-	live_speaker_labels?: boolean,
-	/**
-	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
-	 *  accurate than live labels) and suggest names for voices Cilica knows.
-	 */
-	identify_speakers_after_meeting?: boolean,
+	speaker_model?: string,
 	/**
 	 *  Name speakers whose voice sounds like a Saved person, live (with live labels) and after
 	 *  the meeting. Voiceprints stay on this computer.
@@ -2547,16 +2583,13 @@ export type TranscriptionSettings_Serialize = {
 	 *  Only with the local engine: a cloud service's transcript is kept as it is.
 	 */
 	refine_after_meeting: boolean,
+	/**  Who labels speakers while the meeting is live. */
+	speaker_source: SpeakerSource,
 	/**
-	 *  Ask the cloud service to label who is speaking, on the call and on the microphone, while
-	 *  the meeting is live (only services where [`SttEngine::has_live_speakers`]).
+	 *  Id of the voice model Cilica tells speakers apart with on this computer (see
+	 *  `SpeakerModel`).
 	 */
-	live_speaker_labels: boolean,
-	/**
-	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
-	 *  accurate than live labels) and suggest names for voices Cilica knows.
-	 */
-	identify_speakers_after_meeting: boolean,
+	speaker_model: string,
 	/**
 	 *  Name speakers whose voice sounds like a Saved person, live (with live labels) and after
 	 *  the meeting. Voiceprints stay on this computer.

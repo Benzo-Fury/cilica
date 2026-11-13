@@ -2702,15 +2702,14 @@ mark {
 .nt-utt-hit {
   animation: nt-settle 2.4s var(--ease-out) both;
 }
-/* Who is speaking is not known yet (it appears when the meeting is finished): text only. */
-.nt-utt.nt-utt-anon {
-  grid-template-columns: minmax(0, 1fr);
+/* Cilica has not decided who said these lines yet: a quiet name and an empty dashed ring. */
+.nt-utt-pending .nt-utt-name {
+  color: var(--ink-3);
 }
-.nt-utt-anon .nt-utt-text {
-  grid-column: 1;
-}
-.nt-utt-anon .nt-utt-head:empty {
-  display: none;
+.nt-avatar.nt-avatar-pending {
+  background: transparent;
+  box-shadow: none;
+  border: 1.5px dashed var(--ink-4);
 }
 .nt-utt-head {
   min-width: 0;

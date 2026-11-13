@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use cilica_domain::{AppEvent, Events, HardwareProfile, ModelDownloadProgress, SttModel};
+use cilica_domain::{AppEvent, Events, HardwareProfile, ModelDownloadProgress, SpeakerModel, SttModel};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
@@ -115,6 +115,45 @@ pub const EMBEDDING_MODEL: ModelFile = ModelFile {
     sha256: "357a834f702b80161e5b981182c038e18553c1f2ca752ed6cec2052365d4129b",
 };
 
+/// A voice model for telling speakers apart live, in the catalogue.
+#[derive(Debug, Clone, Copy)]
+pub struct SpeakerModelInfo {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub file: ModelFile,
+    /// Live speaker detection thresholds for this model (cosine similarity), tuned on recorded
+    /// four-person meetings: a voice this close to a known speaker is them; this far from all of
+    /// them may be someone new; two speakers this close are one person.
+    pub match_sim: f32,
+    pub new_sim: f32,
+    pub merge_sim: f32,
+    /// Needs a fast computer to keep up with a meeting alongside transcription.
+    pub heavy: bool,
+}
+
+/// The voice models Cilica offers for live speakers, lightest first. The first is the default and
+/// is also what voiceprints of Saved people are made with, so it is always downloaded.
+///
+/// Only CAM++ for now: on three recorded four-person meetings, ERes2Net, WeSpeaker ResNet34,
+/// ResNet152 and ResNet293 and the WeSpeaker and zh-en CAM++ builds were no more accurate
+/// (within a point either way) while taking 3 to 8 times the work. Settings lists the models
+/// with one recommended for the computer as soon as there is more than one worth offering.
+pub const SPEAKER_MODELS: [SpeakerModelInfo; 1] = [SpeakerModelInfo {
+    id: cilica_domain::DEFAULT_SPEAKER_MODEL,
+    name: "CAM++",
+    description: "Light and quick. Tells most voices apart on any computer.",
+    file: EMBEDDING_MODEL,
+    match_sim: 0.5,
+    new_sim: 0.35,
+    merge_sim: 0.6,
+    heavy: false,
+}];
+
+pub fn speaker_model(id: &str) -> Option<&'static SpeakerModelInfo> {
+    SPEAKER_MODELS.iter().find(|m| m.id == id)
+}
+
 /// Progress id used when only the speaker models are fetched (diarization on first use).
 pub const SPEAKER_MODELS_ID: &str = "speaker-models";
 
@@ -210,6 +249,50 @@ impl ModelManager {
             .collect()
     }
 
+    /// Id of the voice model to recommend for live speakers on this computer.
+    pub fn recommended_speaker_id(&self) -> &'static str {
+        match self.hardware.get() {
+            Some(h) => crate::recommend::recommended_speaker_model(h.cores, h.ram_gb, h.apple_silicon),
+            None => cilica_domain::DEFAULT_SPEAKER_MODEL,
+        }
+    }
+
+    /// The voice models for live speakers, with what is on disk.
+    pub fn list_speaker_models(&self) -> Vec<SpeakerModel> {
+        let recommended = self.recommended_speaker_id();
+        SPEAKER_MODELS
+            .iter()
+            .map(|m| SpeakerModel {
+                id: m.id.into(),
+                name: m.name.into(),
+                description: m.description.into(),
+                size_mb: (m.file.size / 1_000_000) as u32,
+                recommended: m.id == recommended,
+                downloaded: self.has(&m.file),
+                removable: m.id != cilica_domain::DEFAULT_SPEAKER_MODEL,
+            })
+            .collect()
+    }
+
+    /// A downloaded voice model's file, with its catalogue entry.
+    pub fn speaker_model_path(&self, id: &str) -> Option<(PathBuf, &'static SpeakerModelInfo)> {
+        let m = speaker_model(id)?;
+        self.has(&m.file).then(|| (self.path_of(&m.file), m))
+    }
+
+    /// The files a model id needs that are not on disk yet: a speech model with its companions,
+    /// or a voice model with the segmentation model.
+    fn missing_files(&self, id: &str) -> SttResult<Vec<ModelFile>> {
+        let files: Vec<ModelFile> = if let Some(model) = speech_model(id) {
+            std::iter::once(model.file).chain(COMPANIONS).collect()
+        } else if let Some(model) = speaker_model(id) {
+            vec![model.file, SEGMENTATION_MODEL]
+        } else {
+            return Err(SttError::UnknownModel(id.into()));
+        };
+        Ok(files.into_iter().filter(|f| !self.has(f)).collect())
+    }
+
     /// Paths for a speech model, or a `ModelMissing` error that names the fix.
     pub fn speech_paths(&self, id: &str) -> SttResult<ModelPaths> {
         let m = speech_model(id).ok_or_else(|| SttError::UnknownModel(id.into()))?;
@@ -234,12 +317,10 @@ impl ModelManager {
         self.active.lock().map(|a| a.contains_key(id)).unwrap_or(false)
     }
 
-    /// Start downloading a speech model (and any missing companions) in the background.
-    /// Progress and the outcome arrive as `ModelDownload` events.
+    /// Start downloading a speech model (and any missing companions) or a voice model in the
+    /// background. Progress and the outcome arrive as `ModelDownload` events.
     pub fn start_download(self: &Arc<Self>, id: &str) -> SttResult<()> {
-        let model = speech_model(id).ok_or_else(|| SttError::UnknownModel(id.into()))?;
-        let mut files = vec![model.file];
-        files.extend(COMPANIONS.iter().filter(|f| !self.has(f)).copied());
+        let files = self.missing_files(id)?;
         self.spawn(id.to_string(), files);
         Ok(())
     }
@@ -247,9 +328,8 @@ impl ModelManager {
     /// Start (or join) a download and get told when it ends. Resolves at once when the model is
     /// already on disk.
     pub fn download_and_wait(self: &Arc<Self>, id: &str) -> SttResult<oneshot::Receiver<Result<(), String>>> {
-        let model = speech_model(id).ok_or_else(|| SttError::UnknownModel(id.into()))?;
         let (tx, rx) = oneshot::channel();
-        if self.has(&model.file) && COMPANIONS.iter().all(|f| self.has(f)) {
+        if self.missing_files(id)?.is_empty() {
             let _ = tx.send(Ok(()));
             return Ok(rx);
         }
@@ -303,11 +383,16 @@ impl ModelManager {
         }
     }
 
-    /// Delete a downloaded speech model (and any partial download of it).
+    /// Delete a downloaded speech model or voice model (and any partial download of it). The
+    /// default voice model stays: voiceprints are made with it.
     pub fn delete(&self, id: &str) -> SttResult<()> {
-        let m = speech_model(id).ok_or_else(|| SttError::UnknownModel(id.into()))?;
+        let file = match (speech_model(id), speaker_model(id)) {
+            (Some(m), _) => m.file,
+            (None, Some(m)) if m.id != cilica_domain::DEFAULT_SPEAKER_MODEL => m.file,
+            _ => return Err(SttError::UnknownModel(id.into())),
+        };
         self.cancel(id);
-        for p in [self.path_of(&m.file), part_path(&self.path_of(&m.file))] {
+        for p in [self.path_of(&file), part_path(&self.path_of(&file))] {
             match std::fs::remove_file(&p) {
                 Ok(()) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

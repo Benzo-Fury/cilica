@@ -66,8 +66,7 @@ function IslandApp() {
   const [pinned, setPinned] = useState(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const live = state?.phase === "recording" || state?.phase === "starting";
-  const finishing =
-    state?.phase === "stopping" || state?.phase === "diarizing" || state?.phase === "summarizing";
+  const finishing = state?.phase === "stopping" || state?.phase === "summarizing";
   const now = useNow(Boolean(state && state.phase !== "idle"));
 
   useEffect(() => {

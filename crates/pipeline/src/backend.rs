@@ -1,12 +1,13 @@
 //! What a recording needs from the outside world, behind traits so the pipeline is testable
 //! with fake audio, a fake engine and no models.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use cilica_audio::{CaptureSource, MicSource, SystemSource, permissions};
-use cilica_diarize::Diarizer;
-use cilica_domain::{AppError, AppResult, PermissionKind, PermissionStatus, Settings, SttEngine};
+use cilica_diarize::embedding::Embedder;
+use cilica_diarize::online::{OnlineConfig, OnlineDiarizer};
+use cilica_domain::{AppError, AppResult, PermissionKind, PermissionStatus, Settings, SpeakerSource, SttEngine};
 use cilica_stt::cloud::{self, CloudConfig, CloudTranscriber};
 use cilica_stt::{ModelManager, Transcriber, WhisperLocal, WhisperOptions};
 
@@ -42,11 +43,22 @@ impl AudioBackend for DeviceAudio {
 pub trait SpeechBackend: Send + Sync {
     /// A ready engine for these settings (blocking: loads the model).
     fn transcriber(&self, settings: &Settings) -> AppResult<Arc<dyn Transcriber>>;
-    /// Paths of the speaker models, fetching them if needed. `None` skips diarization.
+    /// Paths of the speaker models (segmentation, and the CAM++ voice model that voiceprints of
+    /// Saved people are made with), fetching them if needed. `None` when they cannot be had.
     async fn speaker_models(&self) -> Option<(PathBuf, PathBuf)>;
-    /// Load the diarizer (blocking).
-    fn diarizer(&self, models: &(PathBuf, PathBuf)) -> AppResult<Diarizer> {
-        Ok(Diarizer::load(&models.0, &models.1)?)
+    /// The models for telling speakers apart live with the voice model the person picked (the
+    /// default one while theirs is not downloaded). `None` when they cannot be had.
+    async fn live_speaker_models(&self, _model_id: &str) -> Option<LiveSpeakerModels> {
+        let (segmentation, embedding) = self.speaker_models().await?;
+        Some(LiveSpeakerModels { segmentation, embedding, config: OnlineConfig::default() })
+    }
+    /// Load the voice model that recognises Saved people (blocking).
+    fn voice_embedder(&self, embedding: &Path) -> AppResult<Embedder> {
+        Ok(Embedder::load(embedding)?)
+    }
+    /// Load the live speaker detection for one channel (blocking).
+    fn online_diarizer(&self, models: &LiveSpeakerModels) -> AppResult<OnlineDiarizer> {
+        Ok(OnlineDiarizer::load(&models.segmentation, &models.embedding, models.config)?)
     }
     /// Fail fast before capture starts when the engine cannot run (model not downloaded).
     fn check(&self, settings: &Settings) -> AppResult<()>;
@@ -55,6 +67,15 @@ pub trait SpeechBackend: Send + Sync {
     fn refiner(&self, _settings: &Settings) -> Option<Arc<dyn Transcriber>> {
         None
     }
+}
+
+/// What live speaker detection runs with.
+#[derive(Debug, Clone)]
+pub struct LiveSpeakerModels {
+    pub segmentation: PathBuf,
+    pub embedding: PathBuf,
+    /// Thresholds tuned for this voice model.
+    pub config: OnlineConfig,
 }
 
 /// The model the after-meeting pass uses.
@@ -80,7 +101,7 @@ impl LocalModels {
             key: Arc::new(move || keys(engine)),
             base_url: settings.transcription.cloud.base_url.clone().filter(|_| compatible),
             model: settings.transcription.cloud.model.clone().filter(|_| compatible),
-            speaker_labels: settings.transcription.live_speakers(),
+            speaker_labels: settings.transcription.speaker_labels() == SpeakerSource::Service,
         }
     }
 }
@@ -107,6 +128,19 @@ impl SpeechBackend for LocalModels {
         }
     }
 
+    async fn live_speaker_models(&self, model_id: &str) -> Option<LiveSpeakerModels> {
+        let (segmentation, fallback) = self.speaker_models().await?;
+        let (embedding, config) = match self.models.speaker_model_path(model_id) {
+            Some((path, model)) => (path, live_config(model)),
+            None => {
+                tracing::info!(model_id, "the chosen voice model is not downloaded; using the default one");
+                let default = cilica_stt::models::speaker_model(cilica_domain::DEFAULT_SPEAKER_MODEL)?;
+                (fallback, live_config(default))
+            }
+        };
+        Some(LiveSpeakerModels { segmentation, embedding, config })
+    }
+
     fn refiner(&self, settings: &Settings) -> Option<Arc<dyn Transcriber>> {
         if !settings.transcription.refine_after_meeting {
             return None;
@@ -127,4 +161,9 @@ impl SpeechBackend for LocalModels {
             _ => cloud::check(&self.cloud_config(settings)).map_err(AppError::from),
         }
     }
+}
+
+/// Live speaker detection tuned for a voice model from the catalogue.
+fn live_config(model: &cilica_stt::models::SpeakerModelInfo) -> OnlineConfig {
+    OnlineConfig { match_sim: model.match_sim, new_sim: model.new_sim, merge_sim: model.merge_sim, ..OnlineConfig::default() }
 }

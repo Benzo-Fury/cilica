@@ -14,7 +14,13 @@ import type {
   Thread,
   Transcript,
 } from "@/ipc/types";
-import { defaultSettings, defaultSttModels, idleRecording, type MockState } from "./state";
+import {
+  defaultSettings,
+  defaultSpeakerModels,
+  defaultSttModels,
+  idleRecording,
+  type MockState,
+} from "./state";
 import { weekStart } from "./swears";
 import { ago, iso, snippetFrom, time } from "./util";
 
@@ -40,6 +46,7 @@ export function createState(seed: SeedKind, now: number = Date.now()): MockState
     taskRuns: [],
     // A fresh install has no speech model yet (onboarding downloads it).
     sttModels: defaultSttModels().map((m) => (seed === "empty" ? { ...m, downloaded: false } : m)),
+    speakerModels: defaultSpeakerModels(),
     permissions: {
       microphone: seed === "demo" ? "granted" : "not_determined",
       system_audio: "not_determined",

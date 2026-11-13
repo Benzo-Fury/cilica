@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { firstWordsLabel, hasLiveSpeakers, liveSpeakersHint } from "./speech";
+import {
+  firstWordsLabel,
+  hasLiveSpeakers,
+  speakerAdvice,
+  speakerLabels,
+  speakerSourceHint,
+} from "./speech";
 
 describe("transcription test", () => {
   it("says how quickly the first words came back", () => {
@@ -19,13 +25,23 @@ describe("live speakers", () => {
     expect(hasLiveSpeakers("whisper_local")).toBe(false);
   });
 
-  it("says when speakers will appear instead", () => {
-    expect(liveSpeakersHint("open_ai", true)).toBe(
-      "OpenAI can't tell people apart live. Speakers appear once the meeting is finished.",
-    );
-    expect(liveSpeakersHint("open_ai_compatible", false)).toBe(
-      "Your transcription service can't tell people apart live.",
-    );
-    expect(liveSpeakersHint("deepgram", true)).toContain("$0.12 an hour");
+  it("falls back to this computer when the service can't label speakers", () => {
+    expect(speakerLabels("service", "soniox")).toBe("service");
+    expect(speakerLabels("service", "open_ai")).toBe("local");
+    expect(speakerLabels("service", "whisper_local")).toBe("local");
+    expect(speakerLabels("off", "soniox")).toBe("off");
+  });
+
+  it("explains each way of labelling speakers", () => {
+    expect(speakerSourceHint("local", "soniox")).toContain("Pending");
+    expect(speakerSourceHint("service", "deepgram")).toContain("$0.12 an hour");
+    expect(speakerSourceHint("off", "whisper_local")).toContain("You for your microphone");
+  });
+
+  it("recommends this computer only where it keeps up", () => {
+    expect(speakerAdvice(true, "soniox")).toMatch(/^Recommended: this computer/);
+    expect(speakerAdvice(false, "soniox")).toContain("Soniox's labels are the lighter choice");
+    expect(speakerAdvice(false, "whisper_local")).toContain("Turn it off if recording feels slow");
+    expect(speakerAdvice(false, "soniox")).not.toContain("Recommended");
   });
 });

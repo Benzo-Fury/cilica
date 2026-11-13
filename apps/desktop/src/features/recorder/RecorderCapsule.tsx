@@ -115,11 +115,7 @@ export function RecorderCapsule() {
                 <span className="nt-capsule-label" aria-live="polite">
                   <Shimmer>{mode.label}</Shimmer>
                   <span className="nt-sr-only">
-                    {mode.step === "stopping"
-                      ? "Finishing the transcript"
-                      : mode.step === "diarizing"
-                        ? "Telling speakers apart"
-                        : "Writing the summary"}
+                    {mode.step === "stopping" ? "Finishing the transcript" : "Writing the summary"}
                   </span>
                 </span>
               </CapsuleContent>
