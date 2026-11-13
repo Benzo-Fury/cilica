@@ -76,7 +76,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
   const toggleKeys = useShortcut("assistant.toggle");
   const controls = useWindowControls();
   const context = useViewContext();
-  const { data: status, isLoading: statusLoading } = useProviderStatus();
+  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useProviderStatus();
   const { data: threads = [] } = useThreads();
   const threadId = useAssistantStore((s) => s.threadId);
   const setThreadId = useAssistantStore((s) => s.setThreadId);
@@ -111,11 +111,14 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
   }, [threadId, threads, setThreadId]);
 
   // Opening the panel (⌘J, Ask Cilica) puts the caret in the composer and asks for fresh chips.
+  // A "not ready" answer is asked again: a key saved in another window (onboarding) only
+  // refreshed that window's cache, and this panel stays mounted while closed.
   const { refetch: refetchChips } = chips;
   // biome-ignore lint/correctness/useExhaustiveDependencies: on open and on request only
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(() => composerRef.current?.focus(), 60);
+    if (!ready && !statusLoading) void refetchStatus();
     if (empty && ready) void refetchChips();
     return () => clearTimeout(t);
   }, [open, focusTick]);
