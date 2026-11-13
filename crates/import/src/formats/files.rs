@@ -742,7 +742,7 @@ mod tests {
         assert_eq!(got.notes.len(), 3, "{:?}", got.notes.iter().map(|n| &n.title).collect::<Vec<_>>());
         let welcome = got.notes.iter().find(|n| n.title == "Welcome").unwrap();
         let body = welcome.notes_md.as_deref().unwrap();
-        assert!(body.contains("Hello Acme."), "{body}");
+        assert!(body.contains("Hello [[Projects/Acme|Acme]]."), "{body}");
         assert!(body.contains("data:image/png;base64,"));
         assert!(!body.starts_with("# Welcome"));
         let acme = got.notes.iter().find(|n| n.title == "Acme").unwrap();

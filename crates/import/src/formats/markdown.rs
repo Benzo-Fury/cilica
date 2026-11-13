@@ -124,12 +124,11 @@ impl Rewrite {
 }
 
 static WIKI_EMBED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"!\[\[([^\]|#^]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]").unwrap());
-static WIKI_LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[([^\]|#^]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]").unwrap());
 static MD_IMAGE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"!\[([^\]]*)\]\(<?([^)>\s]+)>?(?:\s+"[^"]*")?\)"#).unwrap());
 static CALLOUT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^(>\s*)\[!(\w+)\][+-]?\s*(.*)$").unwrap());
 static HIGHLIGHT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"==([^=\n]+)==").unwrap());
 
-/// Rewrite Obsidian and relative-path Markdown for Margin. `resolve` finds an attachment by the
+/// Rewrite Obsidian and relative-path Markdown for Margin. Wiki links are kept. `resolve` finds an attachment by the
 /// name or relative path written in the note; it returns `None` when the file is missing.
 pub fn rewrite(body: &str, resolve: &mut dyn FnMut(&str) -> Option<Embed>) -> (String, Rewrite) {
     let mut found = Rewrite::default();
@@ -156,8 +155,7 @@ pub fn rewrite(body: &str, resolve: &mut dyn FnMut(&str) -> Option<Embed>) -> (S
             inline(&decoded, Some(&c[1]).filter(|a| !a.is_empty()), resolve, &mut found)
         }
     });
-    // [[Note|alias]] → alias, [[Note]] → Note
-    let body = WIKI_LINK.replace_all(&body, |c: &Captures| c.get(2).map_or_else(|| c[1].trim().to_string(), |m| m.as_str().to_string()));
+    // [[Note]] links stay as written: Margin reads the same syntax for links and the graph.
     // > [!warning] Title → > **Warning: Title**
     let body = CALLOUT.replace_all(&body, |c: &Captures| {
         let kind = capitalise(&c[2]);
@@ -262,7 +260,7 @@ mod tests {
             "See [[Project X|the project]] and [[Notes]].\n\n![[pic.png]]\n![[gone.png]]\n![[deck.pdf]]\n![[Other note]]\n\n> [!warning] Careful\n> text\n\n==key==",
             &mut resolve,
         );
-        assert!(body.contains("See the project and Notes."));
+        assert!(body.contains("See [[Project X|the project]] and [[Notes]]."));
         assert!(body.contains("![pic.png](data:image/png;base64,AQID)"));
         assert!(body.contains("gone.png (image not found)"));
         assert!(body.contains("deck.pdf (attachment not imported)"));
