@@ -68,12 +68,18 @@ pub async fn finish(app: &AppHandle) -> AppResult<()> {
         return Ok(());
     }
     let result = mark_done(&shell).await;
+    // Show the main window directly, before closing setup. `show_main` would redirect to the
+    // setup window, and `destroy` only queues the close, so setup still counts as open here.
+    if let Some(window) = app.get_webview_window(super::MAIN) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
     if let Some(window) = app.get_webview_window(LABEL)
         && let Err(error) = window.destroy()
     {
         tracing::warn!(%error, "could not close the setup window");
     }
-    super::show_main(app);
     shell.ui_ready();
     shell.onboarding_finishing.store(false, Ordering::SeqCst);
     result
