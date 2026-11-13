@@ -7,6 +7,10 @@
 //! - **Uninstall.** A copy without the installer sits next to Cilica as `cilica-setup.exe`;
 //!   Installed apps starts it with `--uninstall` (apps/desktop/src-tauri/windows/hooks.nsh). It
 //!   moves itself to the temporary folder, then runs Cilica's own uninstaller silently.
+//! - **Update.** Cilica starts that same copy with `--update <installer> --version <v>` once it
+//!   has downloaded and verified a new version (apps/desktop/src-tauri/src/commands/updates).
+//!   It moves itself to the temporary folder, waits for Cilica to quit, runs the new installer
+//!   silently, then opens Cilica again.
 //!
 //! Without WebView2 it hands over to Tauri's NSIS wizard, which installs WebView2 itself.
 
@@ -36,6 +40,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::show_window,
             commands::choose_folder,
             commands::install,
+            commands::update,
             commands::uninstall,
             commands::open_cilica,
             commands::quit,
@@ -60,15 +65,16 @@ pub fn run() -> i32 {
     let launch = Launch::parse(std::env::args().skip(1), payload::present());
     let session = system::session_dir(launch.relaunched);
 
-    // Removing Cilica deletes the folder this copy runs from: continue from a copy elsewhere.
-    if launch.mode == Mode::Uninstall && !launch.relaunched && system::runs_from_install_dir() {
-        match system::relaunch_from_temp(&session) {
+    // Removing or updating Cilica deletes or replaces the copy of Setup in its folder, which is
+    // this one: continue from a copy elsewhere.
+    if launch.mode != Mode::Install && !launch.relaunched && system::runs_from_install_dir() {
+        match system::relaunch_from_temp(&session, &launch.relaunch_args()) {
             Ok(()) => return 0,
-            Err(error) => tracing::warn!(error = %error.message, "removing Cilica from its own folder instead"),
+            Err(error) => tracing::warn!(error = %error.message, "working from Cilica's own folder instead"),
         }
     }
     if !system::webview_ready() {
-        let code = system::fall_back_to_wizard(launch.mode, &session);
+        let code = system::fall_back_to_wizard(&launch, &session);
         system::clean_up_after_exit(&session);
         return code;
     }
@@ -77,7 +83,7 @@ pub fn run() -> i32 {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(builder.invoke_handler())
-        .manage(Setup::new(launch, session.clone()))
+        .manage(Setup::new(launch.clone(), session.clone()))
         .on_window_event(|window, event| {
             // Stopping the installer halfway leaves Cilica broken: the close button waits.
             if let WindowEvent::CloseRequested { api, .. } = event
@@ -89,7 +95,7 @@ pub fn run() -> i32 {
         .setup(move |app| {
             builder.mount_events(app);
             let title = match launch.mode {
-                Mode::Install => "Cilica Setup",
+                Mode::Install | Mode::Update => "Cilica Setup",
                 Mode::Uninstall => "Uninstall Cilica",
             };
             WebviewWindowBuilder::new(app, WINDOW, WebviewUrl::App("index.html?window=installer".into()))

@@ -42,6 +42,14 @@ export function useJob() {
       .catch((e: unknown) => dispatch({ type: "refused", error: toAppError(e) }));
   }, []);
 
+  const update = useCallback(() => {
+    dispatch({ type: "starting" });
+    setupApi
+      .update()
+      .then((steps) => dispatch({ type: "started", steps }))
+      .catch((e: unknown) => dispatch({ type: "refused", error: toAppError(e) }));
+  }, []);
+
   const uninstall = useCallback((options: UninstallOptions) => {
     dispatch({ type: "starting" });
     setupApi
@@ -52,5 +60,5 @@ export function useJob() {
 
   const retry = useCallback(() => dispatch({ type: "retry" }), []);
 
-  return { state, install, uninstall, retry };
+  return { state, install, update, uninstall, retry };
 }

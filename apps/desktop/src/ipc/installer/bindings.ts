@@ -17,6 +17,11 @@ export const commands = {
 	chooseFolder: (current: string) => __TAURI_INVOKE<string | null>("choose_folder", { current }),
 	/**  Start installing. Returns the steps the progress screen lists; progress follows as events. */
 	install: (options: InstallOptions) => __TAURI_INVOKE<Step[]>("install", { options }),
+	/**
+	 *  Start installing the update Cilica handed over. The window calls this as soon as it opens;
+	 *  there is nothing to choose. Returns the steps; progress follows as events.
+	 */
+	update: () => __TAURI_INVOKE<Step[]>("update"),
 	/**  Start removing Cilica. Returns the steps; progress follows as events. */
 	uninstall: (options: UninstallOptions) => __TAURI_INVOKE<Step[]>("uninstall", { options }),
 	/**  Open the Cilica just installed, then close Setup. */
@@ -73,7 +78,9 @@ export type JobEvent =
 { type: "failed"; error: AppError };
 
 /**  What this window is for. */
-export type Mode = "install" | "uninstall";
+export type Mode = "install" | 
+/**  Cilica downloaded a new version and handed it over: install it at once, then reopen Cilica. */
+"update" | "uninstall";
 
 /**  The single Setup → window event. */
 export type SetupEvent = JobEvent;
@@ -84,7 +91,7 @@ export type SetupInfo = SetupInfo_Serialize | SetupInfo_Deserialize;
 /**  Everything the first screen needs. */
 export type SetupInfo_Deserialize = {
 	mode: Mode,
-	/**  The version Setup installs. */
+	/**  The version Setup installs: its own, or the one Cilica handed over to update to. */
 	version: string,
 	/**  Where Cilica goes when nobody picks a folder. */
 	default_dir: string,
@@ -101,7 +108,7 @@ export type SetupInfo_Deserialize = {
 /**  Everything the first screen needs. */
 export type SetupInfo_Serialize = {
 	mode: Mode,
-	/**  The version Setup installs. */
+	/**  The version Setup installs: its own, or the one Cilica handed over to update to. */
 	version: string,
 	/**  Where Cilica goes when nobody picks a folder. */
 	default_dir: string,
@@ -117,6 +124,8 @@ export type SetupInfo_Serialize = {
 
 /**  One line of the progress screen. The UI owns the words for each. */
 export type Step = 
+/**  Wait for Cilica to quit, so the update can replace its files. */
+"close" | 
 /**  Space on the drive and permission to write the folder. */
 "check" | 
 /**  Write the bundled installer to the temporary folder. */

@@ -11,7 +11,10 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::job::{Busy, Reporter};
-use crate::plan::{InstallOptions, Launch, Mode, Step, UninstallOptions, expected_install_bytes, install_dir_for, install_steps, megabytes, uninstall_steps};
+use crate::plan::{
+    InstallOptions, Launch, Mode, Step, UninstallOptions, expected_install_bytes, install_dir_for, install_steps, megabytes, uninstall_steps,
+    update_steps,
+};
 use crate::{WINDOW, payload, system};
 
 /// Setup's state for this run.
@@ -41,7 +44,7 @@ pub struct InstalledCilica {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SetupInfo {
     pub mode: Mode,
-    /// The version Setup installs.
+    /// The version Setup installs: its own, or the one Cilica handed over to update to.
     pub version: String,
     /// Where Cilica goes when nobody picks a folder.
     pub default_dir: String,
@@ -64,9 +67,16 @@ fn text(path: &Path) -> String {
 pub fn get_setup_info(state: State<'_, Setup>) -> SetupInfo {
     let existing = system::existing();
     let size = expected_install_bytes(payload::app_bytes(), payload::INSTALLER.len() as u64);
+    let version = state
+        .launch
+        .update
+        .as_ref()
+        .map(|u| u.version.clone())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_owned());
     SetupInfo {
         mode: state.launch.mode,
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version,
         default_dir: text(&system::default_install_dir()),
         cilica_running: system::cilica_running(existing.as_ref().map(|e| e.dir.as_path())),
         existing: existing.map(|e| InstalledCilica { version: e.version, dir: text(&e.dir) }),
@@ -113,7 +123,7 @@ pub async fn choose_folder(app: AppHandle, current: String) -> AppResult<Option<
 #[specta::specta]
 pub fn install(app: AppHandle, state: State<'_, Setup>, options: InstallOptions) -> AppResult<Vec<Step>> {
     if state.launch.mode != Mode::Install {
-        return Err(AppError::invalid("This copy of Setup only removes Cilica. Download Cilica to install it."));
+        return Err(AppError::invalid("This copy of Setup can't install Cilica. Download Cilica to install it."));
     }
     // An update goes where Cilica already is; a second copy elsewhere would confuse its updater.
     let mut options = options;
@@ -130,6 +140,29 @@ pub fn install(app: AppHandle, state: State<'_, Setup>, options: InstallOptions)
     let steps = install_steps(&options, updating);
     start(&app, &state, steps.clone(), move |setup, report| {
         let exe = system::install(&options, updating, &setup.session, report)?;
+        if let Ok(mut installed) = setup.installed.lock() {
+            *installed = Some(exe);
+        }
+        Ok(())
+    })?;
+    Ok(steps)
+}
+
+/// Start installing the update Cilica handed over. The window calls this as soon as it opens;
+/// there is nothing to choose. Returns the steps; progress follows as events.
+#[tauri::command]
+#[specta::specta]
+pub fn update(app: AppHandle, state: State<'_, Setup>) -> AppResult<Vec<Step>> {
+    let source = state
+        .launch
+        .update
+        .clone()
+        .ok_or_else(|| AppError::invalid("Setup wasn't given an update to install. Update Cilica from Settings › General."))?;
+    let existing = system::existing()
+        .ok_or_else(|| AppError::not_found("Cilica isn't installed on this PC, so there's nothing to update. Download Cilica to install it."))?;
+    let steps = update_steps();
+    start(&app, &state, steps.clone(), move |setup, report| {
+        let exe = system::update(&existing.dir, &source, report)?;
         if let Ok(mut installed) = setup.installed.lock() {
             *installed = Some(exe);
         }

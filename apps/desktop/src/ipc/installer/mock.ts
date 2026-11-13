@@ -3,8 +3,8 @@
  * `apps/setup/src/system/simulated.rs`, with the same weights, and writes nothing.
  *
  * Preview: `bun run dev:web`, then http://localhost:1420/?window=installer. Add `&flow=uninstall`
- * for the Remove flow, `&existing` for an update over an installed Cilica, and `&fail=copy` (any
- * step's name) to see that step fail.
+ * for the Remove flow, `&flow=update` for an update Cilica handed over, `&existing` for Setup run
+ * over an installed Cilica, and `&fail=copy` (any step's name) to see that step fail.
  */
 import type { AppError } from "../types";
 import type { commands, InstallOptions, JobEvent, Mode, Step, UninstallOptions } from "./bindings";
@@ -28,6 +28,7 @@ export interface SetupMockOptions {
 
 /** Same as `Step::weight` in apps/setup/src/plan.rs. */
 export const STEP_WEIGHT: Record<Step, number> = {
+  close: 0.6,
   check: 0.4,
   unpack: 1.2,
   copy: 4,
@@ -49,6 +50,9 @@ export function installSteps(options: InstallOptions, updating: boolean): Step[]
   return steps;
 }
 
+/** Same as `update_steps` in plan.rs. */
+export const UPDATE_STEPS: Step[] = ["close", "check", "copy", "register"];
+
 /** Same as `uninstall_steps` in plan.rs. */
 export function uninstallSteps(options: UninstallOptions): Step[] {
   return options.delete_data
@@ -66,6 +70,7 @@ export function overall(steps: Step[], step: Step, within: number): number {
 }
 
 const VERSION = "0.3.0";
+const UPDATE_VERSION = "0.3.1";
 const LOCAL = "C:\\Users\\you\\AppData\\Local\\Cilica";
 
 export function createSetupMock(options: SetupMockOptions): SetupMock {
@@ -74,7 +79,7 @@ export function createSetupMock(options: SetupMockOptions): SetupMock {
     for (const listener of listeners) listener(event);
   };
   const wait = () => new Promise((resolve) => setTimeout(resolve, options.tickMs));
-  const installed = options.existing || options.mode === "uninstall";
+  const installed = options.existing || options.mode !== "install";
   let busy = false;
 
   const fail = (message: string): AppError => ({ code: "conflict", message });
@@ -114,7 +119,7 @@ export function createSetupMock(options: SetupMockOptions): SetupMock {
   const commands: Commands = {
     getSetupInfo: async () => ({
       mode: options.mode,
-      version: VERSION,
+      version: options.mode === "update" ? UPDATE_VERSION : VERSION,
       default_dir: LOCAL,
       existing: installed ? { version: options.existing ? "0.2.4" : VERSION, dir: LOCAL } : null,
       data_dir: "C:\\Users\\you\\AppData\\Roaming\\app.cilica.desktop",
@@ -124,6 +129,10 @@ export function createSetupMock(options: SetupMockOptions): SetupMock {
     showWindow: async () => null,
     chooseFolder: async () => "D:\\Apps\\Cilica",
     install: async (install: InstallOptions) => start(installSteps(install, options.existing)),
+    update: async () => {
+      if (options.mode !== "update") throw fail("Setup wasn't given an update to install.");
+      return start(UPDATE_STEPS);
+    },
     uninstall: async (uninstall: UninstallOptions) => start(uninstallSteps(uninstall)),
     openCilica: async () => null,
     quit: async () => {

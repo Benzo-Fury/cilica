@@ -30,9 +30,10 @@
   Pop $0
 !macroend
 
-; Cilica Setup (apps/setup) runs this installer silently under its own window and removes Cilica
-; with that window too; this hook is the installer's half of that. Run on its own (the updater, or
-; the wizard when WebView2 is missing), it changes nothing.
+; Cilica Setup (apps/setup) runs this installer silently under its own window (to install Cilica,
+; and to install updates Cilica downloaded) and removes Cilica with that window too; this hook is
+; the installer's half of that. Run on its own (the updater's fallback, or the wizard when WebView2
+; is missing), it changes nothing.
 !macro NSIS_HOOK_POSTINSTALL
   ; A silent install always makes a desktop shortcut. Cilica Setup passes /NODESKTOP when the
   ; Desktop shortcut switch is off. Tauri's own switches (/P, /NS, /R, /UPDATE, /ARGS) don't

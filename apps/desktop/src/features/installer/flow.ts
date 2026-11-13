@@ -95,12 +95,12 @@ const SUN_UP = 1.6;
 const SUN_DOWN = 0.2;
 
 /**
- * How high the sun stands: it rises as Cilica installs and sets as it is removed, so the art
- * tells the same story as the bar.
+ * How high the sun stands: it rises as Cilica installs or updates and sets as it is removed, so
+ * the art tells the same story as the bar.
  */
 export function sunHeight(mode: Mode, state: JobState): number {
   const done = state.screen === "done" ? 1 : state.screen === "working" ? state.progress : 0;
-  return mode === "install"
-    ? SUN_DOWN + (SUN_UP - SUN_DOWN) * done
-    : SUN_UP - (SUN_UP - SUN_DOWN) * done;
+  return mode === "uninstall"
+    ? SUN_UP - (SUN_UP - SUN_DOWN) * done
+    : SUN_DOWN + (SUN_UP - SUN_DOWN) * done;
 }

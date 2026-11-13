@@ -1,6 +1,6 @@
 //! Setup off Windows: the same steps with pauses and nothing written, so the window can be run
-//! and checked on macOS and Linux (`cargo run -p cilica-setup`, add `-- --uninstall` for the
-//! other flow). Set `CILICA_SETUP_FAIL=copy` (any step's name) to see a step fail.
+//! and checked on macOS and Linux (`cargo run -p cilica-setup`, add `-- --uninstall` or
+//! `-- --update anything.exe --version 9.9.9` for the other flows). Set `CILICA_SETUP_FAIL=copy` (any step's name) to see a step fail.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -9,7 +9,7 @@ use cilica_domain::{AppError, AppResult};
 
 use super::Existing;
 use crate::job::Reporter;
-use crate::plan::{IDENTIFIER, InstallOptions, PRODUCT, UninstallOptions};
+use crate::plan::{IDENTIFIER, InstallOptions, Launch, PRODUCT, UninstallOptions, UpdateSource};
 
 pub fn webview_ready() -> bool {
     true
@@ -41,6 +41,11 @@ pub fn install(options: &InstallOptions, _updating: bool, _session: &Path, repor
     Ok(PathBuf::from(&options.dir).join("Cilica.exe"))
 }
 
+pub fn update(dir: &Path, _source: &UpdateSource, report: &Reporter) -> AppResult<PathBuf> {
+    play(report)?;
+    Ok(dir.join("Cilica.exe"))
+}
+
 pub fn uninstall(_dir: &Path, _options: UninstallOptions, report: &Reporter) -> AppResult<()> {
     play(report)
 }
@@ -63,7 +68,7 @@ fn play(report: &Reporter) -> AppResult<()> {
     Ok(())
 }
 
-pub fn relaunch_from_temp(_session: &Path) -> AppResult<()> {
+pub fn relaunch_from_temp(_session: &Path, _args: &[String]) -> AppResult<()> {
     Ok(())
 }
 
@@ -71,7 +76,7 @@ pub fn runs_from_install_dir() -> bool {
     false
 }
 
-pub fn fall_back_to_wizard(_mode: crate::plan::Mode, _session: &Path) -> i32 {
+pub fn fall_back_to_wizard(_launch: &Launch, _session: &Path) -> i32 {
     0
 }
 

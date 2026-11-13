@@ -7,7 +7,7 @@
  * `api` is never used in the installer window.
  */
 import { isTauri, toAppError } from "../client";
-import { commands, events, type JobEvent } from "./bindings";
+import { commands, events, type JobEvent, type Mode } from "./bindings";
 import type { SetupMock } from "./mock";
 
 export type {
@@ -32,7 +32,7 @@ export function getSetupMock(): Promise<SetupMock> {
         typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
       const isTest = import.meta.env.MODE === "test";
       return createSetupMock({
-        mode: params?.get("flow") === "uninstall" ? "uninstall" : "install",
+        mode: flowMode(params?.get("flow")),
         existing: params?.has("existing") ?? false,
         failAt: params?.get("fail") ?? null,
         tickMs: isTest ? 0 : 110,
@@ -40,6 +40,10 @@ export function getSetupMock(): Promise<SetupMock> {
     });
   }
   return mockPromise;
+}
+
+function flowMode(flow: string | null | undefined): Mode {
+  return flow === "uninstall" || flow === "update" ? flow : "install";
 }
 
 function wrap<K extends keyof Commands>(name: K): Commands[K] {

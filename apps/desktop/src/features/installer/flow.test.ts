@@ -80,8 +80,10 @@ describe("installer flow", () => {
     expect(state.error).toEqual(error);
   });
 
-  it("raises the sun to install and sets it to remove", () => {
+  it("raises the sun to install or update and sets it to remove", () => {
     expect(sunHeight("install", initialJob)).toBeCloseTo(0.2);
+    expect(sunHeight("update", initialJob)).toBeCloseTo(0.2);
+    expect(sunHeight("update", { ...started, screen: "done" })).toBeCloseTo(1.6);
     expect(sunHeight("install", { ...started, progress: 0.5 })).toBeCloseTo(0.9);
     expect(sunHeight("install", { ...started, screen: "done" })).toBeCloseTo(1.6);
     expect(sunHeight("uninstall", initialJob)).toBeCloseTo(1.6);

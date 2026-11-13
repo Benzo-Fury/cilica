@@ -4,11 +4,14 @@
  * step as Setup reports it, the third hands over to Cilica. The sun rises as Cilica installs and
  * sets as it is removed.
  *
+ * An update Cilica downloaded itself (`mode: "update"`) has nothing to ask: the window opens on
+ * the progress screen, and when it is done it opens Cilica again and closes.
+ *
  * Setup is its own program: this window talks only to `setupApi`, never to Cilica's `api`, and
  * has no Cilica settings to read, so it follows the Windows theme.
  */
 import { ArrowRight } from "lucide-react";
-import { type ReactNode, useEffect, useLayoutEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ErrorBoundary } from "@/app/ErrorBoundary";
 import { os } from "@/app/platform";
 import { useWindowControls } from "@/features/shell/useWindowControls";
@@ -44,6 +47,8 @@ import { isBusy, type JobState, sunHeight } from "./flow";
 import { useJob, useSetupInfo } from "./hooks";
 
 const OPTIONS_ID = "installer-options";
+/** How long "Cilica is updated" shows before Cilica opens and Setup closes. */
+const REOPEN_AFTER_MS = 1200;
 
 export function InstallerWindow() {
   return (
@@ -78,6 +83,20 @@ function Installer() {
     void setupApi.quit().catch(() => undefined);
   };
 
+  // An update starts as soon as Setup has answered, and again after Try again. The ref keeps
+  // React's development double-run from starting it twice.
+  const { update, retry } = job;
+  const updateStarted = useRef(false);
+  useEffect(() => {
+    if (info?.mode !== "update" || job.state.screen !== "start" || updateStarted.current) return;
+    updateStarted.current = true;
+    update();
+  }, [info?.mode, job.state.screen, update]);
+  const tryAgain = () => {
+    updateStarted.current = false;
+    retry();
+  };
+
   return (
     <InstallerFrame
       ready={ready}
@@ -85,7 +104,7 @@ function Installer() {
       band={
         <InstallerBand
           icon={<InstallerAppIcon src="/favicon.svg" />}
-          title={mode === "install" ? "Cilica Setup" : "Uninstall Cilica"}
+          title={mode === "uninstall" ? "Uninstall Cilica" : "Cilica Setup"}
           end={
             <WindowControls onMinimize={controls.onMinimize} onClose={quit} closeDisabled={busy} />
           }
@@ -105,11 +124,14 @@ function Installer() {
       ) : !info ? null : job.state.screen === "start" ? (
         info.mode === "install" ? (
           <InstallStart info={info} onInstall={job.install} />
+        ) : info.mode === "update" ? (
+          // About to start on its own: show the progress screen from the first frame.
+          <Working info={info} state={job.state} onRetry={tryAgain} onClose={quit} />
         ) : (
           <UninstallStart info={info} onUninstall={job.uninstall} onKeep={quit} />
         )
       ) : job.state.screen === "working" ? (
-        <Working info={info} state={job.state} onRetry={job.retry} onClose={quit} />
+        <Working info={info} state={job.state} onRetry={tryAgain} onClose={quit} />
       ) : (
         <Done info={info} deletedData={job.state.steps.includes("delete_data")} onClose={quit} />
       )}
@@ -348,13 +370,10 @@ function Working({
   onRetry: () => void;
   onClose: () => void;
 }) {
-  const verb = info.mode === "uninstall" ? "Removing" : info.existing ? "Updating" : "Installing";
+  const updating = info.mode === "update" || (info.mode === "install" && info.existing !== null);
+  const verb = info.mode === "uninstall" ? "Removing" : updating ? "Updating" : "Installing";
   const stopped =
-    info.mode === "uninstall"
-      ? "wasn't removed"
-      : info.existing
-        ? "wasn't updated"
-        : "wasn't installed";
+    info.mode === "uninstall" ? "wasn't removed" : updating ? "wasn't updated" : "wasn't installed";
   const failed = state.error !== null;
   const status = failed
     ? "Stopped"
@@ -375,11 +394,23 @@ function Working({
         )
       }
     >
+      {!failed && info.mode === "update" && (
+        <InstallerHint>
+          {info.existing ? `From ${info.existing.version} to ${info.version}. ` : ""}Your notes and
+          settings stay as they are.
+        </InstallerHint>
+      )}
       {state.error && <InstallerProblem>{state.error.message}</InstallerProblem>}
       <InstallerProgress
         status={status}
         value={state.progress}
-        label={info.mode === "uninstall" ? "Uninstall progress" : "Install progress"}
+        label={
+          info.mode === "uninstall"
+            ? "Uninstall progress"
+            : updating
+              ? "Update progress"
+              : "Install progress"
+        }
         done={state.done.map((step) => ({ key: step, text: STEP_WORDS[step].done }))}
         failed={failed}
       />
@@ -409,8 +440,26 @@ function Done({
   deletedData: boolean;
   onClose: () => void;
 }) {
-  const [opening, setOpening] = useState(false);
+  const reopen = info.mode === "update";
+  // After an update, Cilica is about to open by itself: the button says so from the start.
+  const [opening, setOpening] = useState(reopen);
   const [problem, setProblem] = useState<ReactNode>(null);
+
+  const open = useCallback(() => {
+    setOpening(true);
+    setProblem(null);
+    setupApi.openCilica().catch((e: { message?: string }) => {
+      setOpening(false);
+      setProblem(e.message ?? "Cilica didn't open. Open it from the Start menu.");
+    });
+  }, []);
+
+  // After an update Cilica handed over, Cilica opens again by itself, as it would after a restart.
+  useEffect(() => {
+    if (!reopen) return;
+    const timer = setTimeout(open, REOPEN_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [reopen, open]);
 
   if (info.mode === "uninstall") {
     return (
@@ -441,15 +490,6 @@ function Done({
     );
   }
 
-  const open = () => {
-    setOpening(true);
-    setProblem(null);
-    setupApi.openCilica().catch((e: { message?: string }) => {
-      setOpening(false);
-      setProblem(e.message ?? "Cilica didn't open. Open it from the Start menu.");
-    });
-  };
-
   return (
     <InstallerScreen
       title={
@@ -458,9 +498,11 @@ function Done({
         </>
       }
       lead={
-        info.existing
-          ? `Cilica ${info.version} is ready. Your notes and settings are as you left them.`
-          : "It's in the Start menu. Open it to set up your microphone, speech model and notes. That takes about 2 minutes."
+        reopen && !problem
+          ? `Cilica ${info.version} is ready. Opening it now…`
+          : info.existing
+            ? `Cilica ${info.version} is ready. Your notes and settings are as you left them.`
+            : "It's in the Start menu. Open it to set up your microphone, speech model and notes. That takes about 2 minutes."
       }
     >
       {problem && <InstallerProblem>{problem}</InstallerProblem>}

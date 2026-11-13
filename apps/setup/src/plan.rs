@@ -13,7 +13,13 @@ pub const PRODUCT: &str = "Cilica";
 pub const IDENTIFIER: &str = "app.cilica.desktop";
 /// Installed apps runs the copy of Setup next to Cilica with this to remove it.
 pub const UNINSTALL_FLAG: &str = "--uninstall";
-/// Set on the copy Setup starts from the temporary folder, so it can delete Cilica's folder.
+/// Cilica starts the copy of Setup next to it with this, the path of a downloaded and verified
+/// NSIS installer, to update itself under Setup's window instead of the NSIS one.
+pub const UPDATE_FLAG: &str = "--update";
+/// With [`UPDATE_FLAG`]: the version that installer holds.
+pub const VERSION_FLAG: &str = "--version";
+/// Set on the copy Setup starts from the temporary folder, so it can replace or delete Cilica's
+/// folder (the copy next to Cilica is one of its files).
 pub const RELAUNCHED_FLAG: &str = "--relaunched";
 /// Asks the NSIS installer to leave out the desktop shortcut it makes in silent mode. Read by
 /// the `NSIS_HOOK_POSTINSTALL` hook in `apps/desktop/src-tauri/windows/hooks.nsh`.
@@ -26,27 +32,63 @@ pub const NO_DESKTOP_FLAG: &str = "/NODESKTOP";
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     Install,
+    /// Cilica downloaded a new version and handed it over: install it at once, then reopen Cilica.
+    Update,
     Uninstall,
 }
 
+/// The update Cilica handed over ([`UPDATE_FLAG`], [`VERSION_FLAG`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateSource {
+    /// Tauri's NSIS installer for the new version, already checked against its signature.
+    pub installer: PathBuf,
+    /// Its version, empty when Cilica didn't say.
+    pub version: String,
+}
+
 /// The command line, read once at launch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Launch {
     pub mode: Mode,
-    /// This is the temporary copy that removes Cilica, not the one inside Cilica's folder.
+    /// This is the temporary copy that replaces or removes Cilica, not the one inside its folder.
     pub relaunched: bool,
+    /// Set in [`Mode::Update`].
+    pub update: Option<UpdateSource>,
 }
 
 impl Launch {
-    /// Read the arguments after the program name. A copy of Setup without Cilica inside it can
-    /// only remove Cilica, so it uninstalls whatever it was asked.
+    /// Read the arguments after the program name. An update Cilica handed over comes first; a
+    /// copy of Setup without Cilica inside it can otherwise only remove Cilica, so it uninstalls
+    /// whatever it was asked.
     pub fn parse(args: impl IntoIterator<Item = String>, has_payload: bool) -> Self {
         let args: Vec<String> = args.into_iter().collect();
-        let asked = args.iter().any(|a| a == UNINSTALL_FLAG);
-        Self {
-            mode: if asked || !has_payload { Mode::Uninstall } else { Mode::Install },
-            relaunched: args.iter().any(|a| a == RELAUNCHED_FLAG),
-        }
+        let value = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).filter(|v| !v.starts_with("--")).cloned();
+        let update = value(UPDATE_FLAG)
+            .filter(|path| !path.trim().is_empty())
+            .map(|path| UpdateSource { installer: PathBuf::from(path), version: value(VERSION_FLAG).unwrap_or_default() });
+        let mode = if update.is_some() {
+            Mode::Update
+        } else if args.iter().any(|a| a == UNINSTALL_FLAG) || !has_payload {
+            Mode::Uninstall
+        } else {
+            Mode::Install
+        };
+        Self { mode, relaunched: args.iter().any(|a| a == RELAUNCHED_FLAG), update }
+    }
+
+    /// The arguments that start the same job from a copy of Setup in the temporary folder.
+    pub fn relaunch_args(&self) -> Vec<String> {
+        let mut args = match (&self.mode, &self.update) {
+            (Mode::Update, Some(update)) => vec![
+                UPDATE_FLAG.to_owned(),
+                update.installer.display().to_string(),
+                VERSION_FLAG.to_owned(),
+                update.version.clone(),
+            ],
+            _ => vec![UNINSTALL_FLAG.to_owned()],
+        };
+        args.push(RELAUNCHED_FLAG.to_owned());
+        args
     }
 }
 
@@ -74,6 +116,8 @@ pub struct UninstallOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Step {
+    /// Wait for Cilica to quit, so the update can replace its files.
+    Close,
     /// Space on the drive and permission to write the folder.
     Check,
     /// Write the bundled installer to the temporary folder.
@@ -100,6 +144,7 @@ impl Step {
     /// How much of the bar this step fills, relative to the others. Roughly its share of the time.
     pub fn weight(self) -> f32 {
         match self {
+            Self::Close => 0.6,
             Self::Check => 0.4,
             Self::Unpack => 1.2,
             Self::Copy => 4.0,
@@ -123,6 +168,12 @@ pub fn install_steps(options: &InstallOptions, updating: bool) -> Vec<Step> {
     }
     steps.push(Step::Register);
     steps
+}
+
+/// The steps of an update Cilica handed over, in order. Its installer is already on disk, and
+/// the shortcuts and login item stay as they are.
+pub fn update_steps() -> Vec<Step> {
+    vec![Step::Close, Step::Check, Step::Copy, Step::Register]
 }
 
 /// The steps of an uninstall, in order. Cilica's uninstaller closes Cilica if it is open.
@@ -224,7 +275,29 @@ mod tests {
     #[test]
     fn a_copy_with_cilica_inside_installs() {
         let launch = Launch::parse(args(&[]), true);
-        assert_eq!(launch, Launch { mode: Mode::Install, relaunched: false });
+        assert_eq!(launch, Launch { mode: Mode::Install, relaunched: false, update: None });
+    }
+
+    #[test]
+    fn an_update_handed_over_by_cilica_wins() {
+        let update = UpdateSource { installer: PathBuf::from("C:/T/a b.exe"), version: "0.6.0".into() };
+        for payload in [true, false] {
+            let launch = Launch::parse(args(&["--update", "C:/T/a b.exe", "--version", "0.6.0"]), payload);
+            assert_eq!(launch, Launch { mode: Mode::Update, relaunched: false, update: Some(update.clone()) });
+        }
+        // Without a path, or without a version, it is still read sensibly.
+        assert_eq!(Launch::parse(args(&["--update"]), false).mode, Mode::Uninstall);
+        assert_eq!(Launch::parse(args(&["--update", "x.exe"]), false).update.unwrap().version, "");
+    }
+
+    #[test]
+    fn a_relaunch_carries_the_same_job() {
+        let update = Launch::parse(args(&["--update", "C:/T/a b.exe", "--version", "0.6.0"]), false);
+        let relaunched = Launch::parse(update.relaunch_args(), false);
+        assert_eq!(relaunched, Launch { relaunched: true, ..update });
+
+        let uninstall = Launch::parse(args(&["--uninstall"]), false);
+        assert_eq!(uninstall.relaunch_args(), args(&["--uninstall", "--relaunched"]));
     }
 
     #[test]
@@ -242,6 +315,11 @@ mod tests {
         options.open_at_sign_in = true;
         assert_eq!(install_steps(&options, false), vec![Step::Check, Step::Unpack, Step::Copy, Step::Shortcut, Step::SignIn, Step::Register]);
         assert_eq!(install_steps(&options, true), vec![Step::Check, Step::Unpack, Step::Copy, Step::Register]);
+    }
+
+    #[test]
+    fn an_update_waits_for_cilica_then_installs() {
+        assert_eq!(update_steps(), vec![Step::Close, Step::Check, Step::Copy, Step::Register]);
     }
 
     #[test]

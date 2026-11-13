@@ -2,6 +2,7 @@
 import type { Step } from "@/ipc/installer/client";
 
 export const STEP_WORDS: Record<Step, { doing: string; done: string }> = {
+  close: { doing: "Waiting for Cilica to close", done: "Cilica closed" },
   check: { doing: "Checking there's room on this PC", done: "There's room on this PC" },
   unpack: { doing: "Unpacking Cilica", done: "Unpacked Cilica" },
   copy: { doing: "Copying Cilica", done: "Copied Cilica and added it to the Start menu" },
