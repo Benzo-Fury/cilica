@@ -135,8 +135,17 @@ impl Provider for Obsidian {
         }
         let ImportInput::Local { path } = input else { return Err(ImportError::invalid("Choose your vault folder to import from Obsidian.")) };
         let found = self.detect(cx.paths).await.locations;
-        let vault = pick(&found, path.as_deref())?;
-        scan_paths(std::slice::from_ref(&vault.path)).await
+        if path.is_some() {
+            let vault = pick(&found, path.as_deref())?;
+            return scan_paths(std::slice::from_ref(&vault.path)).await;
+        }
+        // No vault named (onboarding): read every vault with notes, as the detected count does.
+        // The first listed vault may be empty, or an `.obsidian` folder opened as a vault by mistake.
+        let vaults: Vec<String> = found.iter().filter(|l| l.notes > 0).map(|l| l.path.clone()).collect();
+        if vaults.is_empty() {
+            return scan_paths(std::slice::from_ref(&pick(&found, None)?.path)).await;
+        }
+        scan_paths(&vaults).await
     }
 }
 
@@ -771,6 +780,34 @@ mod tests {
         assert_eq!(turns[0].start_ms, Some(1_000));
         assert_eq!(turns[1].speaker, SpeakerRef::Named("Ana".into()));
         assert_eq!(turns[1].text, "Hi back");
+    }
+
+    /// Onboarding names no vault. The first one Obsidian lists here is an `.obsidian` folder with
+    /// only settings in it, as on a friend's Windows machine; the real vault after it is still read.
+    #[tokio::test]
+    async fn obsidian_without_a_vault_reads_every_vault_with_notes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config = tmp.path().join("config");
+        let settings = tmp.path().join("Notes").join(".obsidian");
+        let vault = tmp.path().join("Notes");
+        std::fs::create_dir_all(&settings).unwrap();
+        std::fs::create_dir_all(config.join("obsidian")).unwrap();
+        std::fs::write(settings.join("app.json"), "{}").unwrap();
+        std::fs::write(vault.join("Hello.md"), "# Hello\n\nWorld").unwrap();
+        let json = serde_json::json!({ "vaults": {
+            "a": { "path": settings.display().to_string() },
+            "b": { "path": vault.display().to_string() },
+        }});
+        std::fs::write(config.join("obsidian/obsidian.json"), json.to_string()).unwrap();
+        let paths = KnownPaths { home: tmp.path().into(), config_dir: config.clone(), data_dir: config.clone(), local_data_dir: config, applications: vec![] };
+        let cx = Cx { paths: &paths, key: None, notice: None };
+
+        let scan = Obsidian.scan(&ImportInput::Local { path: None }, &cx).await.unwrap();
+        assert_eq!(scan.notes.len(), 1);
+        assert_eq!(scan.notes[0].title, "Hello");
+
+        let picked = Obsidian.scan(&ImportInput::Local { path: Some(settings.display().to_string()) }, &cx).await.unwrap();
+        assert!(picked.notes.is_empty());
     }
 
     #[test]
