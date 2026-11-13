@@ -259,6 +259,28 @@ pub async fn search_notes(core: State<'_, Core>, query: String, limit: u32) -> A
     Ok(core.db.search_notes(&query, limit).await?)
 }
 
+/// Notes matching words and details: dates, times, people, tags, links, meeting details, import
+/// source, Trash. The command palette parses what was typed into a `NoteQuery`.
+#[tauri::command]
+#[specta::specta]
+pub async fn find_notes(core: State<'_, Core>, query: NoteQuery, limit: u32) -> AppResult<Vec<SearchHit>> {
+    Ok(core.db.find_notes(&query, limit).await?)
+}
+
+/// The tags, meeting apps and import sources a search can recognise.
+#[tauri::command]
+#[specta::specta]
+pub async fn search_facets(core: State<'_, Core>) -> AppResult<SearchFacets> {
+    Ok(core.db.search_facets().await?)
+}
+
+/// Conversations with Cilica whose title or messages contain every word.
+#[tauri::command]
+#[specta::specta]
+pub async fn search_threads(core: State<'_, Core>, query: String, limit: u32) -> AppResult<Vec<ThreadHit>> {
+    Ok(core.db.search_threads(&query, limit).await?)
+}
+
 /// Things said in meetings that are close to a search with no results.
 #[tauri::command]
 #[specta::specta]

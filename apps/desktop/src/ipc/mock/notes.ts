@@ -410,7 +410,7 @@ function removeNote(state: MockState, noteId: string): void {
 
 // ───────── Search ─────────
 
-const SOURCE_RANK: Record<SearchSource, number> = { title: 0, body: 1, transcript: 2 };
+const SOURCE_RANK: Record<SearchSource, number> = { title: 0, body: 1, transcript: 2, details: 3 };
 const EXCERPT_LENGTH = 90;
 
 function search(state: MockState, query: string, limit: number): SearchHit[] {
@@ -451,6 +451,7 @@ function search(state: MockState, query: string, limit: number): SearchHit[] {
       source,
       excerpt: makeExcerpt(excerptSource, terms),
       at_ms: atMs,
+      matched_at: null,
       rank: SOURCE_RANK[source],
     });
   }

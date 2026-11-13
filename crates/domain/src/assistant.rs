@@ -32,6 +32,13 @@ pub struct Thread {
     pub updated_at: Timestamp,
 }
 
+/// A conversation with Cilica that matched a search. `excerpt` marks matches with `<mark>…</mark>`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct ThreadHit {
+    pub thread: Thread,
+    pub excerpt: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {

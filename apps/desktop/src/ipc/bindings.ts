@@ -55,6 +55,15 @@ export const commands = {
 	deleteCategory: (categoryId: string) => __TAURI_INVOKE<null>("delete_category", { categoryId }),
 	/**  Full-text search over titles, bodies and transcripts. */
 	searchNotes: (query: string, limit: number) => __TAURI_INVOKE<SearchHit_Serialize[]>("search_notes", { query, limit }),
+	/**
+	 *  Notes matching words and details: dates, times, people, tags, links, meeting details, import
+	 *  source, Trash. The command palette parses what was typed into a `NoteQuery`.
+	 */
+	findNotes: (query: NoteQuery_Deserialize, limit: number) => __TAURI_INVOKE<SearchHit_Serialize[]>("find_notes", { query, limit }),
+	/**  The tags, meeting apps and import sources a search can recognise. */
+	searchFacets: () => __TAURI_INVOKE<SearchFacets>("search_facets"),
+	/**  Conversations with Cilica whose title or messages contain every word. */
+	searchThreads: (query: string, limit: number) => __TAURI_INVOKE<ThreadHit[]>("search_threads", { query, limit }),
 	/**  Things said in meetings that are close to a search with no results. */
 	nearWords: (query: string) => __TAURI_INVOKE<NearWord_Serialize[]>("near_words", { query }),
 	/**  Newest first. */
@@ -554,6 +563,17 @@ export type DataScope = "notes" | "categories" | "trash" | "versions" | "transcr
 "swear_jar" | 
 /**  Settings › Import: runs and detections. */
 "imports";
+
+/**  Which date of a note a search's date range and time of day apply to. */
+export type DateField = 
+/**  When the meeting started (or the note was made), or when it was last edited. */
+"any" | "created" | 
+/**  Last edited, or any saved version from then. */
+"edited" | 
+/**  When the meeting started (meetings only). */
+"met" | 
+/**  When it was moved to Trash. */
+"deleted";
 
 /**  What to do when a meeting app is seen holding the mic. */
 export type DetectMode = 
@@ -1315,6 +1335,100 @@ export type NoteLine_Serialize = {
 /**  Which half of the note view is showing. */
 export type NotePanel = "notes" | "transcript";
 
+/**
+ *  A structured search: words plus filters on a note's details. Every part is optional and they
+ *  all have to match. Built by the command palette's parser and by the assistant's search tool.
+ */
+export type NoteQuery = NoteQuery_Serialize | NoteQuery_Deserialize;
+
+/**
+ *  A structured search: words plus filters on a note's details. Every part is optional and they
+ *  all have to match. Built by the command palette's parser and by the assistant's search tool.
+ */
+export type NoteQuery_Deserialize = {
+	/**  Words to find in the title, body or transcript; all of them, the last as a prefix. */
+	text?: string,
+	/**  Exact phrases that must appear. */
+	phrases?: string[],
+	/**  Words or phrases that must not appear. */
+	exclude?: string[],
+	/**  Inclusive start of the date range. */
+	after?: string | null,
+	/**  Exclusive end of the date range. */
+	before?: string | null,
+	date_field?: DateField,
+	/**  Only notes whose date falls in this window of the day, on any day. */
+	time_of_day?: TimeOfDay | null,
+	/**  Minutes east of UTC on this computer, to read `time_of_day` in local time. */
+	utc_offset_minutes?: number,
+	kind?: NoteKind | null,
+	/**  In any of these categories. */
+	category_ids?: string[],
+	/**  Only notes outside every category. */
+	uncategorized?: boolean,
+	/**  Meetings every one of these people spoke in. */
+	person_ids?: string[],
+	/**  Notes with every one of these tags (without the `#`). */
+	tags?: string[],
+	/**  Notes that link to or embed every one of these notes, by title. */
+	links_to?: string[],
+	/**  Meetings recorded in this app ("Zoom"), compared ignoring case. */
+	meeting_app?: string | null,
+	min_duration_ms?: number | null,
+	max_duration_ms?: number | null,
+	/**  Whether the recording's audio is still kept. */
+	has_recording?: boolean | null,
+	/**  Whether the meeting has saved quotes. */
+	has_quotes?: boolean | null,
+	/**  Imported from this app (an import provider id, "notion"). */
+	import_provider?: string | null,
+	trash?: TrashScope,
+};
+
+/**
+ *  A structured search: words plus filters on a note's details. Every part is optional and they
+ *  all have to match. Built by the command palette's parser and by the assistant's search tool.
+ */
+export type NoteQuery_Serialize = {
+	/**  Words to find in the title, body or transcript; all of them, the last as a prefix. */
+	text: string,
+	/**  Exact phrases that must appear. */
+	phrases: string[],
+	/**  Words or phrases that must not appear. */
+	exclude: string[],
+	/**  Inclusive start of the date range. */
+	after: string | null,
+	/**  Exclusive end of the date range. */
+	before: string | null,
+	date_field: DateField,
+	/**  Only notes whose date falls in this window of the day, on any day. */
+	time_of_day: TimeOfDay | null,
+	/**  Minutes east of UTC on this computer, to read `time_of_day` in local time. */
+	utc_offset_minutes: number,
+	kind: NoteKind | null,
+	/**  In any of these categories. */
+	category_ids: string[],
+	/**  Only notes outside every category. */
+	uncategorized: boolean,
+	/**  Meetings every one of these people spoke in. */
+	person_ids: string[],
+	/**  Notes with every one of these tags (without the `#`). */
+	tags: string[],
+	/**  Notes that link to or embed every one of these notes, by title. */
+	links_to: string[],
+	/**  Meetings recorded in this app ("Zoom"), compared ignoring case. */
+	meeting_app: string | null,
+	min_duration_ms: number | null,
+	max_duration_ms: number | null,
+	/**  Whether the recording's audio is still kept. */
+	has_recording: boolean | null,
+	/**  Whether the meeting has saved quotes. */
+	has_quotes: boolean | null,
+	/**  Imported from this app (an import provider id, "notion"). */
+	import_provider: string | null,
+	trash: TrashScope,
+};
+
 /**  A lightweight reference used in proposals, reports and citations. */
 export type NoteRef = {
 	id: string,
@@ -1708,6 +1822,18 @@ export type RecordingTrigger = "manual" | "hotkey" | "tray" | "detected";
 
 export type Role = "user" | "assistant";
 
+/**
+ *  What a search can recognise beyond people and categories: the tags in use, the meeting apps
+ *  that recorded meetings and the apps notes were imported from.
+ */
+export type SearchFacets = {
+	/**  As first written, without the `#`. */
+	tags: string[],
+	meeting_apps: string[],
+	/**  Import provider ids. */
+	import_providers: string[],
+};
+
 /**  One full-text search result. `excerpt` marks matches with `<mark>…</mark>` and is otherwise plain text. */
 export type SearchHit = SearchHit_Serialize | SearchHit_Deserialize;
 
@@ -1718,6 +1844,11 @@ export type SearchHit_Deserialize = {
 	excerpt: string,
 	/**  For transcript hits: where in the recording the match is. */
 	at_ms?: number | null,
+	/**
+	 *  When the search asked for a date or time: the date of the note that matched it (when the
+	 *  meeting started, the note was made, last edited or moved to Trash).
+	 */
+	matched_at?: string | null,
 };
 
 /**  One full-text search result. `excerpt` marks matches with `<mark>…</mark>` and is otherwise plain text. */
@@ -1727,9 +1858,16 @@ export type SearchHit_Serialize = {
 	excerpt: string,
 	/**  For transcript hits: where in the recording the match is. */
 	at_ms: number | null,
+	/**
+	 *  When the search asked for a date or time: the date of the note that matched it (when the
+	 *  meeting started, the note was made, last edited or moved to Trash).
+	 */
+	matched_at: string | null,
 };
 
-export type SearchSource = "title" | "body" | "transcript";
+export type SearchSource = "title" | "body" | "transcript" | 
+/**  Found by its details (a date, a person, a tag…) with no words to match. */
+"details";
 
 /**  One utterance. Partial segments (`is_final == false`) are replaced in place by id as the engine refines them. */
 export type Segment = Segment_Serialize | Segment_Deserialize;
@@ -2234,6 +2372,12 @@ export type Thread = {
 	updated_at: string,
 };
 
+/**  A conversation with Cilica that matched a search. `excerpt` marks matches with `<mark>…</mark>`. */
+export type ThreadHit = {
+	thread: Thread,
+	excerpt: string,
+};
+
 /**  One filler phrase and how often someone said it. */
 export type TicCount = TicCount_Serialize | TicCount_Deserialize;
 
@@ -2255,6 +2399,15 @@ export type TicCount_Serialize = {
 	name: string | null,
 	/**  1..=8, the `speaker-N` colour. None for you. */
 	color_index: number | null,
+};
+
+/**
+ *  A window of the day in local time, in minutes after midnight. `end` is exclusive and may be
+ *  less than `start` for a window across midnight ("tonight").
+ */
+export type TimeOfDay = {
+	start: number,
+	end: number,
 };
 
 /**  What a toast's button does. The UI maps each to a command call. */
@@ -2445,6 +2598,9 @@ export type TranscriptionTest_Serialize = {
 	/**  The whole test; the clip plays in real time, as a meeting would. */
 	took_ms: number,
 };
+
+/**  Whether a search looks at notes in Trash. */
+export type TrashScope = "exclude" | "include" | "only";
 
 export type TurnEnd = { type: "completed" } | { type: "cancelled" } | { type: "error"; message: string };
 

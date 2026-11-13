@@ -13,6 +13,7 @@ import { linksCommands } from "./links";
 import { nearCommands } from "./near";
 import { notesCommands, settingsCommands } from "./notes";
 import { recordingCommands } from "./recording";
+import { searchCommands } from "./search";
 import { createState, type SeedKind } from "./seed";
 import type { MockContext } from "./state";
 import { swearCommands } from "./swears";
@@ -65,6 +66,7 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
     ...linksCommands(ctx),
     ...homeCommands(ctx),
     ...nearCommands(ctx),
+    ...searchCommands(ctx),
     ...settingsCommands(ctx),
     ...swearCommands(ctx),
     ...recording,

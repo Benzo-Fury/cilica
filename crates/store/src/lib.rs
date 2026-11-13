@@ -29,6 +29,7 @@ mod home;
 mod imports;
 pub mod links;
 mod near;
+mod search;
 pub mod notes;
 mod settings;
 mod swears;

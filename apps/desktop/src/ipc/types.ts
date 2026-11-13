@@ -32,6 +32,7 @@ import type {
   ModelDownloadProgress_Serialize,
   NearWord_Serialize,
   Note_Serialize,
+  NoteQuery_Deserialize,
   NoteSummary_Serialize,
   NoteVersion_Serialize,
   OllamaStatus_Serialize,
@@ -78,7 +79,9 @@ export type {
   AudioLevels,
   Author,
   Category,
+  CilicaPlacement,
   DataScope,
+  DateField,
   DetectedLocation,
   DetectMode,
   ErrorCode,
@@ -95,7 +98,6 @@ export type {
   ImportSample,
   IslandInfo,
   LocalLlmModel,
-  CilicaPlacement,
   Mention,
   NoteFont,
   NoteKind,
@@ -115,6 +117,7 @@ export type {
   RecordingPhase,
   RecordingTrigger,
   Role,
+  SearchFacets,
   SearchSource,
   SpeakerCount,
   SpeakerSuggestion,
@@ -129,8 +132,11 @@ export type {
   TaskScope,
   ThemeMode,
   Thread,
+  ThreadHit,
+  TimeOfDay,
   ToastKind,
   ToolTier,
+  TrashScope,
   TurnEnd,
   UnsupportedItem,
   WritingHours,
@@ -146,6 +152,8 @@ export type { Backlinks };
 export type NoteSummary = NoteSummary_Serialize;
 export type NoteVersion = NoteVersion_Serialize;
 export type SearchHit = SearchHit_Serialize;
+/** A structured search, as `findNotes` accepts it. */
+export type NoteQuery = NoteQuery_Deserialize;
 
 export type Settings = Settings_Serialize;
 /** What `updateSettings` accepts: every section optional. */

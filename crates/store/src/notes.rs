@@ -14,7 +14,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
 use cilica_domain::chrono::TimeDelta;
-use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteSummary, NoteVersion, SearchHit, SearchSource, Timestamp, new_id, now};
+use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteQuery, NoteSummary, NoteVersion, SearchHit, Timestamp, new_id, now};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, Sqlite, SqliteExecutor, Transaction};
 
@@ -54,7 +54,7 @@ pub const MIN_GAP: f64 = 1e-6;
 pub const MAX_SEARCH_RESULTS: u32 = 200;
 
 /// Private-use characters that mark matches inside FTS snippets before HTML escaping.
-const MARK_START: char = '\u{E000}';
+pub(crate) const MARK_START: char = '\u{E000}';
 const MARK_END: char = '\u{E001}';
 
 macro_rules! note_columns {
@@ -663,48 +663,11 @@ impl Db {
     /// Ranked by bm25 with the title weighted highest. `excerpt` is HTML-escaped text with the
     /// matches wrapped in `<mark>`; `source` is the first of title, body, transcript that matched.
     pub async fn search_notes(&self, query: &str, limit: u32) -> StoreResult<Vec<SearchHit>> {
-        let Some(match_expr) = fts_query(query) else {
-            return Ok(Vec::new());
-        };
-        let rows = sqlx::query(concat!(
-            "SELECT n.id, n.title, n.snippet, n.category_id, n.kind, n.meeting_app, n.position, n.created_at, n.updated_at, n.deleted_at, ",
-            "snippet(notes_fts, 1, '\u{E000}', '\u{E001}', '…', 16) AS hit_title, ",
-            "snippet(notes_fts, 2, '\u{E000}', '\u{E001}', '…', 16) AS hit_body, ",
-            "snippet(notes_fts, 3, '\u{E000}', '\u{E001}', '…', 16) AS hit_transcript ",
-            "FROM notes_fts JOIN notes n ON n.id = notes_fts.note_id ",
-            "WHERE notes_fts MATCH ? AND n.deleted_at IS NULL ",
-            "ORDER BY bm25(notes_fts, 0.0, 10.0, 3.0, 1.0) ASC, n.updated_at DESC LIMIT ?"
-        ))
-        .bind(&match_expr)
-        .bind(i64::from(limit.clamp(1, MAX_SEARCH_RESULTS)))
-        .fetch_all(self.pool())
-        .await?;
-
-        let mut hits = Vec::with_capacity(rows.len());
-        for row in &rows {
-            let note = summary_from_row(row)?;
-            let columns = [
-                (SearchSource::Title, row.try_get::<Option<String>, _>("hit_title")?),
-                (SearchSource::Body, row.try_get::<Option<String>, _>("hit_body")?),
-                (SearchSource::Transcript, row.try_get::<Option<String>, _>("hit_transcript")?),
-            ];
-            let (source, raw) = columns
-                .iter()
-                .find(|(_, text)| text.as_deref().is_some_and(|t| t.contains(MARK_START)))
-                .map(|(source, text)| (*source, text.clone().unwrap_or_default()))
-                // A match the snippet could not show (should not happen): fall back to the title.
-                .unwrap_or((SearchSource::Title, note.title.clone()));
-            let at_ms = match source {
-                SearchSource::Transcript => self.segment_at_for_match(note.id, &raw).await?,
-                _ => None,
-            };
-            hits.push(SearchHit { excerpt: excerpt_html(&raw), note, source, at_ms });
-        }
-        Ok(hits)
+        self.find_notes(&NoteQuery { text: query.to_string(), ..NoteQuery::default() }, limit).await
     }
 
     /// Start of the first final segment that contains the first highlighted term of a snippet.
-    async fn segment_at_for_match(&self, note_id: Id, raw_snippet: &str) -> StoreResult<Option<u32>> {
+    pub(crate) async fn segment_at_for_match(&self, note_id: Id, raw_snippet: &str) -> StoreResult<Option<u32>> {
         let Some(term) = first_marked_term(raw_snippet) else {
             return Ok(None);
         };
@@ -1001,7 +964,7 @@ fn note_from_row(row: &SqliteRow) -> StoreResult<Note> {
     })
 }
 
-fn summary_from_row(row: &SqliteRow) -> StoreResult<NoteSummary> {
+pub(crate) fn summary_from_row(row: &SqliteRow) -> StoreResult<NoteSummary> {
     Ok(NoteSummary {
         id: codec::parse_id(&row.try_get::<String, _>("id")?)?,
         title: row.try_get("title")?,
@@ -1355,7 +1318,7 @@ fn is_word_char(c: char) -> bool {
 }
 
 /// HTML-escape an FTS snippet and turn its private markers into `<mark>` tags.
-fn excerpt_html(raw: &str) -> String {
+pub(crate) fn excerpt_html(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len() + 16);
     let mut last_space = false;
     for c in raw.chars() {
@@ -1388,6 +1351,7 @@ fn first_marked_term(raw: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
+    use cilica_domain::SearchSource;
     use cilica_domain::chrono::Utc;
 
     use super::*;

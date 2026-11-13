@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use cilica_domain::{
-    AppError, AppResult, Author, Category, Id, Note, NoteKind, NoteSummary, NoteVersion, Person, SearchHit, SearchSource,
+    AppError, AppResult, Author, Category, Id, Note, NoteKind, NoteQuery, NoteSummary, NoteVersion, Person, SearchHit, SearchSource,
     Speaker, new_id, now,
 };
 use cilica_store::{Db, NewNote};
@@ -33,6 +33,10 @@ pub trait NoteStore: Send + Sync {
     async fn delete_category(&self, id: Id) -> AppResult<()>;
     async fn list_note_versions(&self, note_id: Id) -> AppResult<Vec<NoteVersion>>;
     async fn search_notes(&self, query: &str, limit: u32) -> AppResult<Vec<SearchHit>>;
+    /// Words plus details (dates, people, tags…). The default only honours the words, for fakes.
+    async fn find_notes(&self, query: &NoteQuery, limit: u32) -> AppResult<Vec<SearchHit>> {
+        self.search_notes(&query.text, limit).await
+    }
     /// `[12:34] Sam: text` lines; empty when there is no transcript.
     async fn transcript_text(&self, note_id: Id) -> AppResult<String>;
     async fn list_speakers(&self, note_id: Id) -> AppResult<Vec<Speaker>>;
@@ -102,6 +106,9 @@ impl NoteStore for DbNoteStore {
     }
     async fn search_notes(&self, query: &str, limit: u32) -> AppResult<Vec<SearchHit>> {
         Ok(self.0.search_notes(query, limit).await?)
+    }
+    async fn find_notes(&self, query: &NoteQuery, limit: u32) -> AppResult<Vec<SearchHit>> {
+        Ok(self.0.find_notes(query, limit).await?)
     }
     async fn transcript_text(&self, note_id: Id) -> AppResult<String> {
         Ok(self.0.transcript_text(note_id).await?)
@@ -377,7 +384,7 @@ impl NoteStore for FakeNotes {
                 } else {
                     return None;
                 };
-                Some(SearchHit { note: summary(n), source, excerpt: n.snippet.clone(), at_ms: None })
+                Some(SearchHit { note: summary(n), source, excerpt: n.snippet.clone(), at_ms: None, matched_at: None })
             })
             .take(limit as usize)
             .collect())
