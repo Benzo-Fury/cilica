@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use cilica_domain::*;
 use tauri::{AppHandle, Manager, State};
-use tauri_plugin_updater::{Update, UpdaterExt};
+use tauri_plugin_updater::{Error as UpdaterError, Update, UpdaterExt};
 
 // ───────── State ─────────
 
@@ -44,7 +44,7 @@ pub async fn check_for_update(
     })?;
     let update = updater.check().await.map_err(|e| {
         tracing::warn!("update check failed: {e}");
-        AppError::upstream("Cilica could not check for updates. Check your connection and try again.")
+        check_error(&e)
     })?;
 
     // Remember it for install_update
@@ -70,7 +70,7 @@ pub async fn install_update(pending: State<'_, PendingUpdate>) -> AppResult<()> 
     // Download, verify the signature and install
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| {
         tracing::warn!("update install failed: {e}");
-        AppError::upstream("The update did not install. Try again, or download it from GitHub.")
+        install_error(&e)
     })
 }
 
@@ -79,4 +79,87 @@ pub async fn install_update(pending: State<'_, PendingUpdate>) -> AppResult<()> 
 #[specta::specta]
 pub async fn restart_app(app: AppHandle) -> AppResult<()> {
     app.restart()
+}
+
+// ───────── Errors ─────────
+
+/// Says why a check failed. A release that is still being published is the common case: its
+/// `latest.json` is missing, or lists other platforms before this one is uploaded.
+fn check_error(error: &UpdaterError) -> AppError {
+    match error {
+        UpdaterError::TargetNotFound(_) | UpdaterError::TargetsNotFound(_) => AppError::unavailable(
+            "A new version is out, but the download for this computer is not ready yet. Try again in a few minutes.",
+        ),
+        UpdaterError::ReleaseNotFound => AppError::unavailable(
+            "The latest release is still being published. Try again in a few minutes.",
+        ),
+        UpdaterError::Reqwest(e) if e.is_timeout() => {
+            AppError::upstream("GitHub took too long to answer. Check your connection and try again.")
+        }
+        UpdaterError::Reqwest(e) if e.is_connect() || e.is_request() => {
+            AppError::upstream("Cilica could not reach GitHub. Check your connection and try again.")
+        }
+        UpdaterError::Reqwest(e) if e.status().is_some() => AppError::upstream(format!(
+            "GitHub answered with an error ({}). Try again later.",
+            e.status().map(|s| s.as_u16()).unwrap_or_default()
+        )),
+        UpdaterError::Serialization(_) | UpdaterError::Semver(_) => AppError::upstream(
+            "The latest release has update details Cilica cannot read. Try again later, or download it from GitHub.",
+        ),
+        UpdaterError::UnsupportedArch | UpdaterError::UnsupportedOs => {
+            AppError::unavailable("Updates are not available for this computer. Download new versions from GitHub.")
+        }
+        other => AppError::upstream(format!("Cilica could not check for updates: {other}.")),
+    }
+}
+
+/// Says why downloading or installing an update failed.
+fn install_error(error: &UpdaterError) -> AppError {
+    match error {
+        UpdaterError::Reqwest(_) | UpdaterError::Network(_) => AppError::upstream(
+            "The update did not download. Check your connection and try again.",
+        ),
+        UpdaterError::Minisign(_)
+        | UpdaterError::Base64(_)
+        | UpdaterError::SignatureUtf8(_)
+        | UpdaterError::SignedVersionMismatch { .. }
+        | UpdaterError::MissingSignedVersion => AppError::upstream(
+            "The update's signature did not match, so it was not installed. Download it from GitHub instead.",
+        ),
+        UpdaterError::Io(_)
+        | UpdaterError::TempDirNotFound
+        | UpdaterError::TempDirNotOnSameMountPoint
+        | UpdaterError::FailedToDetermineExtractPath => AppError::upstream(
+            "Cilica could not replace itself. Check it is in Applications and you can write there, then try again.",
+        ),
+        UpdaterError::AuthenticationFailed => {
+            AppError::invalid("The update needs your password to install. Try again and allow it.")
+        }
+        other => AppError::upstream(format!(
+            "The update did not install: {other}. Try again, or download it from GitHub."
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_platform_says_the_build_is_not_ready() {
+        let err = check_error(&UpdaterError::TargetNotFound("darwin-aarch64".into()));
+        assert!(err.message.contains("not ready yet"), "{}", err.message);
+    }
+
+    #[test]
+    fn missing_release_json_says_it_is_being_published() {
+        let err = check_error(&UpdaterError::ReleaseNotFound);
+        assert!(err.message.contains("still being published"), "{}", err.message);
+    }
+
+    #[test]
+    fn bad_signature_is_named_on_install() {
+        let err = install_error(&UpdaterError::MissingSignedVersion);
+        assert!(err.message.contains("signature"), "{}", err.message);
+    }
 }
