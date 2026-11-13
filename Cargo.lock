@@ -837,7 +837,7 @@ checksum = "a85776177a885b3cd2cda74d634cabe7fa05fecfde8ded8779c0b34110a44dcb"
 
 [[package]]
 name = "cilica-agent"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -857,7 +857,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-audio"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "aec3",
  "cidre",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-desktop"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "auto-launch",
@@ -930,7 +930,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-detect"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cidre",
  "cilica-domain",
@@ -943,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-diarize"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cilica-domain",
  "cilica-onnx",
@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-domain"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-import"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -997,7 +997,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-llm"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1015,7 +1015,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-mcp"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cilica-agent",
  "cilica-domain",
@@ -1029,14 +1029,14 @@ dependencies = [
 
 [[package]]
 name = "cilica-onnx"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "ort",
 ]
 
 [[package]]
 name = "cilica-pipeline"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1060,7 +1060,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-scheduler"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-setup"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cilica-domain",
  "serde",
@@ -1101,7 +1101,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-store"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "cilica-domain",
@@ -1117,7 +1117,7 @@ dependencies = [
 
 [[package]]
 name = "cilica-stt"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "cilica-domain",
