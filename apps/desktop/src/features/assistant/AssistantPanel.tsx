@@ -24,12 +24,13 @@ import { reducedTransition, springs, tweens } from "@/app/motion";
 import { isMac } from "@/app/platform";
 import { openSettings } from "@/app/router";
 import { useNotes } from "@/features/notes/hooks";
+import { useProposal } from "@/features/proposals/hooks";
 import { ProposalCard } from "@/features/proposals/ProposalCard";
 import { toolIcon, toolName } from "@/features/proposals/tools";
 import { useSettings, useUpdateSettings } from "@/features/settings/hooks";
 import { usePanels } from "@/features/shell/panels";
 import { isTauri } from "@/ipc/client";
-import type { Message, MessagePart, Thread } from "@/ipc/types";
+import type { Message, MessagePart, Proposal, Thread } from "@/ipc/types";
 import {
   AiText,
   Bubble,
@@ -474,6 +475,7 @@ function ThreadView({
           )}
         </AnimatePresence>
       </div>
+      <PinnedProposals state={state} />
     </div>
   );
 }
@@ -502,13 +504,13 @@ function MessageView({
     <>
       {message.parts.map((part, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: parts only append within a message
-        <ThreadItem key={i}>
+        <PartItem key={i} part={part} state={state}>
           <PartView
             part={part}
             state={state}
             streaming={streaming?.messageId === message.id && streaming.index === i}
           />
-        </ThreadItem>
+        </PartItem>
       ))}
       {end?.type === "cancelled" && (
         <ThreadItem>
@@ -516,6 +518,72 @@ function MessageView({
         </ThreadItem>
       )}
     </>
+  );
+}
+
+/**
+ * A part's row in the thread. A proposal waiting on Accept or Reject is shown in
+ * `PinnedProposals` instead, until it is answered.
+ */
+function PartItem({
+  part,
+  state,
+  children,
+}: {
+  part: MessagePart;
+  state: ThreadState;
+  children: ReactNode;
+}) {
+  if (part.type !== "proposal") return <ThreadItem>{children}</ThreadItem>;
+  return (
+    <PendingProposalItem proposalId={part.proposal_id} initial={state.proposals[part.proposal_id]}>
+      {children}
+    </PendingProposalItem>
+  );
+}
+
+/** Inline in the thread once answered; while pending it lives in the pinned footer instead. */
+function PendingProposalItem({
+  proposalId,
+  initial,
+  children,
+}: {
+  proposalId: string;
+  initial: Proposal | undefined;
+  children: ReactNode;
+}) {
+  const { data } = useProposal(proposalId, initial);
+  if ((data ?? initial)?.status === "pending") return null;
+  return <ThreadItem>{children}</ThreadItem>;
+}
+
+/**
+ * Proposals still waiting on Accept or Reject, pinned to the bottom of the conversation so replies
+ * arriving after them never push them out of view.
+ */
+function PinnedProposals({ state }: { state: ThreadState }) {
+  const ids = state.messages.flatMap((m) =>
+    m.parts.flatMap((p) => (p.type === "proposal" ? [p.proposal_id] : [])),
+  );
+  if (ids.length === 0) return null;
+  return (
+    <div className="nt-thread-pinned">
+      <AnimatePresence initial={false}>
+        {ids.map((id) => (
+          <PinnedProposal key={id} proposalId={id} initial={state.proposals[id]} />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PinnedProposal({ proposalId, initial }: { proposalId: string; initial?: Proposal }) {
+  const { data } = useProposal(proposalId, initial);
+  if ((data ?? initial)?.status !== "pending") return null;
+  return (
+    <ThreadItem>
+      <ProposalCard proposalId={proposalId} initial={initial} />
+    </ThreadItem>
   );
 }
 
