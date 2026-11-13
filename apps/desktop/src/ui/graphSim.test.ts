@@ -72,4 +72,26 @@ describe("force layout", () => {
     expect(sim.x[0]).toBe(1000);
     expect(sim.y[0]).toBe(1000);
   });
+
+  it("leaves inactive nodes out of the layout, small and large", () => {
+    for (const n of [10, 400]) {
+      const edges = Array.from({ length: n - 1 }, (_, i) => ({ source: i, target: i + 1 }));
+      const sim = new ForceSim(n, edges, OPTIONS);
+      sim.active.fill(0);
+      sim.active[0] = 1;
+      sim.active[1] = 1;
+      const x5 = sim.x[5];
+      const y5 = sim.y[5];
+      for (let i = 0; i < 40; i++) sim.tick();
+      expect(sim.x[5]).toBe(x5);
+      expect(sim.y[5]).toBe(y5);
+      expect(Number.isFinite(sim.x[0] as number)).toBe(true);
+      // The two active nodes keep a spring's length apart, not pushed off by the rest.
+      const d = Math.hypot(
+        (sim.x[0] as number) - (sim.x[1] as number),
+        (sim.y[0] as number) - (sim.y[1] as number),
+      );
+      expect(d).toBeLessThan(OPTIONS.linkDistance * 3);
+    }
+  });
 });

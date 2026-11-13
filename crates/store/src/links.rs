@@ -538,6 +538,7 @@ struct GraphNote {
     key: String,
     kind: NoteKind,
     category_id: Option<Id>,
+    created_at: cilica_domain::Timestamp,
 }
 
 impl Db {
@@ -570,7 +571,7 @@ impl Db {
     }
 
     async fn graph_notes(&self) -> StoreResult<Vec<GraphNote>> {
-        let rows = sqlx::query("SELECT id, title, kind, category_id FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC").fetch_all(self.pool()).await?;
+        let rows = sqlx::query("SELECT id, title, kind, category_id, created_at FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC").fetch_all(self.pool()).await?;
         rows.iter()
             .map(|r| {
                 let title: String = r.try_get("title")?;
@@ -581,6 +582,7 @@ impl Db {
                     title,
                     kind: if kind == "meeting" { NoteKind::Meeting } else { NoteKind::Manual },
                     category_id: codec::parse_opt_id(r.try_get("category_id")?)?,
+                    created_at: codec::parse_ts(&r.try_get::<String, _>("created_at")?)?,
                 })
             })
             .collect()
@@ -618,6 +620,7 @@ impl Db {
                 person_id: None,
                 color_index: None,
                 degree: 0,
+                created_at: Some(n.created_at),
             });
             by_note.insert(n.id, i);
             if !n.key.is_empty() {
@@ -642,6 +645,7 @@ impl Db {
                 person_id: Some(id),
                 color_index: Some(color),
                 degree: 0,
+                created_at: None,
             })
         };
 
@@ -792,7 +796,7 @@ impl Db {
 }
 
 fn plain_node(kind: GraphNodeKind, label: String) -> GraphNode {
-    GraphNode { key: String::new(), kind, label, note_id: None, note_kind: None, category_id: None, person_id: None, color_index: None, degree: 0 }
+    GraphNode { key: String::new(), kind, label, note_id: None, note_kind: None, category_id: None, person_id: None, color_index: None, degree: 0, created_at: None }
 }
 
 #[derive(Default)]

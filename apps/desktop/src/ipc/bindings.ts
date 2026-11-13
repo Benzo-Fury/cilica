@@ -645,6 +645,8 @@ export type GraphNode_Deserialize = {
 	color_index?: number | null,
 	/**  How many edges touch the node in the full graph (sizes it). */
 	degree: number,
+	/**  When the note was created (notes only). Orders the graph's "grow" replay. */
+	created_at?: string | null,
 };
 
 export type GraphNode_Serialize = {
@@ -660,6 +662,8 @@ export type GraphNode_Serialize = {
 	color_index: number | null,
 	/**  How many edges touch the node in the full graph (sizes it). */
 	degree: number,
+	/**  When the note was created (notes only). Orders the graph's "grow" replay. */
+	created_at: string | null,
 };
 
 /**  The three NSHapticFeedbackManager patterns Cilica uses. */

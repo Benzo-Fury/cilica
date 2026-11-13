@@ -31,6 +31,11 @@ export class ForceSim {
   readonly vy: Float64Array;
   /** 1 while a node is held (dragged): it stays where it is put. */
   readonly pinned: Uint8Array;
+  /**
+   * 1 for nodes in the layout. A 0 node feels no force, pushes nothing and stays where it is
+   * (the graph's "grow" replay adds nodes one by one). All 1 unless a caller changes it.
+   */
+  readonly active: Uint8Array;
   private readonly src: Uint32Array;
   private readonly dst: Uint32Array;
   private readonly strength: Float64Array;
@@ -54,6 +59,7 @@ export class ForceSim {
     this.vx = new Float64Array(n);
     this.vy = new Float64Array(n);
     this.pinned = new Uint8Array(n);
+    this.active = new Uint8Array(n).fill(1);
     const valid = edges.filter((e) => e.source < n && e.target < n && e.source !== e.target);
     this.src = Uint32Array.from(valid, (e) => e.source);
     this.dst = Uint32Array.from(valid, (e) => e.target);
@@ -110,6 +116,7 @@ export class ForceSim {
     for (let k = 0; k < this.src.length; k++) {
       const s = this.src[k] as number;
       const t = this.dst[k] as number;
+      if (!this.active[s] || !this.active[t]) continue;
       let dx = (x[t] as number) + (vx[t] as number) - (x[s] as number) - (vx[s] as number);
       let dy = (y[t] as number) + (vy[t] as number) - (y[s] as number) - (vy[s] as number);
       if (dx === 0 && dy === 0) dx = jiggle();
@@ -127,7 +134,9 @@ export class ForceSim {
     // Repulsion between nodes.
     if (n <= EXACT_LIMIT) {
       for (let i = 0; i < n; i++) {
+        if (!this.active[i]) continue;
         for (let j = i + 1; j < n; j++) {
+          if (!this.active[j]) continue;
           let dx = (x[j] as number) - (x[i] as number);
           let dy = (y[j] as number) - (y[i] as number);
           if (dx === 0 && dy === 0) {
@@ -144,14 +153,14 @@ export class ForceSim {
         }
       }
     } else {
-      this.tree.build(x, y, this.charges, n);
-      for (let i = 0; i < n; i++) this.tree.apply(i, x, y, vx, vy, alpha);
+      this.tree.build(x, y, this.charges, n, this.active);
+      for (let i = 0; i < n; i++) if (this.active[i]) this.tree.apply(i, x, y, vx, vy, alpha);
     }
 
     // Pull to the centre, then move.
     const g = this.options.gravity * alpha;
     for (let i = 0; i < n; i++) {
-      if (this.pinned[i]) {
+      if (this.pinned[i] || !this.active[i]) {
         vx[i] = 0;
         vy[i] = 0;
         continue;
@@ -225,12 +234,13 @@ class QuadTree {
     return q;
   }
 
-  build(x: Float64Array, y: Float64Array, charges: Float64Array, n: number) {
+  build(x: Float64Array, y: Float64Array, charges: Float64Array, n: number, active: Uint8Array) {
     let minX = Number.POSITIVE_INFINITY;
     let minY = Number.POSITIVE_INFINITY;
     let maxX = Number.NEGATIVE_INFINITY;
     let maxY = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < n; i++) {
+      if (!active[i]) continue;
       const xi = x[i] as number;
       const yi = y[i] as number;
       if (xi < minX) minX = xi;
@@ -238,10 +248,14 @@ class QuadTree {
       if (yi < minY) minY = yi;
       if (yi > maxY) maxY = yi;
     }
+    if (minX > maxX) {
+      minX = 0;
+      minY = 0;
+    }
     const w = Math.max(maxX - minX, maxY - minY, 1) * 1.0001;
     this.size = 0;
     this.node(minX, minY, w);
-    for (let i = 0; i < n; i++) this.insert(i, x, y);
+    for (let i = 0; i < n; i++) if (active[i]) this.insert(i, x, y);
     this.accumulate(x, y, charges);
   }
 

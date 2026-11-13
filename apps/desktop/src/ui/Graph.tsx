@@ -30,6 +30,7 @@ import {
   zeroVelocity,
   zoomTargetAt,
 } from "./graphCamera";
+import { APPEAR_SETTLE, appearOpacity, appearScale, GraphGrowth } from "./graphGrow";
 import { HoverFade } from "./graphHover";
 import { ForceSim } from "./graphSim";
 
@@ -57,6 +58,13 @@ export interface GraphHandle {
   zoomBy: (factor: number) => void;
   fit: () => void;
   centerOn: (key: string) => void;
+  /**
+   * Replays the graph growing: every node hides, then they appear step by step in `ranks` order
+   * (one rank per node; equal ranks appear together) while the layout forms around them.
+   */
+  grow: (ranks: readonly number[]) => void;
+  /** Ends a replay early, showing every node. */
+  stopGrowing: () => void;
 }
 
 export interface GraphProps {
@@ -71,6 +79,8 @@ export interface GraphProps {
   /** "full" fills a view and pans with the scroll wheel; "inline" leaves scrolling to the page. */
   variant?: "full" | "inline";
   onOpen?: (key: string) => void;
+  /** During a replay, the last step on screen; null when the replay ends or is stopped. */
+  onGrowStep?: (step: number | null) => void;
   /** Spoken description of the graph. */
   label: string;
   className?: string;
@@ -92,6 +102,8 @@ interface Colors {
 }
 
 const FADE = 0.14;
+/** How warm the layout is kept while a replay adds nodes, so it keeps forming around them. */
+const GROW_HEAT = 0.3;
 const positions = new Map<string, Map<string, { x: number; y: number }>>();
 
 function readColors(el: Element): Colors {
@@ -123,6 +135,7 @@ export function Graph({
   highlight = null,
   variant = "full",
   onOpen,
+  onGrowStep,
   label,
   className,
   style,
@@ -165,9 +178,19 @@ export function Graph({
       Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches),
     /** The camera has been fitted to a real size at least once. */
     cameraReady: false,
+    /** Seconds of frame time, for the grow replay's springs. */
+    clock: 0,
+    /** The replay in progress, if any. */
+    growth: null as GraphGrowth | null,
+    /** When each node appeared (on `clock`), NaN while hidden; null when every node is shown. */
+    born: null as Float32Array | null,
+    /** `clock` when the most recent node appeared. */
+    lastBorn: Number.NEGATIVE_INFINITY,
     onOpen,
+    onGrowStep,
   });
   live.current.onOpen = onOpen;
+  live.current.onGrowStep = onGrowStep;
 
   // ── Drawing ──────────────────────────────────────────────────────────────
   const draw = useCallback(() => {
@@ -196,8 +219,14 @@ export function Graph({
     const lit = fade.litness(s.neighbours, s.lit);
     const fallBack = (i: number) => 1 - (1 - FADE) * Math.max(0, dim - (lit[i] ?? 0));
     const searched = s.highlight;
+    // Grow replay: hidden nodes are not drawn; new ones pop in on a spring.
+    const born = s.born;
+    const age = (i: number) => (born ? s.clock - (born[i] as number) : Number.POSITIVE_INFINITY);
+    const hidden = (i: number) => born !== null && Number.isNaN(born[i]);
+    const appearAlpha = (i: number) => (born ? appearOpacity(age(i)) : 1);
+    const young = (i: number) => age(i) < APPEAR_SETTLE;
     const nodeAlpha = (i: number) => {
-      let a = 1;
+      let a = appearAlpha(i);
       if (dim > 0) a *= fallBack(i);
       if (searched && !searched.has(s.nodes[i]?.key ?? "")) a *= 0.22;
       return a;
@@ -213,10 +242,26 @@ export function Graph({
       ctx.beginPath();
       for (const e of s.edges) {
         if (Boolean(e.dotted) !== dotted) continue;
+        if (born && (hidden(e.source) || hidden(e.target) || young(e.source) || young(e.target)))
+          continue;
         ctx.moveTo(sx(e.source), sy(e.source));
         ctx.lineTo(sx(e.target), sy(e.target));
       }
       ctx.stroke();
+      // Edges of nodes still appearing fade in with them.
+      if (born) {
+        const base = ctx.globalAlpha;
+        for (const e of s.edges) {
+          if (Boolean(e.dotted) !== dotted) continue;
+          if (hidden(e.source) || hidden(e.target)) continue;
+          if (!young(e.source) && !young(e.target)) continue;
+          ctx.globalAlpha = base * Math.min(appearAlpha(e.source), appearAlpha(e.target));
+          ctx.beginPath();
+          ctx.moveTo(sx(e.source), sy(e.source));
+          ctx.lineTo(sx(e.target), sy(e.target));
+          ctx.stroke();
+        }
+      }
       // Each glow's edges in the accent, as strong as the glow.
       for (const g of fade.glows) {
         if (g.amount <= 0) continue;
@@ -227,6 +272,7 @@ export function Graph({
         for (const e of s.edges) {
           if (Boolean(e.dotted) !== dotted || (e.source !== g.node && e.target !== g.node))
             continue;
+          if (hidden(e.source) || hidden(e.target)) continue;
           ctx.moveTo(sx(e.source), sy(e.source));
           ctx.lineTo(sx(e.target), sy(e.target));
         }
@@ -258,9 +304,11 @@ export function Graph({
       const n = s.nodes[i] as GraphViewNode;
       const px = sx(i);
       const py = sy(i);
-      if (!visible(px, py)) continue;
+      if (!visible(px, py) || hidden(i)) continue;
       const grow = s.reduced ? 0 : 0.15 * fade.amountOf(i);
-      const r = Math.max(radiusOf(n.degree) * k, 1.6) * (1 + grow);
+      const pop = s.reduced || !born ? 1 : appearScale(age(i));
+      const r = Math.max(radiusOf(n.degree) * k, 1.6) * (1 + grow) * pop;
+      if (r <= 0) continue;
       ctx.globalAlpha = nodeAlpha(i);
       ctx.beginPath();
       if (n.tone === "tag" && i !== s.focus) {
@@ -317,8 +365,11 @@ export function Graph({
       if (!n.label) continue;
       const px = sx(i);
       const py = sy(i);
-      if (!visible(px, py)) continue;
+      if (!visible(px, py) || hidden(i)) continue;
+      // While growing, the newest notes are named as they arrive.
+      const newest = s.growth !== null && s.growth.ranks[i] === s.growth.shown - 1;
       const always =
+        newest ||
         i === s.focus ||
         (searched?.has(n.key) ?? false) ||
         (variant === "inline" && s.nodes.length <= 24);
@@ -330,6 +381,7 @@ export function Graph({
       let a = Math.max(always ? 1 : zoomAlpha, lit[i] ?? 0);
       if (dim > 0) a *= fallBack(i);
       if (searched && !searched.has(n.key)) a *= 0.22;
+      a *= appearAlpha(i);
       if (a < 0.02) continue;
       const r = Math.max(radiusOf(n.degree) * k, 1.6);
       const text = n.label.length > 42 ? `${n.label.slice(0, 40)}…` : n.label;
@@ -352,7 +404,15 @@ export function Graph({
       // that was idle starts with one nominal frame; a long stall is capped so nothing leaps.
       const dt = s.lastFrame ? clamp((now - s.lastFrame) / 1000, 0, 0.05) : 1 / 60;
       s.lastFrame = now;
+      s.clock += dt;
       let busy = false;
+      if (s.growth) {
+        const [from, to] = s.growth.advance(dt);
+        if (to > from) revealSteps(s, from, to);
+        if (s.growth?.done) endGrowth(s);
+        busy = true;
+      }
+      if (s.born && s.clock - s.lastBorn < APPEAR_SETTLE) busy = true;
       if (!sim.settled) {
         sim.tick();
         busy = true;
@@ -439,6 +499,9 @@ export function Graph({
     s.focus = focusKey ? nodes.findIndex((n) => n.key === focusKey) : -1;
     s.hover = -1;
     s.fade.reset();
+    if (s.growth) s.onGrowStep?.(null);
+    s.growth = null;
+    s.born = null;
     if (!prev) s.autoFit = !mostlyKnown;
     if (!prev && mostlyKnown && s.width) {
       s.camera = fitCamera(s, sim);
@@ -551,6 +614,34 @@ export function Graph({
         };
         kick();
       },
+      grow: (ranks: readonly number[]) => {
+        const s = live.current;
+        const sim = s.sim;
+        if (!sim || sim.n === 0) return;
+        s.growth = new GraphGrowth(Array.from({ length: sim.n }, (_, i) => ranks[i] ?? 0));
+        s.born = new Float32Array(sim.n).fill(Number.NaN);
+        s.hover = -1;
+        s.fade.reset();
+        if (s.reduced) {
+          // Reduce motion: the layout stays as it is and nodes fade in where they already are.
+          s.target = null;
+        } else {
+          // The layout forms again around the nodes as they arrive, with the camera following.
+          sim.active.fill(0);
+          sim.alphaTarget = GROW_HEAT;
+          sim.reheat(0.6);
+          s.autoFit = true;
+        }
+        kick();
+      },
+      stopGrowing: () => {
+        const s = live.current;
+        if (!s.growth) return;
+        const [from, to] = s.growth.finish();
+        revealSteps(s, from, to);
+        endGrowth(s);
+        kick();
+      },
     }),
     [kick],
   );
@@ -578,6 +669,7 @@ export function Graph({
     let bestD = Number.POSITIVE_INFINITY;
     const slop = 5 / s.camera.k;
     for (let i = 0; i < sim.n; i++) {
+      if (s.born && Number.isNaN(s.born[i])) continue;
       const dx = (sim.x[i] as number) - x;
       const dy = (sim.y[i] as number) - y;
       const d = dx * dx + dy * dy;
@@ -653,7 +745,7 @@ export function Graph({
     if (!d) return;
     if (d.node >= 0 && s.sim) {
       s.sim.pinned[d.node] = 0;
-      s.sim.alphaTarget = 0;
+      s.sim.alphaTarget = s.growth && !s.reduced ? GROW_HEAT : 0;
     }
     if (canvasRef.current) canvasRef.current.style.cursor = s.hover >= 0 ? "pointer" : "";
     if (!cancelled && !d.moved && d.node >= 0) {
@@ -758,7 +850,12 @@ export function Graph({
 
 /** The camera that shows every node with some room around it. */
 function fitCamera(
-  s: { width: number; height: number; nodes: readonly GraphViewNode[] },
+  s: {
+    width: number;
+    height: number;
+    nodes: readonly GraphViewNode[];
+    born?: Float32Array | null;
+  },
   sim: ForceSim,
 ): { x: number; y: number; k: number } {
   if (sim.n === 0 || !s.width) return { x: 0, y: 0, k: 1 };
@@ -766,13 +863,18 @@ function fitCamera(
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
+  let shown = 0;
   for (let i = 0; i < sim.n; i++) {
+    if (s.born && Number.isNaN(s.born[i])) continue;
+    shown++;
     const r = radiusOf(s.nodes[i]?.degree ?? 0);
     minX = Math.min(minX, (sim.x[i] as number) - r);
     maxX = Math.max(maxX, (sim.x[i] as number) + r);
     minY = Math.min(minY, (sim.y[i] as number) - r);
     maxY = Math.max(maxY, (sim.y[i] as number) + r + 16);
   }
+  // Nothing on screen yet (a replay's first beat): look at the middle.
+  if (shown === 0) return { x: 0, y: 0, k: 1.6 };
   // Room for labels at the edges (and the key in the corner of the full graph).
   const pad = clamp(Math.min(s.width, s.height) * 0.09, 24, 64);
   const k = clamp(
@@ -784,4 +886,71 @@ function fitCamera(
     1.6,
   );
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, k };
+}
+
+type Live = {
+  sim: ForceSim | null;
+  neighbours: number[][];
+  growth: GraphGrowth | null;
+  born: Float32Array | null;
+  clock: number;
+  lastBorn: number;
+  reduced: boolean;
+  onGrowStep?: (step: number | null) => void;
+};
+
+/**
+ * Brings the nodes of steps `[from, to)` of the replay into view. Each one starts beside a
+ * neighbour already on screen (or near the middle of what is), so the layout grows outward.
+ */
+function revealSteps(s: Live, from: number, to: number) {
+  const { sim, growth, born } = s;
+  if (!sim || !growth || !born || to <= from) return;
+  const spread = sim.options.linkDistance;
+  // Middle of what is on screen, for nodes with no neighbour there yet.
+  let cx = 0;
+  let cy = 0;
+  let count = 0;
+  for (let i = 0; i < sim.n; i++) {
+    if (Number.isNaN(born[i])) continue;
+    cx += sim.x[i] as number;
+    cy += sim.y[i] as number;
+    count++;
+  }
+  if (count) {
+    cx /= count;
+    cy /= count;
+  }
+  for (let i = 0; i < sim.n; i++) {
+    const r = growth.ranks[i] as number;
+    if (r < from || r >= to || !Number.isNaN(born[i])) continue;
+    born[i] = s.clock;
+    if (s.reduced) continue;
+    const near = (s.neighbours[i] ?? []).find((j) => !Number.isNaN(born[j]) && j !== i);
+    const angle = Math.random() * Math.PI * 2;
+    if (near !== undefined) {
+      sim.x[i] = (sim.x[near] as number) + Math.cos(angle) * spread * 0.5;
+      sim.y[i] = (sim.y[near] as number) + Math.sin(angle) * spread * 0.5;
+    } else {
+      const ring = count ? spread * (0.8 + Math.random() * 0.6) : spread * 0.1;
+      sim.x[i] = cx + Math.cos(angle) * ring;
+      sim.y[i] = cy + Math.sin(angle) * ring;
+    }
+    sim.vx[i] = 0;
+    sim.vy[i] = 0;
+    sim.active[i] = 1;
+  }
+  s.lastBorn = s.clock;
+  s.onGrowStep?.(to - 1);
+}
+
+/** The replay is over: every node takes part in the layout again, and it cools down. */
+function endGrowth(s: Live) {
+  const { sim } = s;
+  s.growth = null;
+  if (sim) {
+    sim.active.fill(1);
+    sim.alphaTarget = 0;
+  }
+  s.onGrowStep?.(null);
 }

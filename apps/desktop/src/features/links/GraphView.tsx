@@ -1,9 +1,10 @@
 /**
  * The graph (⌘G): every note and what it links to. Find is in the band; the few options sit
  * behind one button and start hidden. Click a note to open it, a note not created yet to create
- * it, a person to see Saved people. Drag to move, pinch or ⌘-scroll to zoom.
+ * it, a person to see Saved people. Drag to move, pinch or ⌘-scroll to zoom. Play replays the
+ * graph growing, note by note, in the order they were created.
  */
-import { Maximize, Minus, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { Maximize, Minus, Play, Plus, Search, SlidersHorizontal, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { navigate, openNote } from "@/app/router";
 import { useCategories } from "@/features/notes/hooks";
@@ -24,7 +25,7 @@ import {
   Switch,
   ViewLayer,
 } from "@/ui";
-import { categoryColor, searchNodes, toView } from "./graphModel";
+import { categoryColor, growthOrder, searchNodes, toView } from "./graphModel";
 import { useCreateLinkedNote, useLinkGraph } from "./hooks";
 import { useGraphOptions } from "./store";
 
@@ -40,11 +41,25 @@ export function GraphView({ focus }: { focus?: string }) {
   const [query, setQuery] = useState("");
   const graphRef = useRef<GraphHandle>(null);
   const create = useCreateLinkedNote();
+  /** During a replay, the step on screen (-1 before the first); null when not replaying. */
+  const [growStep, setGrowStep] = useState<number | null>(null);
 
   const view = useMemo(
     () => (graph ? toView(graph, options, categories, focus ?? null) : { nodes: [], edges: [] }),
     [graph, options, categories, focus],
   );
+  const growth = useMemo(() => (graph ? growthOrder(graph, view) : null), [graph, view]);
+  const growing = growStep !== null;
+  const toggleGrow = () => {
+    if (growing) {
+      graphRef.current?.stopGrowing();
+      return;
+    }
+    if (!growth) return;
+    setGrowStep(-1);
+    graphRef.current?.grow(growth.ranks);
+  };
+  const growDate = growStep !== null && growStep >= 0 ? growth?.when[growStep] : undefined;
   const matches = useMemo(() => searchNodes(view.nodes, query), [view.nodes, query]);
   const byKey = useMemo(
     () => new Map((graph?.nodes ?? []).map((n) => [n.key, n] as const)),
@@ -126,37 +141,46 @@ export function GraphView({ focus }: { focus?: string }) {
           />
         }
         end={
-          <Popover>
-            <PopoverTrigger asChild>
-              <IconButton icon={SlidersHorizontal} label="Graph options" />
-            </PopoverTrigger>
-            <PopoverContent align="end" label="Graph options" className="nt-graph-options">
-              <div className="nt-menu-heading">Show</div>
-              <OptionRow
-                label="People"
-                checked={options.people}
-                onChange={(people) => options.set({ people })}
-              />
-              <OptionRow
-                label="Tags"
-                checked={options.tags}
-                onChange={(tags) => options.set({ tags })}
-              />
-              <OptionRow
-                label="Notes not created yet"
-                checked={options.missing}
-                onChange={(missing) => options.set({ missing })}
-              />
-              <div className="nt-menu-heading">Colour by</div>
-              <SegmentedControl
-                label="Colour by"
-                options={COLOR_BY}
-                value={options.colorBy}
-                onChange={(colorBy) => options.set({ colorBy })}
-                className="nt-graph-options-seg"
-              />
-            </PopoverContent>
-          </Popover>
+          <>
+            <IconButton
+              icon={growing ? Square : Play}
+              label={growing ? "Stop replay" : "Replay how your notes grew"}
+              pressed={growing}
+              disabled={noteCount === 0}
+              onClick={toggleGrow}
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <IconButton icon={SlidersHorizontal} label="Graph options" />
+              </PopoverTrigger>
+              <PopoverContent align="end" label="Graph options" className="nt-graph-options">
+                <div className="nt-menu-heading">Show</div>
+                <OptionRow
+                  label="People"
+                  checked={options.people}
+                  onChange={(people) => options.set({ people })}
+                />
+                <OptionRow
+                  label="Tags"
+                  checked={options.tags}
+                  onChange={(tags) => options.set({ tags })}
+                />
+                <OptionRow
+                  label="Notes not created yet"
+                  checked={options.missing}
+                  onChange={(missing) => options.set({ missing })}
+                />
+                <div className="nt-menu-heading">Colour by</div>
+                <SegmentedControl
+                  label="Colour by"
+                  options={COLOR_BY}
+                  value={options.colorBy}
+                  onChange={(colorBy) => options.set({ colorBy })}
+                  className="nt-graph-options-seg"
+                />
+              </PopoverContent>
+            </Popover>
+          </>
         }
       />
       <div className="nt-graph-stage">
@@ -175,13 +199,17 @@ export function GraphView({ focus }: { focus?: string }) {
               focusKey={focus ?? null}
               highlight={matches}
               onOpen={open}
+              onGrowStep={setGrowStep}
               label={`Graph of ${plural(noteCount, "note", "notes")} and ${plural(linkCount, "link", "links")}. Use Find in graph to look for a note.`}
             />
-            {linkCount === 0 && !isLoading && (
-              <p className="nt-graph-hint">
-                No links yet. Type [[ in a note to link it to another.
-              </p>
-            )}
+            {growing
+              ? growDate && <p className="nt-graph-hint nt-graph-when">{createdOn(growDate)}</p>
+              : linkCount === 0 &&
+                !isLoading && (
+                  <p className="nt-graph-hint">
+                    No links yet. Type [[ in a note to link it to another.
+                  </p>
+                )}
             <Legend
               counts={legendCounts}
               colorBy={options.colorBy}
@@ -199,6 +227,7 @@ export function GraphView({ focus }: { focus?: string }) {
                 icon={Maximize}
                 label="Fit to window"
                 size="sm"
+                disabled={growing}
                 onClick={() => graphRef.current?.fit()}
               />
               <IconButton
@@ -213,6 +242,13 @@ export function GraphView({ focus }: { focus?: string }) {
       </div>
     </ViewLayer>
   );
+}
+
+/** "Created 3 March 2026", for the date shown while the graph replays. */
+function createdOn(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return `Created ${date.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
 function OptionRow({

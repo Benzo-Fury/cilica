@@ -66,3 +66,42 @@ export function searchNodes(nodes: readonly GraphViewNode[], query: string): Set
     nodes.filter((n) => words.every((w) => n.label.toLowerCase().includes(w))).map((n) => n.key),
   );
 }
+
+/**
+ * The order the graph grew in, for the replay: notes by when they were created (notes created at
+ * the same moment, as in an import, appear together), and every other node (a person, a tag, a
+ * note not created yet) with the first note that links to it. `when[step]` is the creation time
+ * of that step's notes.
+ */
+export function growthOrder(
+  graph: LinkGraph,
+  view: { nodes: readonly GraphViewNode[]; edges: readonly GraphViewEdge[] },
+): { ranks: number[]; when: string[] } {
+  const created = new Map<string, string>();
+  for (const n of graph.nodes) if (n.created_at) created.set(n.key, n.created_at);
+  const times = [
+    ...new Set(view.nodes.map((n) => created.get(n.key)).filter((t): t is string => !!t)),
+  ].sort((a, b) => Date.parse(a) - Date.parse(b) || a.localeCompare(b));
+  const step = new Map(times.map((t, i) => [t, i]));
+  const ranks = view.nodes.map((n) => {
+    const t = created.get(n.key);
+    return t === undefined ? Number.POSITIVE_INFINITY : (step.get(t) ?? 0);
+  });
+  // Everything else arrives with its earliest neighbouring note.
+  const earliest = ranks.map(() => Number.POSITIVE_INFINITY);
+  for (const e of view.edges) {
+    const a = ranks[e.source] ?? Number.POSITIVE_INFINITY;
+    const b = ranks[e.target] ?? Number.POSITIVE_INFINITY;
+    earliest[e.source] = Math.min(earliest[e.source] ?? Number.POSITIVE_INFINITY, b);
+    earliest[e.target] = Math.min(earliest[e.target] ?? Number.POSITIVE_INFINITY, a);
+  }
+  const last = Math.max(0, times.length - 1);
+  return {
+    ranks: ranks.map((r, i) => {
+      if (Number.isFinite(r)) return r;
+      const near = earliest[i] ?? Number.POSITIVE_INFINITY;
+      return Number.isFinite(near) ? near : last;
+    }),
+    when: times,
+  };
+}

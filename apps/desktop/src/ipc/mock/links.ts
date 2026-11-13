@@ -61,6 +61,7 @@ export function buildGraph(state: MockState): LinkGraph {
     category_id: null,
     person_id: null,
     color_index: null,
+    created_at: null,
   };
 
   const notes = liveNewestFirst(state);
@@ -73,6 +74,7 @@ export function buildGraph(state: MockState): LinkGraph {
       note_id: n.id,
       note_kind: n.kind,
       category_id: n.category_id,
+      created_at: n.created_at,
     }));
     const key = linkKey(n.title);
     if (key && !byTitle.has(key)) byTitle.set(key, i);

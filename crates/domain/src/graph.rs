@@ -46,6 +46,9 @@ pub struct GraphNode {
     pub color_index: Option<u32>,
     /// How many edges touch the node in the full graph (sizes it).
     pub degree: u32,
+    /// When the note was created (notes only). Orders the graph's "grow" replay.
+    #[serde(default)]
+    pub created_at: Option<crate::Timestamp>,
 }
 
 /// An undirected edge between two entries of `LinkGraph::nodes`.

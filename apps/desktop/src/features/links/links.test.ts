@@ -1,5 +1,6 @@
 import { createMockBackend } from "@/ipc/mock";
-import { searchNodes, toView } from "./graphModel";
+import type { LinkGraph } from "@/ipc/types";
+import { growthOrder, searchNodes, toView } from "./graphModel";
 
 describe("links in the mock backend", () => {
   it("builds the graph from the seed notes", async () => {
@@ -91,6 +92,80 @@ describe("graph view model", () => {
     expect(byCat.nodes.some((n) => n.tone === "group" && n.colorIndex)).toBe(true);
     expect(searchNodes(all.nodes, "pricing interview")?.size).toBe(1);
     expect(searchNodes(all.nodes, "  ")).toBeNull();
+    mock.dispose();
+  });
+});
+
+describe("growth order", () => {
+  const blank = {
+    note_id: null,
+    note_kind: null,
+    category_id: null,
+    person_id: null,
+    color_index: null,
+    degree: 1,
+  };
+  const note = (key: string, created_at: string) => ({
+    ...blank,
+    key,
+    kind: "note" as const,
+    label: key,
+    created_at,
+  });
+
+  it("orders notes by when they were created, others with their first note", () => {
+    const graph: LinkGraph = {
+      nodes: [
+        note("n:b", "2026-03-02T00:00:00.000000Z"),
+        note("n:a", "2026-01-01T00:00:00.000000Z"),
+        { ...blank, key: "p:sam", kind: "person", label: "Sam", created_at: null },
+        note("n:c", "2026-03-02T00:00:00.000000Z"),
+        { ...blank, key: "m:x", kind: "missing", label: "X", created_at: null },
+      ],
+      edges: [
+        { source: 0, target: 2, kind: "link" },
+        { source: 1, target: 2, kind: "transcript" },
+        { source: 3, target: 4, kind: "link" },
+      ],
+      focus: null,
+    };
+    const view = toView(graph);
+    const { ranks, when } = growthOrder(graph, view);
+    const rankOf = (key: string) => ranks[view.nodes.findIndex((n) => n.key === key)];
+    expect(when).toEqual(["2026-01-01T00:00:00.000000Z", "2026-03-02T00:00:00.000000Z"]);
+    expect(rankOf("n:a")).toBe(0);
+    // Created at the same moment: together.
+    expect(rankOf("n:b")).toBe(1);
+    expect(rankOf("n:c")).toBe(1);
+    // A person arrives with the earliest note that reaches it.
+    expect(rankOf("p:sam")).toBe(0);
+    expect(rankOf("m:x")).toBe(1);
+  });
+
+  it("puts a node no note reaches at the end", () => {
+    const graph: LinkGraph = {
+      nodes: [
+        note("n:a", "2026-01-01T00:00:00.000000Z"),
+        note("n:b", "2026-02-01T00:00:00.000000Z"),
+        { ...blank, key: "t:lonely", kind: "tag", label: "#lonely", created_at: null },
+      ],
+      edges: [],
+      focus: null,
+    };
+    const view = toView(graph);
+    expect(growthOrder(graph, view).ranks).toEqual([0, 1, 1]);
+  });
+
+  it("orders the mock graph with every node placed", async () => {
+    const mock = createMockBackend({ latencyMs: 0 });
+    const graph = await mock.commands.getLinkGraph(null, 1);
+    const view = toView(graph);
+    const { ranks, when } = growthOrder(graph, view);
+    expect(ranks).toHaveLength(view.nodes.length);
+    for (const r of ranks) {
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThan(when.length);
+    }
     mock.dispose();
   });
 });

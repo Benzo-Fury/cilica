@@ -240,6 +240,11 @@
   pointer-events: none;
   text-shadow: 0 0 6px var(--bg-canvas);
 }
+/* The date of the notes appearing while the graph replays how it grew. */
+.nt-graph-when {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
 @media (prefers-reduced-transparency: reduce) {
   .nt-graph-zoom {
     background: var(--bg-raised);
