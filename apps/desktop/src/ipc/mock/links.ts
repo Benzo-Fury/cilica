@@ -182,11 +182,128 @@ export function relinkAfterRename(
   return changed;
 }
 
+/**
+ * `?graph=<count>` in the browser preview pads the global graph with that many made-up notes,
+ * in loose clusters with a few people and tags, so a big graph can be previewed. They open
+ * nothing when clicked. Their creation dates spread over the year before the seed notes, so the
+ * graph's replay has something to show.
+ */
+function demoNodeCount(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = new URLSearchParams(window.location.search).get("graph");
+  if (raw === null) return 0;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.min(Math.max(n, 0), 2000) : 300;
+}
+
+const DEMO_WORDS = [
+  "Roadmap",
+  "Pricing",
+  "Hiring",
+  "Onboarding",
+  "Research",
+  "Launch",
+  "Retro",
+  "Budget",
+  "Design",
+  "Support",
+  "Interview",
+  "Strategy",
+  "Metrics",
+  "Partners",
+  "Offsite",
+  "Release",
+];
+
+export function padGraph(graph: LinkGraph, count: number): LinkGraph {
+  if (count <= 0) return graph;
+  // A small deterministic generator, so the layout is the same on every load.
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+  const nodes = [...graph.nodes];
+  const edges = [...graph.edges];
+  const blank = {
+    note_id: null,
+    note_kind: null,
+    category_id: null,
+    person_id: null,
+    color_index: null,
+    created_at: null,
+  };
+  const add = (node: Omit<GraphNode, "degree">) => nodes.push({ ...node, degree: 0 }) - 1;
+  const link = (a: number, b: number, kind: GraphEdgeKind) => {
+    if (a !== b) edges.push({ source: Math.min(a, b), target: Math.max(a, b), kind });
+  };
+  // Created over the year before the seed notes, in the order they are made up here.
+  const end = Date.parse("2026-10-01T00:00:00Z");
+  const span = 365 * 24 * 3600 * 1000;
+  const createdAt = (fraction: number) => new Date(end - span * (1 - fraction)).toISOString();
+  const clusters = Math.max(3, Math.round(count / 25));
+  const hubs: number[] = [];
+  const people: number[] = [];
+  const tags: number[] = [];
+  for (let c = 0; c < clusters; c++) {
+    const word = DEMO_WORDS[c % DEMO_WORDS.length] as string;
+    hubs.push(
+      add({
+        ...blank,
+        key: `demo:hub:${c}`,
+        kind: "note",
+        label: `${word} hub ${c + 1}`,
+        created_at: createdAt((c / clusters) * 0.85),
+      }),
+    );
+    if (c % 3 === 0) {
+      const label = `Person ${people.length + 1}`;
+      people.push(
+        add({ ...blank, key: `demo:p:${c}`, kind: "person", label, color_index: (c % 8) + 1 }),
+      );
+    }
+    if (c % 4 === 1)
+      tags.push(
+        add({ ...blank, key: `demo:t:${c}`, kind: "tag", label: `#${word.toLowerCase()}` }),
+      );
+  }
+  const notes: number[] = [];
+  const pick = (from: number[]) => from[Math.floor(rand() * from.length)] as number;
+  for (let i = 0; notes.length + hubs.length < count; i++) {
+    const c = Math.floor(rand() * clusters);
+    const word = DEMO_WORDS[c % DEMO_WORDS.length] as string;
+    const kind = rand() < 0.04 ? "missing" : "note";
+    const at = add({
+      ...blank,
+      key: `demo:n:${i}`,
+      kind,
+      label: `${word} note ${i + 1}`,
+      created_at: kind === "note" ? createdAt((notes.length + hubs.length) / count) : null,
+    });
+    link(at, hubs[c] as number, "link");
+    // A few links between notes, the odd meeting with a person, and some tags.
+    if (notes.length > 0 && rand() < 0.45) link(at, pick(notes), "link");
+    if (people.length > 0 && rand() < 0.12) link(at, pick(people), "transcript");
+    if (tags.length > 0 && rand() < 0.18) link(at, pick(tags), "tag");
+    notes.push(at);
+  }
+  // Join the hubs in a loose ring, and tie the first to the real notes.
+  for (let c = 0; c < clusters; c++)
+    link(hubs[c] as number, hubs[(c + 1) % clusters] as number, "link");
+  if (graph.nodes.length > 0) link(hubs[0] as number, 0, "link");
+  for (const n of nodes) n.degree = 0;
+  for (const e of edges) {
+    (nodes[e.source] as GraphNode).degree++;
+    (nodes[e.target] as GraphNode).degree++;
+  }
+  return { ...graph, nodes, edges };
+}
+
 export function linksCommands({ state }: MockContext) {
   return {
     getLinkGraph(focus: string | null, depth: number): LinkGraph {
       const graph = buildGraph(state);
-      if (focus === null) return graph;
+      if (focus === null) return padGraph(graph, demoNodeCount());
       const start = graph.nodes.findIndex((n) => n.note_id === focus);
       if (start < 0) throw appError("not_found", "That note was not found.");
       return neighbourhood(graph, start, Math.min(Math.max(depth, 1), MAX_DEPTH));
