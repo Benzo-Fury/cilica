@@ -26,4 +26,6 @@ The left sidebar holds navigation, categories and the bottom items. It sits on w
 
 **Drag and drop** (dnd-kit): the lifted row scales to 1.02, tilts -0.6°, takes `glass-fill-strong` and `shadow-float`. A 2px `accent-text` line with a ring marks the insert point; hovering a collapsed category for 500ms opens it and tints it `accent-soft`. On drop the row springs into place with `--spring-bouncy`, and a macOS trackpad gives an alignment haptic.
 
+**Selection**: selected rows take an `accent-soft` ground (`Row selected`), from the first `⌘`-click; the open note keeps its `fill-press` pill. Group actions live in the row's context menu only (no toolbar): "Move 3 notes to", "Ask Margin about 3 notes", then "Move 3 notes to Trash" after a separator. Clicking outside the note rows clears the selection. Dragging a selected row lifts the whole selection: the preview reads "3 notes" and the other selected rows dim.
+
 **Width**: 248px default, resizable 200 to 360, snaps back to 248 within 12px. ⌘\ collapses it with `--spring-smooth` (content slides, it does not fade).

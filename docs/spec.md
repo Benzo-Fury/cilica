@@ -66,6 +66,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 - **Categories**: drag notes in or out (dnd-kit, animated drop), drag to reorder categories, click the header to collapse. Uncategorised notes sit at the top under “Notes”.
 - **Bottom**: Graph (`⌘G`), Scheduled tasks (name, next run, status dot), Saved people, AI activity, Trash, Settings, and a Listening row that toggles auto-detect and shows a live mic level during recording.
 
+- **Selecting notes**: `⌘`-click adds or removes a note (one is enough to highlight it), Shift-click selects everything between (across categories, skipping folded ones), `⌘A` selects every note shown, Shift+↑/↓ grows the selection. A plain click opens a note and clears the selection, as does Esc or clicking anywhere outside the note rows; the open note is never selected by itself. `⌘⌫` trashes the selection instead of the open note. Right-clicking one of several selected notes opens a menu for all of them: move to a category (as one block, order kept), ask Margin about them (a draft linking each note), or move to Trash (one Undo brings them all back). Dragging a selected note carries the whole selection. Trash selects the same way, to restore or delete several at once (delete asks first).
 - Collapses fully with `⌘\`.
 
 ### Note view
