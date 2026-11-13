@@ -413,8 +413,6 @@ export type AppearanceSettings_Deserialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency?: boolean,
 	note_font?: NoteFont,
-	/**  Under a theme with a scene, set note titles and headings in the serif. */
-	scene_headings?: boolean,
 	cilica_placement?: CilicaPlacement,
 	home_face?: HomeFace_Deserialize,
 };
@@ -424,8 +422,6 @@ export type AppearanceSettings_Serialize = {
 	/**  When false every glass layer paints its opaque ground. */
 	transparency: boolean,
 	note_font: NoteFont,
-	/**  Under a theme with a scene, set note titles and headings in the serif. */
-	scene_headings: boolean,
 	cilica_placement: CilicaPlacement,
 	home_face: HomeFace_Serialize,
 };
@@ -497,6 +493,13 @@ export type Category = {
 	position: number | null,
 	collapsed: boolean,
 };
+
+/**  Where the assistant lives in the window. */
+export type CilicaPlacement = 
+/**  A panel on the right that pushes the note aside. */
+"side_panel" | 
+/**  A bar at the bottom of the page that grows into the conversation. */
+"floating_bar";
 
 export type ClaudeCodeStatus = ClaudeCodeStatus_Serialize | ClaudeCodeStatus_Deserialize;
 
@@ -1069,13 +1072,6 @@ export type LocalLlmModel = {
 	recommended: boolean,
 	downloaded: boolean,
 };
-
-/**  Where the assistant lives in the window. */
-export type CilicaPlacement = 
-/**  A panel on the right that pushes the note aside. */
-"side_panel" | 
-/**  A bar at the bottom of the page that grows into the conversation. */
-"floating_bar";
 
 /**  A meeting and when in it each decision was made. */
 export type MeetingDecisions = {
