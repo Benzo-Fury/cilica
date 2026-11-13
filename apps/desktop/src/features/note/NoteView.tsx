@@ -35,7 +35,6 @@ import {
 } from "@/features/notes/hooks";
 import { useHasSelection } from "@/features/notes/selection";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
-import { RecordButton } from "@/features/recorder/RecordButton";
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import { useTranscript } from "@/features/transcript/hooks";
 import { TranscriptPanel } from "@/features/transcript/TranscriptPanel";
@@ -261,7 +260,6 @@ function LoadedNote({ note }: { note: Note }) {
                 onChange={switchPanel}
                 segmentWidth="wide"
               />
-              <RecordButton />
               <span ref={setBandSlot} className="nt-band-slot" />
             </>
           )

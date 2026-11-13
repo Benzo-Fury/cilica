@@ -1,13 +1,12 @@
 /**
  * The recorder capsule, bottom-centre over the canvas: starting → live (breathing dot, timer,
- * level meter, Stop) → "Writing notes…". Starting a recording lives in the note's title band
- * (RecordButton) and the sidebar; the capsule never shows while idle.
+ * level meter, Stop) → "Writing notes…". Starting a recording lives in the transcript panel
+ * and the sidebar; the capsule never shows while idle.
  */
 import { Mic, Volume2 } from "lucide-react";
 import { AnimatePresence, LayoutGroup } from "motion/react";
 import type { CSSProperties } from "react";
 import { useShortcut } from "@/app/keybinds";
-import { useRouter } from "@/app/router";
 import { clock } from "@/lib/format";
 import {
   Button,
@@ -34,15 +33,11 @@ import {
 } from "./hooks";
 
 /**
- * Where the capsule shows. A note has its record control in the title band (RecordButton), so
- * there the capsule only appears for the auto-stop countdown, which needs "Keep recording".
- * On every other page it shows while recording or finishing.
+ * Where the capsule shows: on every page while recording or finishing. Recording starts from
+ * the transcript panel.
  */
 function useVisible(mode: CapsuleMode) {
-  const view = useRouter((s) => s.view.name);
-  if (mode.kind === "idle") return false;
-  if (view === "note") return mode.kind === "recording" && mode.autoStopInMs !== null;
-  return true;
+  return mode.kind !== "idle";
 }
 
 export function RecorderCapsule() {
