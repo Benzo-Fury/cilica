@@ -19,6 +19,7 @@ export * from "./Graph";
 export * from "./Icon";
 export * from "./IconButton";
 export * from "./ImportParts";
+export * from "./Installer";
 export * from "./Island";
 export * from "./Kbd";
 export * from "./Level";

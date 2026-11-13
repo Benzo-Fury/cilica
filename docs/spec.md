@@ -43,6 +43,18 @@ A local-first desktop notes app with an AI assistant and a meeting summariser. T
 - Animations hold 60 fps (120 on ProMotion). Only `transform`/`opacity` animate; never width/height/top.
 - Live transcript lags speech by under 3 s with the local engine.
 
+## Installing on Windows
+
+Windows downloads **Cilica Setup** (`Cilica_<version>_x64_Setup.exe`), a small frameless window over the same ridgeline as first-run setup, instead of a stock installer wizard. Three screens:
+
+1. **Install Cilica**: one button. Options opens a panel with the folder (`%LOCALAPPDATA%\Cilica` by default), a desktop shortcut (off) and Open Cilica when you sign in (off). Cilica installs for the current user only, so Windows never asks for an administrator. When Cilica is already installed the screen becomes **Update** (or **Reinstall** for the same version) in its existing folder, keeping its shortcuts and login item.
+2. **Installing Cilica**: a line for what is happening, the bar with its percentage, and a checked line per finished step. The taskbar button fills with the bar. The sun rises as it goes. Close waits until it is done. A failure says what went wrong, with Try again.
+3. **Cilica is installed**: Open Cilica starts it on its own setup window; Close leaves it in the Start menu.
+
+Removing Cilica from Settings › Apps opens the same window: **Remove Cilica?** with one switch, off by default, to also delete notes, recordings, settings and saved API keys (it names the folder they are kept in), then progress as the sun sets, then **Cilica is removed**.
+
+Under the window, Tauri's own NSIS installer and uninstaller do the work, silently, so the Installed apps entry, Start menu shortcut and updater behave exactly as before. Without WebView2 (rare on Windows 10), Setup opens Tauri's standard installer instead, which installs WebView2 itself. Updates still use the updater, not Setup.
+
 ## First launch
 
 Setup is its own small window (560 × 700, fixed size), not a dialog in the app. The main window stays hidden until setup finishes or is closed. Over background art (a pixel ridgeline drawn in code, dawn in light and night in dark), one column:
@@ -262,6 +274,7 @@ settings         key, value_json        -- secrets live in the OS keychain, neve
 ```
 apps/desktop/
   src-tauri/          # thin shell: commands, events, windows (main, setup, island), tray
+apps/setup/           # Cilica Setup: the Windows install and uninstall window around Tauri's NSIS installer
   src/
     app/              # root layout, providers, keybind registry, motion presets
     features/         # sidebar, note, transcript, assistant, people, tasks, activity, trash, settings

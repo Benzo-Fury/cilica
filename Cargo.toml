@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["apps/desktop/src-tauri", "crates/*"]
+members = ["apps/desktop/src-tauri", "apps/setup", "crates/*"]
 
 [workspace.package]
 # The one place to bump the app version. Tauri reads it for the bundle and updater, and CI checks the release tag against it.

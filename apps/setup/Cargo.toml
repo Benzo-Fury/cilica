@@ -1,0 +1,42 @@
+[package]
+name = "cilica-setup"
+version.workspace = true
+description = "Cilica Setup: the Windows install and uninstall window"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "cilica_setup"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cilica-setup"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+cilica-domain = { path = "../../crates/domain" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+specta = "=2.0.0-rc.28"
+specta-typescript = "0.0.15"
+sysinfo = { version = "0.38.4", default-features = false, features = ["system", "disk"] }
+tauri = "2"
+tauri-plugin-dialog = "2.8.4"
+tauri-specta = { version = "=2.0.0-rc.28", features = ["derive", "typescript"] }
+tokio = { version = "1.54.1", features = ["rt", "time", "sync", "macros"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[target."cfg(windows)".dependencies]
+windows-registry = "0.6"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Credentials", "Win32_System_Threading"] }
+
+[features]
+# Serve the frontend bundled into the binary instead of the Vite dev server. Release builds turn it
+# on (tools/build-windows-setup.ts); `cargo run -p cilica-setup` leaves it off and loads Vite.
+custom-protocol = ["tauri/custom-protocol"]
+

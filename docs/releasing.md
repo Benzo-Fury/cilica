@@ -7,7 +7,7 @@ macOS builds are signed with a **Developer ID** certificate and notarized by App
 | Platform | Architecture | Signing |
 | --- | --- | --- |
 | macOS 14.4+ | Apple Silicon only (`aarch64-apple-darwin`) | Developer ID + notarization |
-| Windows | x86_64 | Optional (Authenticode; avoids SmartScreen warnings) |
+| Windows | x86_64 | Optional (Authenticode; avoids SmartScreen warnings). Ships Cilica Setup plus Tauri's NSIS installer and MSI |
 | Linux | x86_64 | None |
 
 No Intel or universal Mac build: `ort` ships no prebuilt ONNX Runtime for `x86_64-apple-darwin`, so Intel would mean building ONNX Runtime from source on every release. Intel Macs on 14.4+ are a small share, and on-device Whisper runs poorly on them anyway.
@@ -42,6 +42,24 @@ Verify:
 spctl -a -vvv -t install target/aarch64-apple-darwin/release/bundle/macos/Cilica.app
 ```
 
+## Windows installer
+
+People on Windows download **`Cilica_<version>_x64_Setup.exe`**, Cilica Setup (`apps/setup`, docs/architecture.md › Windows installer). Tauri's `Cilica_<version>_x64-setup.exe` (NSIS) and `.msi` stay on the release: Setup carries the NSIS installer inside it, the updater downloads it directly, and the MSI is for managed installs.
+
+Setup is built on Windows around Tauri's build, by `tools/build-windows-setup.ts`:
+
+```bash
+bun run windows-setup
+```
+
+1. `prepare`: builds the frontend and a copy of Setup that can only remove Cilica, into `target/windows-setup/cilica-setup.exe`.
+2. `tauri build --config src-tauri/tauri.windows-setup.conf.json`: Cilica's installers, with that copy bundled next to Cilica.
+3. `package`: Setup with the NSIS installer inside, into `target/release/bundle/setup/`.
+
+CI runs `prepare` before tauri-action and `package` after it, then attaches the result to the release. To sign both copies of Setup, set `WINDOWS_SIGN_COMMAND` to a signing command with `%1` for the file; unsigned, SmartScreen warns the first time it runs. Tauri's own installers are signed through Tauri's Windows signing settings, which are not set up yet.
+
+Try the window without Windows: `bun run setup` (`-- --uninstall` for removal) runs it against a simulated backend; start `bun run dev:web` first. On Windows, try the real thing in a VM: install, update over it, remove from Settings › Apps with and without deleting notes, and a PC without WebView2.
+
 ## Releasing from GitHub
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) runs when a GitHub release is **published**. It builds macOS (Apple Silicon), Windows and Linux on separate runners, signs and notarizes the Mac build, and attaches every installer to the release, plus the signed updater packages and `latest.json`. The version lives in one place, `[workspace.package]` in the root `Cargo.toml`; the crates, the Tauri bundle and the updater all read it. To release, bump it, commit and push, then publish a release whose tag matches (`v0.2.1` for 0.2.1). The workflow fails fast if the tag and the version disagree. A failing platform doesn't stop the others from shipping.
@@ -69,7 +87,7 @@ Only the macOS job uses the Apple secrets.
 
 ## Test builds for pull requests
 
-[`.github/workflows/test-builds.yml`](../.github/workflows/test-builds.yml) builds Cilica for macOS (Apple Silicon, `.dmg`), Windows (`-setup.exe`) and Linux (AppImage and `.deb`) on every pull request that touches the app, its crates or the build. The installers appear under **Artifacts** on the workflow run and are kept for 14 days; nothing is published. A new push to the pull request cancels the build still running for the old one. Docs-only pull requests don't build. To build any branch without a pull request, run **Test builds** from the Actions tab.
+[`.github/workflows/test-builds.yml`](../.github/workflows/test-builds.yml) builds Cilica for macOS (Apple Silicon, `.dmg`), Windows (Cilica Setup and Tauri's NSIS `-setup.exe`) and Linux (AppImage and `.deb`) on every pull request that touches the app, its crates or the build. The installers appear under **Artifacts** on the workflow run and are kept for 14 days; nothing is published. A new push to the pull request cancels the build still running for the old one. Docs-only pull requests don't build. To build any branch without a pull request, run **Test builds** from the Actions tab.
 
 Test builds use no secrets: they are unsigned and have no updater packages, so an installed test build never offers or takes an update. macOS asks you to open the app from Finder's context menu (Open) the first time; Windows SmartScreen warns until you choose More info › Run anyway.
 

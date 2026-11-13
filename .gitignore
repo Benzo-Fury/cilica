@@ -6,3 +6,4 @@ target/
 .env*
 /models/
 /apps/desktop/src-tauri/gen/schemas/
+/apps/setup/gen/schemas/

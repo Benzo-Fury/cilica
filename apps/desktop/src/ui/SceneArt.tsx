@@ -6,6 +6,10 @@
  *
  * Every colour comes from the theme tokens (`bg-canvas`, `ink`, `scene-tint`), mixed per layer, so
  * a scene repaints itself when the theme changes. Reduce motion keeps it still.
+ *
+ * `sun` sets how high the sun stands: 0 on the ridges, 1 its usual height, up to 2 well above it.
+ * The Windows installer raises it as Cilica installs and lowers it as Cilica is removed. It eases
+ * toward a new value.
  */
 import { useEffect, useRef } from "react";
 
@@ -99,8 +103,11 @@ const noise = (x: number, s: number) => {
 const fbm = (x: number, s: number) =>
   noise(x, s) * 0.6 + noise(x * 2.1, s + 3) * 0.27 + noise(x * 4.3, s + 7) * 0.13;
 
-/** Paint one frame into `img` (width × height scene pixels) at time `t` in ms. */
-export function paintScene(img: ImageData, p: ScenePalette, t: number) {
+/** How far the sun moves toward a new height each frame. */
+const SUN_EASE = 0.12;
+
+/** Paint one frame into `img` (width × height scene pixels) at time `t` in ms, the sun at `sun` (0..2). */
+export function paintScene(img: ImageData, p: ScenePalette, t: number, sun = 1) {
   const { width: W, height: H, data } = img;
   const drift = t * 0.000012;
   const tops = p.ridges.map((_, L) => {
@@ -114,7 +121,7 @@ export function paintScene(img: ImageData, p: ScenePalette, t: number) {
     );
   });
   const sunX = W * 0.74;
-  const sunY = H * 0.72;
+  const sunY = H * (0.88 - 0.16 * Math.min(2, Math.max(0, sun)));
   const sunR = W * 0.06;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -357,8 +364,12 @@ export function paintMesa(img: ImageData, { canvas, ink, tint }: SceneTones) {
   }
 }
 
-const PAINTERS: Record<SceneKind, (img: ImageData, tones: SceneTones, t: number) => void> = {
-  ridgeline: (img, { canvas, ink, tint }, t) => paintScene(img, scenePalette(canvas, ink, tint), t),
+/** Paints a scene at time `t` in ms. Only the ridgeline has a sun that moves; the others ignore it. */
+type Painter = (img: ImageData, tones: SceneTones, t: number, sun: number) => void;
+
+const PAINTERS: Record<SceneKind, Painter> = {
+  ridgeline: (img, { canvas, ink, tint }, t, sun) =>
+    paintScene(img, scenePalette(canvas, ink, tint), t, sun),
   pines: paintPines,
   mesa: paintMesa,
 };
@@ -381,10 +392,23 @@ export interface SceneArtProps {
   still?: boolean;
   /** CSS pixels covered by each scene pixel. Small previews use 1. */
   pixel?: number;
+  /** The ridgeline's sun: 0 on the ridges, 1 its usual height, up to 2 well above it. */
+  sun?: number;
 }
 
-export function SceneArt({ scene = "ridgeline", still = false, pixel = SCALE }: SceneArtProps) {
+export function SceneArt({
+  scene = "ridgeline",
+  still = false,
+  pixel = SCALE,
+  sun = 1,
+}: SceneArtProps) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const sunTarget = useRef(sun);
+  const repaintNow = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    sunTarget.current = sun;
+    repaintNow.current?.();
+  }, [sun]);
   useEffect(() => {
     const cv = ref.current;
     const ctx = cv?.getContext("2d");
@@ -397,6 +421,7 @@ export function SceneArt({ scene = "ridgeline", still = false, pixel = SCALE }: 
     let raf = 0;
     let last = 0;
     let img: ImageData | null = null;
+    let sunNow = sunTarget.current;
 
     const size = () => {
       const w = Math.max(1, Math.round(cv.clientWidth / pixel));
@@ -409,7 +434,8 @@ export function SceneArt({ scene = "ridgeline", still = false, pixel = SCALE }: 
     };
     const draw = (now: number) => {
       if (!tones || !img) return;
-      paint(img, tones, now - t0);
+      sunNow = reduced ? sunTarget.current : sunNow + (sunTarget.current - sunNow) * SUN_EASE;
+      paint(img, tones, now - t0, sunNow);
       ctx.putImageData(img, 0, 0);
     };
     const frame = (now: number) => {
@@ -425,6 +451,8 @@ export function SceneArt({ scene = "ridgeline", still = false, pixel = SCALE }: 
     };
 
     repaint();
+    // Still scenes repaint when the sun is moved; moving ones pick it up on the next frame.
+    repaintNow.current = reduced ? () => draw(performance.now()) : null;
     if (!reduced) raf = requestAnimationFrame(frame);
     const resize = new ResizeObserver(repaint);
     resize.observe(cv);
@@ -442,6 +470,7 @@ export function SceneArt({ scene = "ridgeline", still = false, pixel = SCALE }: 
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      repaintNow.current = null;
       cancelAnimationFrame(raf);
       resize.disconnect();
       themeAttr.disconnect();
