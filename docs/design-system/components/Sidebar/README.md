@@ -16,7 +16,8 @@ The left sidebar holds navigation, categories and the bottom items. It sits on w
 
 **Anatomy**
 - Top: New note (secondary small button, ⌘N), New category icon button (⌘⇧N), Search icon button (⌘P).
-- Fixed rows: All notes, Recording now (only while recording, with the breathing `rec` dot and a live timer).
+- Fixed rows: All notes.
+- While a call records, its note's row shows a still `mic` icon (16px, `rec` colour) at the trailing edge. No separate "Recording now" row and no pulsing dot.
 - CATEGORIES (`caption` label) with collapsible rows; notes indent 34px under their category.
 - Bottom: Saved people, Scheduled tasks (shows a proposal count chip), Trash, Settings (⌘,).
 
