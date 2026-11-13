@@ -1,6 +1,6 @@
 /**
  * The command palette (⌘K): notes, transcript matches, actions from the keybind registry and
- * settings pages, on strong glass over a scrim. ⌘↩ hands the query to Margin.
+ * settings pages, on strong glass over a scrim. ⌘↩ hands the query to Cilica.
  */
 import {
   Activity,
@@ -38,7 +38,7 @@ import {
 } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
 import { openNote, openSettings } from "@/app/router";
-import { askMargin } from "@/features/assistant/store";
+import { askCilica } from "@/features/assistant/store";
 import { useCategories, useNotes } from "@/features/notes/hooks";
 import { ALL_SETTINGS_PAGES } from "@/features/settings/pages";
 import { useOverlays } from "@/features/shell/overlays";
@@ -168,7 +168,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         onKeyDown={(event) => {
           if (eventToAccelerator(event.nativeEvent, isMac) === "Mod+Enter" && q) {
             event.preventDefault();
-            run(() => askMargin(q));
+            run(() => askCilica(q));
           }
         }}
       >
@@ -302,9 +302,9 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
                 selected={selected === "ask"}
                 icon={MessageCircle}
                 shortcut={keys("Mod+Enter")}
-                onSelect={() => run(() => askMargin(q))}
+                onSelect={() => run(() => askCilica(q))}
               >
-                Ask Margin about “{q}”
+                Ask Cilica about “{q}”
               </PaletteItem>
             </PaletteGroup>
           )}
@@ -313,7 +313,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
           hints={[
             { keys: [keys("Up")[0] ?? "↑", keys("Down")[0] ?? "↓"], label: "Move" },
             { keys: keys("Enter"), label: "Open" },
-            { keys: keys("Mod+Enter"), label: "Ask Margin" },
+            { keys: keys("Mod+Enter"), label: "Ask Cilica" },
           ]}
         />
       </PaletteRoot>

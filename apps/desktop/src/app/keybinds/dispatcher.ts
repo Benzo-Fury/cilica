@@ -96,7 +96,7 @@ function onKeyDownCapture(event: KeyboardEvent) {
   entry.handler.current(event);
 }
 
-/** Bubble phase: Esc closes the topmost layer; ⌘Z runs a visible Undo toast, else Margin's last change. */
+/** Bubble phase: Esc closes the topmost layer; ⌘Z runs a visible Undo toast, else Cilica's last change. */
 function onKeyDown(event: KeyboardEvent) {
   if (event.defaultPrevented || event.isComposing) return;
   if (useKeybindStore.getState().capturing) return;

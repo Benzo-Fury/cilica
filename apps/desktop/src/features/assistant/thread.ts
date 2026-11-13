@@ -23,7 +23,7 @@ export interface ThreadState {
   messages: Message[];
   /** Proposals seen in this thread's events, by id (cards look up their live status). */
   proposals: Record<string, Proposal>;
-  /** The turn Margin is working on, if any. */
+  /** The turn Cilica is working on, if any. */
   activeTurn: string | null;
   /** Set between Send and `turn_started`. */
   sending: boolean;

@@ -73,7 +73,7 @@ export function PeopleView() {
             <div>
               <h1 className="t-title">Saved people</h1>
               <p className="t-callout">
-                Margin recognises these voices in meetings and names them when it's sure. Pick
+                Cilica recognises these voices in meetings and names them when it's sure. Pick
                 someone for a speaker to teach it their voice. Voiceprints stay on this Mac.
               </p>
             </div>
@@ -90,7 +90,7 @@ export function PeopleView() {
                 </ShortcutTip>
               }
             >
-              Name a speaker in a meeting transcript and choose Save as person. Margin then suggests
+              Name a speaker in a meeting transcript and choose Save as person. Cilica then suggests
               them when it hears their voice again.
             </EmptyState>
           ) : (
@@ -224,7 +224,7 @@ export function PeopleView() {
         }
         body={
           confirm?.kind === "delete"
-            ? "Margin forgets their voice and stops suggesting them. Past meetings keep the speaker's name. This cannot be undone."
+            ? "Cilica forgets their voice and stops suggesting them. Past meetings keep the speaker's name. This cannot be undone."
             : confirm?.kind === "forget"
               ? forgetCopy(confirm.person).body
               : confirm

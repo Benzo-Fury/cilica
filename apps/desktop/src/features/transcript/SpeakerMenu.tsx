@@ -1,7 +1,7 @@
 /**
  * Click a speaker to name them: rename for this meeting, link to a Saved person (their voice
  * becomes one of that person's samples, and picking someone else takes it back), or save them as
- * a new person. Picking the person Margin already guessed confirms it and teaches it too. A
+ * a new person. Picking the person Cilica already guessed confirms it and teaches it too. A
  * linked person's colour wins.
  */
 import { Check, Link2Off, UserPlus } from "lucide-react";
@@ -76,7 +76,7 @@ export function SpeakerMenu({
       )}
       <PopoverContent label={`Name ${look.name}`}>
         <div className="nt-popover-title">Who is {look.name}?</div>
-        <p className="nt-popover-note">Picking a saved person teaches Margin their voice.</p>
+        <p className="nt-popover-note">Picking a saved person teaches Cilica their voice.</p>
         <Field
           size="sm"
           value={name}

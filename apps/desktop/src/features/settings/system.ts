@@ -44,7 +44,7 @@ export function useRequestPermission() {
       void queryClient.invalidateQueries({ queryKey: qk.permissions });
     },
     onError: (error) =>
-      toast.error("Margin could not ask for that", { description: errorMessage(error) }),
+      toast.error("Cilica could not ask for that", { description: errorMessage(error) }),
   });
 }
 
@@ -284,13 +284,13 @@ function onLocalModelProgress(
     store.set(id, null);
     cancelled.delete(id);
     refreshLocal(queryClient);
-    if (!isApp) toast.success(`${name} is ready`, { description: "Margin now runs on this Mac." });
+    if (!isApp) toast.success(`${name} is ready`, { description: "Cilica now runs on this Mac." });
     return;
   }
   if (progress.error) {
     refreshLocal(queryClient);
     const wasCancelled = cancelled.delete(id) || /cancel/i.test(progress.error);
-    // Shown inline on Settings › Margin, next to the button that tries again.
+    // Shown inline on Settings › Cilica, next to the button that tries again.
     store.set(id, wasCancelled ? null : { downloaded: null, total: null, error: progress.error });
     return;
   }
@@ -347,7 +347,7 @@ export function useLocalModelActions() {
   const choose = useMutation({
     mutationFn: (modelId: string) => api.selectLocalModel(modelId),
     onSuccess: refresh,
-    onError: fail("Margin could not switch models"),
+    onError: fail("Cilica could not switch models"),
   });
   return { setUp, pull, cancel, remove, choose };
 }

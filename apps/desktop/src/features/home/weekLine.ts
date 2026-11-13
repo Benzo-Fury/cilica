@@ -1,11 +1,11 @@
 /**
- * "A line from your week" for the home screen. Margin writes it from recent note titles; it
+ * "A line from your week" for the home screen. Cilica writes it from recent note titles; it
  * costs one small model call, so the answer is kept for the day and asked for at most once.
  */
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/ipc/client";
 
-const KEY = "margin.weekLine";
+const KEY = "cilica.weekLine";
 
 /** The local calendar day, so the line changes overnight and not mid-afternoon. */
 export function dayKey(now = new Date()): string {

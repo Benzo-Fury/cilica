@@ -1,6 +1,6 @@
 # Toast
 
-Toasts confirm what just happened and offer Undo. Margin's own toast library (`src/lib/toast`) renders them.
+Toasts confirm what just happened and offer Undo. Cilica's own toast library (`src/lib/toast`) renders them.
 
 **Placement**: bottom-right, 16px from the edges, `z-toast`, 356px wide. On narrow windows, bottom-centre above the recorder capsule.
 

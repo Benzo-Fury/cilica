@@ -1,5 +1,5 @@
 {
-  "name": "@margin/desktop",
+  "name": "@cilica/desktop",
   "private": true,
   "type": "module",
   "scripts": {

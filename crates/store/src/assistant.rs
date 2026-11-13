@@ -3,7 +3,7 @@
 //! Ids and timestamps use the store's `codec` (TEXT ids, fixed-width RFC 3339), enums are stored as
 //! their snake_case serde names. Display parts and raw provider content are stored per message.
 
-use margin_domain::{
+use cilica_domain::{
     AiAction, AiActionStatus, AiSettings, Id, Message, MessagePart, Proposal, ProposalKind, ProposalSource, ProposalStatus, Role, Settings, Thread,
     Timestamp, ToolTier,
 };
@@ -118,8 +118,8 @@ impl Db {
     // ── Threads ──────────────────────────────────────────────────────────
 
     pub async fn create_thread(&self, title: &str) -> StoreResult<Thread> {
-        let now = margin_domain::now();
-        let thread = Thread { id: margin_domain::new_id(), title: title.to_string(), created_at: now, updated_at: now };
+        let now = cilica_domain::now();
+        let thread = Thread { id: cilica_domain::new_id(), title: title.to_string(), created_at: now, updated_at: now };
         sqlx::query("INSERT INTO threads (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)")
             .bind(thread.id.to_string())
             .bind(&thread.title)
@@ -153,7 +153,7 @@ impl Db {
     /// Bump `updated_at` (a new message arrived).
     pub async fn touch_thread(&self, id: Id) -> StoreResult<()> {
         sqlx::query("UPDATE threads SET updated_at = ? WHERE id = ?")
-            .bind(ts(margin_domain::now()))
+            .bind(ts(cilica_domain::now()))
             .bind(id.to_string())
             .execute(self.pool())
             .await?;
@@ -284,7 +284,7 @@ impl Db {
     /// Atomically move a proposal from `from` to `to`. Returns false if it was not in `from`
     /// (someone else applied or dismissed it first).
     pub async fn transition_proposal(&self, id: Id, from: ProposalStatus, to: ProposalStatus) -> StoreResult<bool> {
-        let resolved = (to != ProposalStatus::Pending).then(|| ts(margin_domain::now()));
+        let resolved = (to != ProposalStatus::Pending).then(|| ts(cilica_domain::now()));
         let done = sqlx::query("UPDATE proposals SET status = ?, resolved_at = ? WHERE id = ? AND status = ?")
             .bind(enum_str(&to))
             .bind(resolved)
@@ -394,11 +394,11 @@ impl Db {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::{NoteRef, new_id};
+    use cilica_domain::{NoteRef, new_id};
 
     /// `now()` at the store's precision, so round-trips compare equal.
     fn now() -> Timestamp {
-        crate::codec::parse_ts(&ts(margin_domain::now())).unwrap()
+        crate::codec::parse_ts(&ts(cilica_domain::now())).unwrap()
     }
 
     use super::*;

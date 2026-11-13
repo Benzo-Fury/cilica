@@ -6,14 +6,14 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::Duration;
 
-use margin_detect::{DetectEvent, MeetingDetector};
-use margin_domain::chrono::{self, Local};
-use margin_domain::{
+use cilica_detect::{DetectEvent, MeetingDetector};
+use cilica_domain::chrono::{self, Local};
+use cilica_domain::{
     AppError, AppEvent, AppResult, DataScope, DetectMode, ErrorCode, Events, Id, MeetingSummarizer, NoteKind, PermissionKind,
     PermissionStatus, RecordingPhase, RecordingState, RecordingTrigger, Settings, StartRecordingOptions, ToastAction, ToastKind,
     ToastRequest, now,
 };
-use margin_store::{Db, NewNote, StoreError};
+use cilica_store::{Db, NewNote, StoreError};
 
 use crate::backend::{AudioBackend, SpeechBackend};
 use crate::files::{RecordingFiles, Sidecar, Stage, expired, unfinished};
@@ -205,7 +205,7 @@ impl RecordingService {
         let inner = &self.inner;
         let _op = inner.op.lock().await;
         if self.is_capturing() {
-            return Err(AppError::new(ErrorCode::Conflict, "Margin is already recording. Stop that recording first."));
+            return Err(AppError::new(ErrorCode::Conflict, "Cilica is already recording. Stop that recording first."));
         }
         let settings = inner.db.get_settings().await?;
         inner.speech.check(&settings)?;
@@ -257,7 +257,7 @@ impl RecordingService {
             s => s,
         };
         if status == PermissionStatus::Denied {
-            return Err(margin_audio::AudioError::MicPermissionDenied.into());
+            return Err(cilica_audio::AudioError::MicPermissionDenied.into());
         }
         Ok(())
     }
@@ -268,7 +268,7 @@ impl RecordingService {
         note_id: Id,
         created: bool,
         meeting_app: Option<String>,
-        started_at: margin_domain::Timestamp,
+        started_at: cilica_domain::Timestamp,
         trigger: RecordingTrigger,
     ) -> AppResult<RecordingState> {
         let inner = &self.inner;
@@ -299,7 +299,7 @@ impl RecordingService {
         let files = RecordingFiles::new(&inner.config.data_dir, note_id);
         let sidecar = Sidecar { note_id, started_at, offset_ms, previous_audio, stage: Stage::Recording };
         let result = async {
-            files.write_sidecar(&sidecar).map_err(|e| AppError::internal(format!("Margin could not create the recording file: {e}. Check that the disk has space.")))?;
+            files.write_sidecar(&sidecar).map_err(|e| AppError::internal(format!("Cilica could not create the recording file: {e}. Check that the disk has space.")))?;
             let with_system = inner.audio.permission(PermissionKind::SystemAudio) != PermissionStatus::Denied;
             if !with_system {
                 system_audio_missing_toast(&inner.events, true, "");
@@ -408,7 +408,7 @@ impl RecordingService {
                     Ok(s) => tracing::info!(duration_ms = s.duration_ms, "capture stopped"),
                     Err(message) => {
                         tracing::warn!(%message, "capture ended with an error; repairing the file");
-                        let _ = tokio::task::spawn_blocking(move || margin_audio::recover_wav(&wav)).await;
+                        let _ = tokio::task::spawn_blocking(move || cilica_audio::recover_wav(&wav)).await;
                     }
                 }
                 Job { files, sidecar, draining: Some(draining), ended_at: now(), recovered: false }
@@ -439,7 +439,7 @@ impl RecordingService {
             return;
         }
         tracing::error!(%message, "capture failed");
-        self.inner.toast(ToastKind::Error, "Recording stopped", format!("Margin stopped recording because {message}. Check that the disk has space; what was recorded so far is kept."), None);
+        self.inner.toast(ToastKind::Error, "Recording stopped", format!("Cilica stopped recording because {message}. Check that the disk has space; what was recorded so far is kept."), None);
         let _ = self.stop().await;
     }
 

@@ -264,7 +264,7 @@ function SpeakersGroup({
         label="Identify speakers after the meeting"
         description={
           identify
-            ? "Once the meeting ends, Margin tells voices apart on this computer, which is more accurate than live labels, and suggests names for voices it knows."
+            ? "Once the meeting ends, Cilica tells voices apart on this computer, which is more accurate than live labels, and suggests names for voices it knows."
             : liveOn
               ? "Off: the live labels are kept as they are."
               : "Off: the transcript shows only You and Others."
@@ -366,7 +366,7 @@ function ModelRow({
                 </Tooltip>
               </>
             ) : (
-              <Tooltip label="Downloads, then Margin switches to it" side="top">
+              <Tooltip label="Downloads, then Cilica switches to it" side="top">
                 <Button
                   size="sm"
                   variant="secondary"

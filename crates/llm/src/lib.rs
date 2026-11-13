@@ -1,4 +1,4 @@
-//! Provider-neutral streaming chat with tool use, and the providers Margin supports.
+//! Provider-neutral streaming chat with tool use, and the providers Cilica supports.
 //!
 //! - [`Provider`] streams one model response: text deltas, tool calls and a final [`Completion`]
 //!   (stop reason, usage and the full assistant content to store and replay).
@@ -13,7 +13,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::{Stream, StreamExt};
-use margin_domain::{AppError, ErrorCode};
+use cilica_domain::{AppError, ErrorCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -253,11 +253,11 @@ pub(crate) fn receiver_stream<T: Send + 'static>(
 /// What went wrong talking to a provider. `Display` is written for people and never contains a key.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum LlmError {
-    #[error("Add your {provider} API key in Settings › Margin to use Margin.")]
+    #[error("Add your {provider} API key in Settings › Cilica to use Cilica.")]
     MissingKey { provider: String },
     #[error("That key was rejected by {provider}. Check it and paste it again.")]
     Auth { provider: String },
-    #[error("{provider} does not offer the model “{model}”. Pick another model in Settings › Margin.")]
+    #[error("{provider} does not offer the model “{model}”. Pick another model in Settings › Cilica.")]
     ModelNotFound { provider: String, model: String },
     #[error("{provider} is limiting requests right now. Wait a minute and try again.")]
     RateLimited { provider: String },
@@ -265,7 +265,7 @@ pub enum LlmError {
     Overloaded { provider: String },
     #[error("{provider} had a problem ({status}). Try again in a minute.")]
     Server { provider: String, status: u16 },
-    #[error("Margin could not reach {provider}. Check your connection and try again.")]
+    #[error("Cilica could not reach {provider}. Check your connection and try again.")]
     Network { provider: String },
     #[error("{provider} turned the request down: {message}")]
     BadRequest { provider: String, message: String },

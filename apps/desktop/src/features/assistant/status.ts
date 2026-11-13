@@ -1,5 +1,5 @@
 /**
- * What Margin says while it works. A running tool step names the thing it is touching
+ * What Cilica says while it works. A running tool step names the thing it is touching
  * ("Reading “Q3 planning sync”") instead of a generic label; between the last step and the
  * first words of the answer the thread says it is writing.
  */
@@ -52,7 +52,7 @@ export function workingLine(
   }
 }
 
-/** True once the steps are done and the answer has not started: Margin is writing. */
+/** True once the steps are done and the answer has not started: Cilica is writing. */
 export function isComposing(state: ThreadState): boolean {
   if (!state.activeTurn) return false;
   const message = [...state.messages]

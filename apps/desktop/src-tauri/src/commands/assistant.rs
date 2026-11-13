@@ -3,24 +3,22 @@
 //! Every command here is part of the IPC contract in `src/ipc/bindings.ts`. Keep names, arguments and
 //! return types as they are unless the orchestrator agrees to a change; replace the stub bodies.
 //!
-//! API keys live only in the OS keychain (service `app.margin.desktop`, one entry per provider). They
+//! API keys live only in the OS keychain (service `app.cilica.desktop`, one entry per provider). They
 //! are read on demand by the provider's key loader and never logged, stored in SQLite or sent over IPC.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use margin_agent::{Agent, BridgeConfig, DbNoteStore, ProviderSource};
-use margin_domain::*;
-use margin_llm::anthropic::AnthropicProvider;
-use margin_llm::claude_code::{self, ClaudeCodeTextProvider};
-use margin_llm::openai::OpenAiCompatProvider;
-use margin_llm::{KeyLoader, LlmError, Provider};
-use margin_store::Db;
+use cilica_agent::{Agent, BridgeConfig, DbNoteStore, ProviderSource};
+use cilica_domain::*;
+use cilica_llm::anthropic::AnthropicProvider;
+use cilica_llm::claude_code::{self, ClaudeCodeTextProvider};
+use cilica_llm::openai::OpenAiCompatProvider;
+use cilica_llm::{KeyLoader, LlmError, Provider};
+use cilica_store::Db;
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
-
-const KEYCHAIN_SERVICE: &str = "app.margin.desktop";
 
 // ── Keys ─────────────────────────────────────────────────────────────────
 
@@ -87,21 +85,15 @@ impl KeyStore {
     pub fn get(kind: ProviderKind) -> Option<String> {
         let account = Self::account(kind)?;
         KEY_CACHE.get_or_load(account, || {
-            let entry = keyring::Entry::new(KEYCHAIN_SERVICE, account).map_err(|_| ())?;
-            match entry.get_password() {
-                Ok(key) => Ok(Some(key)),
-                Err(keyring::Error::NoEntry) => Ok(None),
-                Err(_) => Err(()),
-            }
+            crate::keychain::read(account).map_err(|_| ())
         })
     }
 
     /// Saves the key in the keychain and updates the cache.
     pub fn set(kind: ProviderKind, key: &str) -> AppResult<()> {
         let account = Self::account(kind).ok_or_else(|| AppError::invalid("This provider doesn't use a key."))?;
-        keyring::Entry::new(KEYCHAIN_SERVICE, account)
-            .and_then(|e| e.set_password(key))
-            .map_err(|_| AppError::unavailable("Margin could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
+        crate::keychain::write(account, key)
+            .map_err(|_| AppError::unavailable("Cilica could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
         KEY_CACHE.put(account, Some(key.to_string()).filter(|k| !k.trim().is_empty()));
         Ok(())
     }
@@ -109,12 +101,12 @@ impl KeyStore {
     /// Removes the key from the keychain and the cache.
     pub fn clear(kind: ProviderKind) -> AppResult<()> {
         let Some(account) = Self::account(kind) else { return Ok(()) };
-        match keyring::Entry::new(KEYCHAIN_SERVICE, account).and_then(|e| e.delete_credential()) {
-            Ok(()) | Err(keyring::Error::NoEntry) => {
+        match crate::keychain::delete(account) {
+            Ok(()) => {
                 KEY_CACHE.put(account, None);
                 Ok(())
             }
-            Err(_) => Err(AppError::unavailable("Margin could not remove the key from your keychain. Try again.")),
+            Err(_) => Err(AppError::unavailable("Cilica could not remove the key from your keychain. Try again.")),
         }
     }
 
@@ -159,7 +151,7 @@ impl AppProviders {
             ProviderKind::Anthropic => {
                 // Fail fast with what to do, so turns, summaries and chips do not wait on the network.
                 if KeyStore::get(ProviderKind::Anthropic).is_none() {
-                    return Err(AppError::unavailable("Add your Anthropic API key in Settings › Margin to use Margin."));
+                    return Err(AppError::unavailable("Add your Anthropic API key in Settings › Cilica to use Cilica."));
                 }
                 Arc::new(AnthropicProvider::new(KeyStore::loader(ProviderKind::Anthropic)))
             }
@@ -168,11 +160,11 @@ impl AppProviders {
                     .base_url
                     .clone()
                     .filter(|u| !u.trim().is_empty())
-                    .ok_or_else(|| AppError::unavailable("Add the server address for your OpenAI-compatible provider in Settings › Margin."))?;
+                    .ok_or_else(|| AppError::unavailable("Add the server address for your OpenAI-compatible provider in Settings › Cilica."))?;
                 // Local servers (LM Studio) work without a key; others need one.
                 let has_key = KeyStore::get(ProviderKind::OpenaiCompat).is_some();
                 if !has_key && !is_local(&base) {
-                    return Err(AppError::unavailable(format!("Add your {} API key in Settings › Margin to use Margin.", compat_name(&base))));
+                    return Err(AppError::unavailable(format!("Add your {} API key in Settings › Cilica to use Cilica.", compat_name(&base))));
                 }
                 let key = has_key.then(|| KeyStore::loader(ProviderKind::OpenaiCompat));
                 Arc::new(OpenAiCompatProvider::new(compat_name(&base), base, key))
@@ -180,7 +172,7 @@ impl AppProviders {
             ProviderKind::Ollama => Arc::new(OpenAiCompatProvider::ollama(settings.base_url.clone().filter(|u| !u.trim().is_empty()))),
             ProviderKind::ClaudeCode => {
                 let binary = claude_code::find_binary()
-                    .ok_or_else(|| AppError::unavailable("Claude Code is not installed. Install it or pick another provider in Settings › Margin."))?;
+                    .ok_or_else(|| AppError::unavailable("Claude Code is not installed. Install it or pick another provider in Settings › Cilica."))?;
                 Arc::new(ClaudeCodeTextProvider { binary, cwd: self.data_dir.join("claude-bridge") })
             }
         })
@@ -224,7 +216,7 @@ pub fn summarizer(app: &AppHandle) -> std::sync::Arc<dyn MeetingSummarizer> {
     #[async_trait::async_trait]
     impl MeetingSummarizer for Unavailable {
         async fn summarize_meeting(&self, _note_id: Id) -> AppResult<()> {
-            Err(AppError::unavailable("Margin is still starting. Try again in a moment."))
+            Err(AppError::unavailable("Cilica is still starting. Try again in a moment."))
         }
     }
     std::sync::Arc::new(Unavailable)
@@ -238,9 +230,9 @@ pub fn agent(app: &AppHandle) -> Option<Agent> {
 /// Called once at startup, after the database is open. Create this area's services here and
 /// register them with `app.manage(...)`.
 pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
-    let providers = Arc::new(AppProviders { db: core.db.clone(), db_path: core.data_dir.join("margin.db"), data_dir: core.data_dir.clone() });
+    let providers = Arc::new(AppProviders { db: core.db.clone(), db_path: core.data_dir.join("cilica.db"), data_dir: core.data_dir.clone() });
     let agent = Agent::new(core.db.clone(), Arc::new(DbNoteStore(core.db.clone())), core.events.clone(), providers.clone());
-    // Settings › Margin › Delete conversations after: at launch, then every hour.
+    // Settings › Cilica › Delete conversations after: at launch, then every hour.
     let housekeeper = agent.clone();
     tauri::async_runtime::spawn(async move {
         loop {
@@ -256,28 +248,28 @@ pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
     Ok(())
 }
 
-/// `margin-desktop --mcp --db <path> …`: serve Margin's tools over stdio for the Claude Code bridge.
+/// `cilica-desktop --mcp --db <path> …`: serve Cilica's tools over stdio for the Claude Code bridge.
 /// Returns the process exit code. Called from `main` before the app starts.
 pub fn run_mcp_server() -> i32 {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let parsed = match margin_mcp::parse_args(&args) {
+    let parsed = match cilica_mcp::parse_args(&args) {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("margin --mcp: {e}");
+            eprintln!("cilica --mcp: {e}");
             return 2;
         }
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("margin --mcp: {e}");
+            eprintln!("cilica --mcp: {e}");
             return 1;
         }
     };
-    match runtime.block_on(margin_mcp::run_stdio(parsed)) {
+    match runtime.block_on(cilica_mcp::run_stdio(parsed)) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("margin --mcp: {e}");
+            eprintln!("cilica --mcp: {e}");
             1
         }
     }
@@ -389,17 +381,17 @@ async fn status_for(providers: &AppProviders, kind: ProviderKind) -> ProviderSta
     let has_key = KeyStore::get(kind).is_some();
     let (ready, problem) = match kind {
         ProviderKind::Anthropic => {
-            if has_key { (true, None) } else { (false, Some("Add your Anthropic API key to use Margin.".to_string())) }
+            if has_key { (true, None) } else { (false, Some("Add your Anthropic API key to use Cilica.".to_string())) }
         }
         ProviderKind::OpenaiCompat => match settings.base_url.as_deref().filter(|u| !u.trim().is_empty()) {
             None => (false, Some("Add the server address for your OpenAI-compatible provider.".to_string())),
-            Some(url) if !has_key && !is_local(url) => (false, Some(format!("Add your {} API key to use Margin.", compat_name(url)))),
+            Some(url) if !has_key && !is_local(url) => (false, Some(format!("Add your {} API key to use Cilica.", compat_name(url)))),
             Some(_) => (true, None),
         },
         ProviderKind::Ollama => {
             // Ready only when Ollama answers and has the chosen model.
-            let manager = margin_llm::ollama::OllamaManager::new(Arc::new(NullSink));
-            let root = margin_llm::ollama::root_url(settings.base_url.as_deref());
+            let manager = cilica_llm::ollama::OllamaManager::new(Arc::new(NullSink));
+            let root = cilica_llm::ollama::root_url(settings.base_url.as_deref());
             match manager.installed(&root).await {
                 Err(_) => (false, Some("Ollama is not running yet. Set it up below.".to_string())),
                 Ok(tags) if !tags.iter().any(|t| t == &settings.model || *t == format!("{}:latest", settings.model)) => {
@@ -449,7 +441,7 @@ pub async fn set_provider_key(state: State<'_, AssistantState>, kind: ProviderKi
                 return Err(e.into());
             }
             Ok(Err(e)) => status.problem = Some(format!("Saved. {}", e)),
-            Err(_) => status.problem = Some("Saved. Margin could not check the key just now.".into()),
+            Err(_) => status.problem = Some("Saved. Cilica could not check the key just now.".into()),
         }
     }
     Ok(status)

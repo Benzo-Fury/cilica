@@ -1,7 +1,7 @@
 /**
  * The setup window's order of things: a welcome screen, then five steps that open one at a time.
  * Finished steps collapse to a line and can be reopened; later steps stay hidden until reached.
- * The last step's button opens Margin, so there is no ending page.
+ * The last step's button opens Cilica, so there is no ending page.
  */
 
 export const STEPS = ["permissions", "speech", "model", "import", "look"] as const;

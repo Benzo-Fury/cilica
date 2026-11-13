@@ -1,4 +1,4 @@
-//! The capturing half of a session: the capture thread (margin-audio), a router thread that turns
+//! The capturing half of a session: the capture thread (cilica-audio), a router thread that turns
 //! capture events into app events and feeds each channel to its transcription thread, the
 //! transcription threads (blocking Whisper calls, never on the async runtime), and an async
 //! task that stores segments and emits them.
@@ -18,13 +18,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender};
-use margin_audio::{CaptureConfig, CaptureEvent, CaptureSession, CaptureSummary, SourceKind};
-use margin_domain::{
+use cilica_audio::{CaptureConfig, CaptureEvent, CaptureSession, CaptureSummary, SourceKind};
+use cilica_domain::{
     AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, ToastAction, ToastKind, ToastRequest,
     new_id,
 };
-use margin_store::{Db, NewSpeaker, OTHERS_LABEL};
-use margin_stt::{StreamOptions, SttError, SttEvent, Transcriber};
+use cilica_store::{Db, NewSpeaker, OTHERS_LABEL};
+use cilica_stt::{StreamOptions, SttError, SttEvent, Transcriber};
 use tokio::sync::mpsc;
 
 use crate::backend::{AudioBackend, SpeechBackend};
@@ -121,9 +121,9 @@ impl LiveSession {
         let router = {
             let (events, stopping, on_failed) = (p.events.clone(), stopping.clone(), p.on_capture_failed);
             std::thread::Builder::new()
-                .name("margin-router".into())
+                .name("cilica-router".into())
                 .spawn(move || route(capture_rx, mic_tx, sys_tx, events, stopping, on_failed))
-                .map_err(|e| AppError::internal(format!("Margin could not start recording: {e}")))?
+                .map_err(|e| AppError::internal(format!("Cilica could not start recording: {e}")))?
         };
         Ok(Self { capture, stopping, draining: Draining { router: Some(router), stt: Some(stt), persister: Some(persister) } })
     }
@@ -167,11 +167,11 @@ fn route(
             CaptureEvent::Levels(levels) => events.emit(AppEvent::AudioLevels { levels }),
             CaptureEvent::SourceLost { kind: SourceKind::Mic, message } => {
                 tracing::warn!(%message, "microphone lost");
-                toast(&events, ToastKind::Error, "Microphone disconnected", "Margin keeps recording the call audio and picks the microphone up again as soon as it is back.", None);
+                toast(&events, ToastKind::Error, "Microphone disconnected", "Cilica keeps recording the call audio and picks the microphone up again as soon as it is back.", None);
             }
             CaptureEvent::SourceLost { kind: SourceKind::System, message } => {
                 tracing::warn!(%message, "system audio lost");
-                toast(&events, ToastKind::Error, "System audio stopped", "Margin keeps recording your microphone and reconnects to the call audio as soon as it can.", None);
+                toast(&events, ToastKind::Error, "System audio stopped", "Cilica keeps recording your microphone and reconnects to the call audio as soon as it can.", None);
             }
             CaptureEvent::SourceRestored { kind, device_name } => {
                 let title = if kind == SourceKind::Mic { "Microphone back" } else { "System audio back" };
@@ -199,11 +199,11 @@ pub(crate) fn system_audio_missing_toast(events: &Events, permission_denied: boo
             events,
             ToastKind::Error,
             "Recording your microphone only",
-            "Margin can't hear the other people on the call. Allow Margin in System Settings › Privacy & Security › Screen & System Audio Recording, then start a new recording.",
+            "Cilica can't hear the other people on the call. Allow Cilica in System Settings › Privacy & Security › Screen & System Audio Recording, then start a new recording.",
             Some(("Open settings", ToastAction::OpenSettings { page: "recording".into() })),
         );
     } else {
-        toast(events, ToastKind::Error, "Recording your microphone only", format!("Margin can't capture the call audio: {detail}"), None);
+        toast(events, ToastKind::Error, "Recording your microphone only", format!("Cilica can't capture the call audio: {detail}"), None);
     }
 }
 
@@ -232,7 +232,7 @@ fn spawn_stt(
     tap: Option<Arc<VoiceTap>>,
 ) -> AppResult<JoinHandle<()>> {
     std::thread::Builder::new()
-        .name("margin-stt".into())
+        .name("cilica-stt".into())
         .spawn(move || {
             let started = std::time::Instant::now();
             let engine = match speech.transcriber(&settings) {
@@ -253,7 +253,7 @@ fn spawn_stt(
                 .filter_map(|(channel, rx)| {
                     let (engine, out, events, language, notices, tap) = (engine.clone(), out.clone(), events.clone(), language.clone(), notices.clone(), tap.clone());
                     std::thread::Builder::new()
-                        .name(format!("margin-stt-{channel:?}").to_lowercase())
+                        .name(format!("cilica-stt-{channel:?}").to_lowercase())
                         .spawn(move || transcribe_channel(engine, channel, language, rx, out, events, &notices, tap.as_deref()))
                         .ok()
                 })
@@ -263,7 +263,7 @@ fn spawn_stt(
                 let _ = w.join();
             }
         })
-        .map_err(|e| AppError::internal(format!("Margin could not start transcription: {e}")))
+        .map_err(|e| AppError::internal(format!("Cilica could not start transcription: {e}")))
 }
 
 /// One channel: gather whatever audio is queued (so a backlog is decoded in fewer, larger
@@ -468,7 +468,7 @@ async fn persist(
             Ok(()) => events.emit(AppEvent::TranscriptSegment { segment }),
             Err(error) => tracing::warn!(%error, "could not store a transcript segment"),
         }
-        // A finished line by someone the service labelled: listen for a voice Margin knows.
+        // A finished line by someone the service labelled: listen for a voice Cilica knows.
         if is_final
             && u.speaker.is_some()
             && speaker_id != you

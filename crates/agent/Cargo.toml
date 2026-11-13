@@ -1,5 +1,5 @@
 [package]
-name = "margin-agent"
+name = "cilica-agent"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,9 +9,9 @@ publish.workspace = true
 async-trait = "0.1.92"
 chrono = "0.4.45"
 futures = "0.3.34"
-margin-domain = { path = "../domain" }
-margin-llm = { path = "../llm" }
-margin-store = { path = "../store" }
+cilica-domain = { path = "../domain" }
+cilica-llm = { path = "../llm" }
+cilica-store = { path = "../store" }
 serde = "1.0.229"
 serde_json = "1.0.154"
 similar = "3.2.1"

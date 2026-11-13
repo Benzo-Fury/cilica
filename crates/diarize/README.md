@@ -1,4 +1,4 @@
-# margin-diarize
+# cilica-diarize
 
 Speaker diarization, run once per channel after a meeting, and voiceprint matching.
 
@@ -20,7 +20,7 @@ Speaker diarization, run once per channel after a meeting, and voiceprint matchi
 
 ## Models
 
-Downloaded by `margin-stt`'s `ModelManager` on first use (about 36 MB); this crate never touches
+Downloaded by `cilica-stt`'s `ModelManager` on first use (about 36 MB); this crate never touches
 the network.
 
 | Model | File | Source (pinned) | Licence |
@@ -30,12 +30,12 @@ the network.
 
 ## Must not depend on
 
-`tauri`, `margin-store`, the network, or any app crate except `margin-domain`. Heavy: call from a
+`tauri`, `cilica-store`, the network, or any app crate except `cilica-domain`. Heavy: call from a
 blocking thread.
 
 ## Tests
 
-`cargo test -p margin-diarize` (clustering, assignment, suggestions, fbank). With the models in
+`cargo test -p cilica-diarize` (clustering, assignment, suggestions, fbank). With the models in
 `target/test-models/` (commands at the top of `tests/models.rs`): `cargo test --release -p
-margin-diarize -- --ignored --nocapture` separates the two voices of the stt fixture and checks
+cilica-diarize -- --ignored --nocapture` separates the two voices of the stt fixture and checks
 voiceprint similarity and suggestions.

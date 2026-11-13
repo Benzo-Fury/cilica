@@ -1,14 +1,14 @@
-# MarginBar
+# CilicaBar
 
-Margin as a floating bar at the bottom of the page, chosen in Settings › Margin › Show Margin as (the default is the side panel). It replaces the right-hand panel and its toolbar button; `⌘J` opens and closes the bar instead.
+Cilica as a floating bar at the bottom of the page, chosen in Settings › Cilica › Show Cilica as (the default is the side panel). It replaces the right-hand panel and its toolbar button; `⌘J` opens and closes the bar instead.
 
 **Surface**: solid `bg-raised`, `radius-xl`, a 0.5px `line-strong` hairline and `shadow-float`. Not glass. Only the movement borrows from Liquid Glass: one shape that stretches and settles.
 
 **States**
-- **Resting**: a 310×44 pill, 16px above the bottom edge, centred. Label only, no icon and no unread dot: "Ask Margin about this note" on a note, "Ask Margin about your notes" elsewhere, "Back to your conversation" once a conversation exists. The shortcut sits at the right.
+- **Resting**: a 310×44 pill, 16px above the bottom edge, centred. Label only, no icon and no unread dot: "Ask Cilica about this note" on a note, "Ask Cilica about your notes" elsewhere, "Back to your conversation" once a conversation exists. The shortcut sits at the right.
 - **Asking**: 560px wide, as tall as its content. Up to three suggestion chips above the composer. The caret is already in the field.
 - **Conversation**: 560px wide, up to 60% of the window height (560px at most). Header with the title, Conversations, New conversation, Open in side panel and Collapse (the side panel has the matching "Show as floating bar" button); the thread; the composer.
-- **No model yet** (bar and side panel alike): no illustration. A one-line amber notice above the composer says what is missing, with a Set up button that opens Settings › Margin; the composer is disabled.
+- **No model yet** (bar and side panel alike): no illustration. A one-line amber notice above the composer says what is missing, with a Set up button that opens Settings › Cilica; the composer is disabled.
 
 **Collapsing**: Esc, the chevron, `⌘J` or a click on the page behind it. The conversation is kept.
 

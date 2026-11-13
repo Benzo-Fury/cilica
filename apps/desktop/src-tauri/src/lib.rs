@@ -4,6 +4,7 @@
 pub mod commands;
 pub mod core;
 pub mod events;
+pub mod keychain;
 pub mod shell;
 
 use tauri::Manager;
@@ -207,7 +208,7 @@ pub fn run() {
         Ok(())
     })
     .build(tauri::generate_context!())
-    .expect("error while building Margin")
+    .expect("error while building Cilica")
     .run(shell::on_run_event);
 }
 

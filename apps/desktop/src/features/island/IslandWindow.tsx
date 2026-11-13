@@ -100,14 +100,14 @@ function IslandApp() {
     ? "Writing notes…"
     : autoStop !== null
       ? `Meeting ended · stops in ${autoStop}s`
-      : `Recording · ${elapsed} · Margin`;
+      : `Recording · ${elapsed} · Cilica`;
 
   if (!state || state.phase === "idle") return <div className="nt-island-host" />;
 
   return (
     <div className="nt-island-host" data-preview={isTauri ? undefined : ""}>
       <Island
-        label={`Margin ${live ? "recording" : "writing notes"}, ${elapsed}. Show controls`}
+        label={`Cilica ${live ? "recording" : "writing notes"}, ${elapsed}. Show controls`}
         expanded={expanded}
         glass={!hasNotch}
         onToggle={() => {
@@ -138,7 +138,7 @@ function IslandApp() {
               </div>
             </div>
             <IslandButton
-              label="Open Margin"
+              label="Open Cilica"
               onClick={() => void api.showMainWindow().catch(() => undefined)}
             >
               <AppWindow className="nt-ico" strokeWidth={1.75} aria-hidden />

@@ -6,7 +6,7 @@
 //! the UI sets the `spellcheck` attribute on `<html>` and every text box inherits it.
 
 /// WebKit reads this once per launch, so it must be set before the first webview exists.
-/// Margin's own setting is the switch people use, so this is set on every launch rather than
+/// Cilica's own setting is the switch people use, so this is set on every launch rather than
 /// registered as a default the right-click menu could leave off.
 #[cfg(target_os = "macos")]
 pub fn enable_before_webviews() {

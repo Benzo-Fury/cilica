@@ -1,5 +1,5 @@
 /**
- * Step 3: where Margin's language model runs. Anthropic with a key, Ollama on this computer, any
+ * Step 3: where Cilica's language model runs. Anthropic with a key, Ollama on this computer, any
  * OpenAI-compatible server, or the experimental Claude Code bridge. Keys go to the keychain and
  * are checked before they are kept; nothing here changes the provider until it works.
  */
@@ -94,7 +94,7 @@ export function ModelStep({ status, skipped, onNext, onReopen }: StepProps) {
     <SetupStep
       id="model"
       status={status}
-      title="Connect Margin to a model"
+      title="Connect Cilica to a model"
       summary={summary}
       skipped={skipped && !configured}
       onReopen={onReopen}
@@ -370,8 +370,8 @@ function OllamaSetup({ activeModel }: { activeModel: string | null }) {
           install?.error
             ? `${install.error} Try again, or install Ollama yourself from ollama.com.`
             : status?.installed
-              ? "Ollama is installed but not running. Margin can start it."
-              : `Margin downloads Ollama, then a model that fits ${THIS_DEVICE}.`
+              ? "Ollama is installed but not running. Cilica can start it."
+              : `Cilica downloads Ollama, then a model that fits ${THIS_DEVICE}.`
         }
         progress={
           install &&
@@ -389,7 +389,7 @@ function OllamaSetup({ activeModel }: { activeModel: string | null }) {
   }
 
   const model = models?.find((m) => m.recommended) ?? models?.[0];
-  if (!model) return <SetupNote>Loading the models Margin can use…</SetupNote>;
+  if (!model) return <SetupNote>Loading the models Cilica can use…</SetupNote>;
   const progress = downloads[OLLAMA_PREFIX + model.id];
   const inUse = activeModel === model.id;
   return (
@@ -445,7 +445,7 @@ function ClaudeCodeSetup({ active }: { active: boolean }) {
               ? "Claude Code is not installed. Install it and sign in, then check again."
               : !cc.signed_in
                 ? `Found claude ${cc.version ?? ""}, but it is not signed in. Run claude in a terminal and sign in.`
-                : `Found claude ${cc.version ?? ""}, signed in. Margin never reads or stores its credentials.`
+                : `Found claude ${cc.version ?? ""}, signed in. Cilica never reads or stores its credentials.`
         }
         action={
           active ? (
@@ -465,7 +465,7 @@ function ClaudeCodeSetup({ active }: { active: boolean }) {
       />
       <SetupWarning icon={ShieldAlert}>
         Anthropic's consumer terms say Free, Pro and Max subscriptions may only be used in Claude
-        Code and claude.ai. Running it from Margin may breach those terms and put your account at
+        Code and claude.ai. Running it from Cilica may breach those terms and put your account at
         risk. An API key is the supported way.
       </SetupWarning>
     </>

@@ -92,7 +92,7 @@ export function useSpeakerActions(noteId: string) {
           .getQueryData<Person[]>(qk.people)
           ?.find((p) => p.id === personId);
         toast(`Linked to ${person?.name ?? speaker.label}`, {
-          description: "Margin will use this meeting to recognise them next time.",
+          description: "Cilica will use this meeting to recognise them next time.",
         });
       }
     },
@@ -106,7 +106,7 @@ export function useSpeakerActions(noteId: string) {
       void queryClient.invalidateQueries({ queryKey: qk.transcript(noteId) });
       refresh();
       toast.success(`Saved ${person.name}`, {
-        description: "Margin will suggest them when it hears their voice again.",
+        description: "Cilica will suggest them when it hears their voice again.",
       });
     },
     onError: (error) =>

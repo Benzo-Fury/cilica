@@ -12,7 +12,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use margin_domain::{Author, Backlinks, GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, Id, LinkGraph, Mention, NoteKind, NoteRef, NoteSummary};
+use cilica_domain::{Author, Backlinks, GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, Id, LinkGraph, Mention, NoteKind, NoteRef, NoteSummary};
 use sqlx::Row;
 
 use crate::notes::strip_markdown_line;
@@ -878,7 +878,7 @@ fn neighbourhood(graph: LinkGraph, start: usize, depth: u32) -> LinkGraph {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::NoteKind;
+    use cilica_domain::NoteKind;
 
     use super::*;
     use crate::NewNote;
@@ -1057,7 +1057,7 @@ mod tests {
         db.rename_note(third, "Third").await.unwrap();
         assert!(db.relink_after_rename(plan, "Plan", "Q3 plan").await.unwrap().is_empty());
     }
-    /// `cargo test -p margin-store --release links::tests::scale -- --ignored --nocapture`
+    /// `cargo test -p cilica-store --release links::tests::scale -- --ignored --nocapture`
     #[tokio::test]
     #[ignore = "timing, run by hand"]
     async fn scale() {

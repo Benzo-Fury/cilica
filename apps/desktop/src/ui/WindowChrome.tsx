@@ -1,6 +1,6 @@
 /**
  * Window chrome: the 52px title band. macOS keeps its real traffic lights (inset 18px, centred
- * in the band); Windows and Linux get Margin's own minimise / maximise / close buttons.
+ * in the band); Windows and Linux get Cilica's own minimise / maximise / close buttons.
  * Empty band areas carry `data-tauri-drag-region`. Double-click does what the system setting asks:
  * on macOS through `useTitleBarDoubleClick` (native animation), elsewhere Tauri maximises.
  */

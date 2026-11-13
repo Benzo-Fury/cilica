@@ -1,6 +1,6 @@
-# margin-stt
+# cilica-stt
 
-Speech-to-text for Margin. Local Whisper is the default and keeps audio on the machine.
+Speech-to-text for Cilica. Local Whisper is the default and keeps audio on the machine.
 
 ## Public API
 
@@ -30,7 +30,7 @@ Speech-to-text for Margin. Local Whisper is the default and keeps audio on the m
 - `ModelManager` (`<data_dir>/models/`): the catalogue (`list`), resumable, SHA-256-verified
   downloads with progress as `AppEvent::ModelDownload` (`start_download`, `cancel`, `delete`),
   `speech_paths(id)` (or `ModelMissing`, whose message names the fix), and the speaker models
-  for `margin-diarize` (`ensure_speaker_models`, fetched on first use, progress id
+  for `cilica-diarize` (`ensure_speaker_models`, fetched on first use, progress id
   `speaker-models`).
 - `recommend`: which model suits a computer (`recommended_model(cores, ram_gb, apple_silicon)`,
   `suggest_cloud`); `ModelManager::set_hardware` makes `list()` mark it recommended, and
@@ -64,21 +64,21 @@ catalogue and the default in agreement.
 
 ## Must not depend on
 
-`tauri`, `margin-store`, `keyring`, or any app crate except `margin-domain`. Audio never leaves
+`tauri`, `cilica-store`, `keyring`, or any app crate except `cilica-domain`. Audio never leaves
 the machine with the local engine; with a cloud engine it goes only to the provider the person
 chose.
 
 ## Tests
 
-- `cargo test -p margin-stt`: guards, segmenter, catalogue and recommendation, a resumable
+- `cargo test -p cilica-stt`: guards, segmenter, catalogue and recommendation, a resumable
   download against a local HTTP server (range requests, checksum failure), encoder window and
   phantom-segment rules, the cloud stream timeline, and each streaming provider against a local
   WebSocket server replaying its messages (auth header, settings, partials, finals, rejected key),
   one stream over TLS with both rustls crypto backends compiled in (as in the app), and a
   connection thread that crashes being reported rather than going quiet.
 - With models (ignored by default): download into `target/test-models/` (commands at the top
-  of `tests/whisper.rs`), then `cargo test --release -p margin-stt -- --ignored --nocapture`.
+  of `tests/whisper.rs`), then `cargo test --release -p cilica-stt -- --ignored --nocapture`.
   Reports word error rate, real-time factor and live final lag on `tests/fixtures/two_voices.wav`
   (two `say` voices, ground truth in `two_voices.json`).
-- `cargo run --release -p margin-stt --example bench -- <model> <wav> <start_ms-end_ms>…` times
+- `cargo run --release -p cilica-stt --example bench -- <model> <wav> <start_ms-end_ms>…` times
   single-utterance decodes under different encoder windows.

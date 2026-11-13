@@ -1,4 +1,4 @@
-use margin_domain::{PermissionKind, PermissionStatus};
+use cilica_domain::{PermissionKind, PermissionStatus};
 
 use crate::{AudioError, AudioResult, CaptureSource, RawStream, SourceKind};
 

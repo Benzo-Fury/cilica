@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use margin_domain::{AudioChannel, Id, NearWord, Speaker};
+use cilica_domain::{AudioChannel, Id, NearWord, Speaker};
 use sqlx::Row;
 
 use crate::codec::{parse_id, parse_opt_id};
@@ -191,7 +191,7 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::{NoteKind, Segment, new_id, now};
+    use cilica_domain::{NoteKind, Segment, new_id, now};
 
     use crate::NewNote;
 

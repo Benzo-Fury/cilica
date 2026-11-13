@@ -638,7 +638,7 @@ export function SplitBar({
   );
 }
 
-/** An edit Margin made and you undid: what it said, struck out, and your line kept. */
+/** An edit Cilica made and you undid: what it said, struck out, and your line kept. */
 export function UndoneCard({
   summary,
   struck,

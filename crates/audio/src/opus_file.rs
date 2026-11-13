@@ -86,7 +86,7 @@ pub fn encode_ogg_opus(wav: &Path, out: &Path) -> AudioResult<u32> {
     let tmp = out.with_extension("ogg.tmp");
     let file = BufWriter::new(File::create(&tmp)?);
     let mut writer = ogg::writing::PacketWriter::new(file);
-    let serial: u32 = 0x4e4f5441; // "MARGIN"
+    let serial: u32 = 0x4e4f5441; // "CILICA"
 
     // Identification header.
     let mut head = Vec::with_capacity(19);
@@ -99,7 +99,7 @@ pub fn encode_ogg_opus(wav: &Path, out: &Path) -> AudioResult<u32> {
     head.push(0);
     writer.write_packet(head, serial, PacketWriteEndInfo::EndPage, 0)?;
     // Comment header.
-    let vendor = b"Margin";
+    let vendor = b"Cilica";
     let mut tags = Vec::new();
     tags.extend_from_slice(b"OpusTags");
     tags.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn encode_and_decode_stereo() {
-        let dir = std::env::temp_dir().join(format!("margin-opus-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cilica-opus-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let wav = dir.join("in.wav");
         let ogg = dir.join("out.ogg");

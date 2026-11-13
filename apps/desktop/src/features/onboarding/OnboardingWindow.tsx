@@ -1,9 +1,9 @@
 /**
  * The first-run setup window (`?window=onboarding`, shell/onboarding.rs). A welcome screen that
- * says what Margin is (a notes app with an AI assistant and a meeting summariser), then
+ * says what Cilica is (a notes app with an AI assistant and a meeting summariser), then
  * five steps in one column over background art: permissions, the speech model, the assistant's
- * model, imports, and appearance, whose button opens Margin. Every step can be skipped and
- * closing the window opens Margin with whatever was set up.
+ * model, imports, and appearance, whose button opens Cilica. Every step can be skipped and
+ * closing the window opens Cilica with whatever was set up.
  */
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -48,7 +48,7 @@ import { THIS_DEVICE } from "./shared";
 import { useAmbientSound } from "./useAmbientSound";
 
 /**
- * What Margin is, before it asks for anything, in the order the lead names it: a notes app, its
+ * What Cilica is, before it asks for anything, in the order the lead names it: a notes app, its
  * AI assistant, its meeting summariser. Then the way in for notes kept elsewhere. From the README.
  */
 const FEATURES: readonly SetupFeature[] = [
@@ -60,7 +60,7 @@ const FEATURES: readonly SetupFeature[] = [
   {
     icon: Sparkles,
     title: "An AI assistant in your notes",
-    text: "Margin can sort, summarise or tidy them up. Every change can be undone.",
+    text: "Cilica can sort, summarise or tidy them up. Every change can be undone.",
   },
   {
     icon: AudioLines,
@@ -99,8 +99,8 @@ function useFinish(onDone: () => void) {
       if (!isTauri) window.location.assign("/");
     },
     onError: (error) =>
-      toast.error("Margin did not open", {
-        description: `${errorMessage(error)} Close this window to open Margin anyway.`,
+      toast.error("Cilica did not open", {
+        description: `${errorMessage(error)} Close this window to open Cilica anyway.`,
       }),
   });
 }
@@ -169,7 +169,7 @@ function Setup() {
       band={
         <SetupBand
           start={isMac ? <TrafficLightsSpace /> : <span />}
-          title="Set up Margin"
+          title="Set up Cilica"
           count={stepCount(flow)}
           end={
             <>
@@ -190,7 +190,7 @@ function Setup() {
         <SetupWelcome
           title={
             <>
-              Welcome to <em>Margin</em>
+              Welcome to <em>Cilica</em>
             </>
           }
           lead="A notes app with an AI assistant and a meeting summariser."
@@ -198,7 +198,7 @@ function Setup() {
           leaving={leaving}
           action={
             <Button variant="primary" size="lg" autoFocus onClick={start}>
-              Set up Margin
+              Set up Cilica
               <Icon icon={ArrowRight} size="sm" motion="arrow" />
             </Button>
           }

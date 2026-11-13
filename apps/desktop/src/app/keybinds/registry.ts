@@ -8,7 +8,7 @@
  */
 
 export type KeybindScope =
-  /** Registered by the backend as a global hotkey; works while Margin is in the background. */
+  /** Registered by the backend as a global hotkey; works while Cilica is in the background. */
   | "global"
   /** Anywhere in the window. */
   | "app"
@@ -151,7 +151,7 @@ export const ACTIONS = [
   },
   {
     id: "assistant.newThread",
-    label: "New conversation with Margin",
+    label: "New conversation with Cilica",
     group: "View",
     defaultKeys: null,
     scope: "app",
@@ -187,7 +187,7 @@ export const ACTIONS = [
   },
   {
     id: "activity.open",
-    label: "Open Margin activity",
+    label: "Open Cilica activity",
     group: "General",
     defaultKeys: null,
     scope: "app",

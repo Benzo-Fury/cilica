@@ -1,4 +1,4 @@
-//! The streaming adapters against a local WebSocket server that checks what Margin sends and
+//! The streaming adapters against a local WebSocket server that checks what Cilica sends and
 //! replays provider messages, so no key or network is needed.
 
 use std::sync::{Arc, Mutex};

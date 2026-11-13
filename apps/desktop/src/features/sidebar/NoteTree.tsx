@@ -121,7 +121,7 @@ export function NoteTree() {
   // rows handle their own clicks: ⌘ and Shift change the selection, a plain click clears it.
   useClickAway(hasSelection, "[data-sidebar] [data-note-id]", bulk.clear);
 
-  // Forget notes that left the list (trashed by Margin, removed in another window).
+  // Forget notes that left the list (trashed by Cilica, removed in another window).
   useEffect(() => {
     const state = useNoteSelection.getState();
     const pruned = pruneSelection(state, new Set(notes.map((n) => n.id)));

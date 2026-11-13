@@ -149,7 +149,7 @@ function LoadedNote({ note }: { note: Note }) {
     history: useShortcut("note.history"),
   };
 
-  // Keep the title in sync with renames from elsewhere (sidebar, Margin), unless editing it.
+  // Keep the title in sync with renames from elsewhere (sidebar, Cilica), unless editing it.
   useEffect(() => {
     if (document.activeElement !== titleRef.current) setTitle(note.title);
   }, [note.title]);
@@ -200,7 +200,7 @@ function LoadedNote({ note }: { note: Note }) {
   }, [note.id, panel]);
   useEffect(() => () => useNoteViewState.getState().clear(note.id), [note.id]);
 
-  // When Margin starts writing the meeting summary, the view slides to Notes to show it.
+  // When Cilica starts writing the meeting summary, the view slides to Notes to show it.
   useBackendEvent("note_body_stream", (event) => {
     if (event.note_id === note.id && !event.done && panel !== "notes") {
       setMode("view");

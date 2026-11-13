@@ -3,7 +3,7 @@
  *
  * The backend owns the real count (meetings are read from transcripts whether or not the window is
  * open). The label shows `seen`: the coins you have watched go in. When the backend's count runs
- * ahead of `seen` (swears said while Margin was in the background), `reconcile` drops the
+ * ahead of `seen` (swears said while Cilica was in the background), `reconcile` drops the
  * difference in as a catch-up the next time you look.
  */
 import { create } from "zustand";
@@ -64,7 +64,7 @@ export function light(segmentId: string) {
 }
 
 export interface DropOptions {
-  /** Said while Margin was in the background. */
+  /** Said while Cilica was in the background. */
   away?: boolean;
   /** Called as each coin lands (the clink). */
   onLand?: () => void;

@@ -6,13 +6,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use margin_audio::{SAMPLE_RATE, WavWriter, read_wav_16k, read_wav_channel_16k, recover_wav};
-use margin_diarize::{Diarization, RECOGNISE_THRESHOLD, SUGGEST_THRESHOLD, assign_segments, cosine};
-use margin_domain::{
+use cilica_audio::{SAMPLE_RATE, WavWriter, read_wav_16k, read_wav_channel_16k, recover_wav};
+use cilica_diarize::{Diarization, RECOGNISE_THRESHOLD, SUGGEST_THRESHOLD, assign_segments, cosine};
+use cilica_domain::{
     AppError, AppResult, AudioChannel, DataScope, ErrorCode, Id, RecordingPhase, Segment, ToastAction, ToastKind,
     ToastRequest, Timestamp,
 };
-use margin_store::{NewSpeaker, SELF_LABEL};
+use cilica_store::{NewSpeaker, SELF_LABEL};
 
 use crate::echo::EchoFilter;
 use crate::files::{RecordingFiles, Sidecar, Stage, kept_audio};
@@ -150,7 +150,7 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
         // Never send a whole interrupted recording to a cloud service unasked: use the local
         // model (if it is not downloaded, the tail stays untranscribed).
         let mut local = settings.clone();
-        local.transcription.engine = margin_domain::SttEngine::WhisperLocal;
+        local.transcription.engine = cilica_domain::SttEngine::WhisperLocal;
         let engine = speech.transcriber(&local)?;
         let mut out = Vec::new();
         for (index, channel, speaker) in [(0, AudioChannel::Mic, you), (1, AudioChannel::System, others)] {
@@ -162,7 +162,7 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
             }
             for u in engine.transcribe(&audio[from..], settings.transcription.language.as_deref()).map_err(AppError::from)? {
                 out.push(Segment {
-                    id: margin_domain::new_id(),
+                    id: cilica_domain::new_id(),
                     note_id,
                     speaker_id: Some(speaker),
                     channel,
@@ -226,7 +226,7 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
             let audio = read_wav_channel_16k(&wav, index).map_err(AppError::from)?;
             for u in engine.transcribe_recording(&audio, language.as_deref()).map_err(AppError::from)? {
                 segments.push(Segment {
-                    id: margin_domain::new_id(),
+                    id: cilica_domain::new_id(),
                     note_id,
                     speaker_id: Some(speaker),
                     channel,
@@ -307,14 +307,14 @@ async fn keep_audio(inner: &Arc<Inner>, job: &Job) -> AppResult<()> {
             None => wav,
         };
         let (ogg, ogg_rel) = kept_audio(&data_dir, note_id, "ogg");
-        match margin_audio::encode_ogg_opus(&source, &ogg) {
+        match cilica_audio::encode_ogg_opus(&source, &ogg) {
             Ok(ms) => Ok((ogg_rel, ms)),
             Err(error) => {
                 tracing::warn!(%error, "keeping the recording as WAV");
                 let (dest, rel) = kept_audio(&data_dir, note_id, "wav");
                 std::fs::copy(&source, &dest).map_err(|e| AppError::internal(format!("The recording could not be saved: {e}. Check that the disk has space.")))?;
                 let frames = hound::WavReader::open(&dest).map(|r| r.duration()).unwrap_or(0);
-                Ok((rel, margin_audio::samples_to_ms(frames as u64)))
+                Ok((rel, cilica_audio::samples_to_ms(frames as u64)))
             }
         }
     })
@@ -329,7 +329,7 @@ async fn keep_audio(inner: &Arc<Inner>, job: &Job) -> AppResult<()> {
 }
 
 /// `previous` (any WAV or Ogg Opus we wrote) padded or cut to `offset_ms`, then `wav`, into `out`.
-fn combine(previous: &Path, offset_ms: u32, wav: &Path, out: &Path) -> margin_audio::AudioResult<()> {
+fn combine(previous: &Path, offset_ms: u32, wav: &Path, out: &Path) -> cilica_audio::AudioResult<()> {
     let mut prev = if previous.extension().and_then(|e| e.to_str()) == Some("ogg") {
         decode_previous(previous)?
     } else {
@@ -351,7 +351,7 @@ fn combine(previous: &Path, offset_ms: u32, wav: &Path, out: &Path) -> margin_au
         writer.write_interleaved(&buf)?;
     }
     drop(prev);
-    let mut reader = hound::WavReader::open(wav).map_err(|e| margin_audio::AudioError::Encode(e.to_string()))?;
+    let mut reader = hound::WavReader::open(wav).map_err(|e| cilica_audio::AudioError::Encode(e.to_string()))?;
     buf.clear();
     for s in reader.samples::<i16>() {
         buf.push(s.unwrap_or(0) as f32 / 32768.0);
@@ -366,13 +366,13 @@ fn combine(previous: &Path, offset_ms: u32, wav: &Path, out: &Path) -> margin_au
 }
 
 #[cfg(feature = "opus")]
-fn decode_previous(path: &Path) -> margin_audio::AudioResult<Vec<Vec<f32>>> {
-    margin_audio::decode_ogg_opus(path)
+fn decode_previous(path: &Path) -> cilica_audio::AudioResult<Vec<Vec<f32>>> {
+    cilica_audio::decode_ogg_opus(path)
 }
 
 #[cfg(not(feature = "opus"))]
-fn decode_previous(_path: &Path) -> margin_audio::AudioResult<Vec<Vec<f32>>> {
-    Err(margin_audio::AudioError::Encode("this build cannot read Ogg Opus".into()))
+fn decode_previous(_path: &Path) -> cilica_audio::AudioResult<Vec<Vec<f32>>> {
+    Err(cilica_audio::AudioError::Encode("this build cannot read Ogg Opus".into()))
 }
 
 // ── Speakers ─────────────────────────────────────────────────────────────
@@ -431,7 +431,7 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
     }
     if let Some(mic) = mic.as_ref().filter(|d| !d.speakers.is_empty()) {
         let call: Vec<&[f32]> = system.iter().flat_map(|d| d.speakers.iter().map(|s| s.embedding.as_slice())).collect();
-        // You: the voice that sounds most like your saved voice, or, until Margin knows it, the
+        // You: the voice that sounds most like your saved voice, or, until Cilica knows it, the
         // one that talked most.
         let by_voice = my_voice.as_ref().and_then(|v| {
             mic.speakers.iter().map(|s| (s.index, v.similarity(&s.embedding))).filter(|(_, sim)| *sim >= SUGGEST_THRESHOLD).max_by(|a, b| a.1.total_cmp(&b.1)).map(|(i, _)| i)
@@ -472,7 +472,7 @@ async fn diarize(inner: &Arc<Inner>, note_id: Id, wav: &Path) -> AppResult<usize
     let suggestions = inner.db.speaker_suggestions(note_id, SUGGEST_THRESHOLD).await?;
     if let Some(first) = suggestions.first() {
         let label = inner.db.get_speaker(first.speaker_id).await.map(|s| s.label).unwrap_or_else(|_| "a speaker".into());
-        let title = if suggestions.len() == 1 { "Margin may know a voice".to_string() } else { format!("Margin may know {} voices", suggestions.len()) };
+        let title = if suggestions.len() == 1 { "Cilica may know a voice".to_string() } else { format!("Cilica may know {} voices", suggestions.len()) };
         inner.toast(
             ToastKind::Action,
             &title,
@@ -515,9 +515,9 @@ async fn summarize(inner: &Arc<Inner>, note_id: Id) {
             inner.emit_toast(ToastRequest {
                 kind: ToastKind::Action,
                 title: "Transcript saved".into(),
-                description: Some(format!("{} Margin can write the meeting notes once that is done.", error.message)),
+                description: Some(format!("{} Cilica can write the meeting notes once that is done.", error.message)),
                 action_label: Some("Open settings".into()),
-                action: Some(ToastAction::OpenSettings { page: "margin".into() }),
+                action: Some(ToastAction::OpenSettings { page: "cilica".into() }),
             });
         }
         Err(error) => {

@@ -2,7 +2,7 @@
 //! LM Studio, and Ollama (through its OpenAI-compatible `/v1` endpoint, no key).
 //!
 //! When a model or server does not support tools, the request is retried once without them and the
-//! completion carries a `notice` so the UI can say why Margin could not look anything up.
+//! completion carries a `notice` so the UI can say why Cilica could not look anything up.
 
 use std::collections::BTreeMap;
 
@@ -18,7 +18,7 @@ use crate::{
 
 pub const OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 pub const OLLAMA_BASE_URL: &str = "http://localhost:11434/v1";
-const NO_TOOLS_NOTICE: &str = "This model can't use tools, so Margin answered without reading your notes. Pick a model with tool support in Settings › Margin.";
+const NO_TOOLS_NOTICE: &str = "This model can't use tools, so Cilica answered without reading your notes. Pick a model with tool support in Settings › Cilica.";
 
 pub struct OpenAiCompatProvider {
     http: reqwest::Client,

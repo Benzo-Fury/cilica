@@ -1,5 +1,5 @@
 /**
- * Visual treatment for text Margin streams into a note: the newest words fade in
+ * Visual treatment for text Cilica streams into a note: the newest words fade in
  * (`nt-stream-new`), and when the stream finishes the whole written range keeps an
  * `accent-soft` wash that fades out over 2s (`nt-ai-settle`).
  */

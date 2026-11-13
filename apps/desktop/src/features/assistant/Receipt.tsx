@@ -1,8 +1,8 @@
 /**
- * A citation in one of Margin's answers: the note's title, and when the note still has its
+ * A citation in one of Cilica's answers: the note's title, and when the note still has its
  * transcript, the moment as a time chip that opens the transcript there (parking the playhead
  * if the recording is still on disk). No transcript, no chip: the title alone opens the note.
- * The transcript is only fetched for notes Margin cited with a time, and is cached.
+ * The transcript is only fetched for notes Cilica cited with a time, and is cached.
  */
 import { Play } from "lucide-react";
 import { openNote } from "@/app/router";

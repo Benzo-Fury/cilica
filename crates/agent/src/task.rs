@@ -1,8 +1,8 @@
 //! Scheduled task runs: the same loop as chat, in propose-only mode, with no thread.
 
 use chrono::Duration;
-use margin_domain::{AppError, AppResult, Id, NoteKind, NoteSummary, Task, TaskScope, now};
-use margin_llm::{CancellationToken, ChatMessage, Effort};
+use cilica_domain::{AppError, AppResult, Id, NoteKind, NoteSummary, Task, TaskScope, now};
+use cilica_llm::{CancellationToken, ChatMessage, Effort};
 
 use crate::prompt::{TASK_SYSTEM_PROMPT, quoted};
 use crate::runner::CallContext;
@@ -44,7 +44,7 @@ impl Agent {
         let (settings, provider) = self.provider().await?;
         if Agent::is_bridge(&settings) {
             return Err(AppError::unavailable(
-                "Scheduled tasks need an API key or a local model; the Claude Code bridge only runs chats. Add one in Settings › Margin.",
+                "Scheduled tasks need an API key or a local model; the Claude Code bridge only runs chats. Add one in Settings › Cilica.",
             ));
         }
         let all = self.inner.notes.list_notes().await?;

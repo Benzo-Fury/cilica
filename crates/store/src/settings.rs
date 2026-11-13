@@ -8,7 +8,7 @@
 //! [`Db::get_value`] / [`Db::set_value`] are small key → JSON helpers for caches (prompt chips,
 //! model catalogue, window hints). Keys are free-form; prefix them with your area (`assistant.`).
 
-use margin_domain::Settings;
+use cilica_domain::Settings;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
@@ -158,7 +158,7 @@ fn keep_unknown_fields(stored: Value, new: Value, template: &Value) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::ThemeMode;
+    use cilica_domain::ThemeMode;
     use serde_json::json;
 
     use super::*;

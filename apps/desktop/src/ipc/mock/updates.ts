@@ -1,6 +1,6 @@
 /**
  * App updates in the browser preview. `?update` pretends a newer version exists, so the update
- * toast and Settings rows can be previewed; otherwise Margin is up to date.
+ * toast and Settings rows can be previewed; otherwise Cilica is up to date.
  */
 import type { UpdateInfo } from "@/ipc/types";
 import { appError } from "./util";

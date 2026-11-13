@@ -3,7 +3,7 @@
 //! Every command here is part of the IPC contract in `src/ipc/bindings.ts`. Keep names, arguments and
 //! return types as they are unless the orchestrator agrees to a change.
 
-use margin_domain::*;
+use cilica_domain::*;
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
@@ -75,8 +75,8 @@ pub async fn show_main_window(app: AppHandle) -> AppResult<()> {
     if onboarding::is_open(&app) && !app.state::<Shell>().settings().onboarding_done {
         return Ok(());
     }
-    let window = app.get_webview_window(shell::MAIN).ok_or_else(|| AppError::internal("The main window is missing. Restart Margin."))?;
-    window.show().and_then(|_| window.set_focus()).map_err(|e| AppError::internal(format!("Margin could not show its window: {e}")))?;
+    let window = app.get_webview_window(shell::MAIN).ok_or_else(|| AppError::internal("The main window is missing. Restart Cilica."))?;
+    window.show().and_then(|_| window.set_focus()).map_err(|e| AppError::internal(format!("Cilica could not show its window: {e}")))?;
     app.state::<Shell>().ui_ready();
     Ok(())
 }
@@ -88,7 +88,7 @@ pub async fn show_onboarding_window(app: AppHandle) -> AppResult<()> {
     onboarding::show(&app)
 }
 
-/// Open Margin from setup: marks setup done, writes the welcome note on the first run, closes
+/// Open Cilica from setup: marks setup done, writes the welcome note on the first run, closes
 /// the setup window and shows the main window on that note.
 #[tauri::command]
 #[specta::specta]
@@ -96,14 +96,14 @@ pub async fn finish_onboarding(app: AppHandle) -> AppResult<()> {
     onboarding::finish(&app).await
 }
 
-/// Settings › General › Run setup again: open the setup window over Margin.
+/// Settings › General › Run setup again: open the setup window over Cilica.
 #[tauri::command]
 #[specta::specta]
 pub async fn open_onboarding(app: AppHandle) -> AppResult<()> {
     if onboarding::is_open(&app) {
         return onboarding::show(&app);
     }
-    onboarding::create(&app).map(|_| ()).map_err(|e| AppError::internal(format!("Margin could not open setup: {e}. Restart Margin and try again.")))
+    onboarding::create(&app).map(|_| ()).map_err(|e| AppError::internal(format!("Cilica could not open setup: {e}. Restart Cilica and try again.")))
 }
 
 /// The user double-clicked an empty part of the title band: do what the system setting for
@@ -111,7 +111,7 @@ pub async fn open_onboarding(app: AppHandle) -> AppResult<()> {
 #[tauri::command]
 #[specta::specta]
 pub async fn title_bar_double_click(window: tauri::WebviewWindow) -> AppResult<()> {
-    shell::titlebar::double_click(&window).map_err(|e| AppError::internal(format!("Margin could not resize its window: {e}. Try the green window button instead.")))
+    shell::titlebar::double_click(&window).map_err(|e| AppError::internal(format!("Cilica could not resize its window: {e}. Try the green window button instead.")))
 }
 
 /// Show the Dynamic Island top-centre of the active display, without taking focus.
@@ -137,7 +137,7 @@ pub async fn set_island_size(app: AppHandle, width: f64, height: f64) -> AppResu
     if !(16.0..=800.0).contains(&width) || !(16.0..=400.0).contains(&height) {
         return Err(AppError::invalid("The island size must be between 16 × 16 and 800 × 400 points."));
     }
-    island::set_size(&app, width, height).map_err(|e| AppError::internal(format!("Margin could not resize the island: {e}")))
+    island::set_size(&app, width, height).map_err(|e| AppError::internal(format!("Cilica could not resize the island: {e}")))
 }
 
 #[tauri::command]
@@ -148,7 +148,7 @@ pub async fn get_island_info(app: AppHandle) -> AppResult<IslandInfo> {
     app.run_on_main_thread(move || {
         let _ = tx.send(island::active_display_has_notch(&handle));
     })
-    .map_err(|e| AppError::internal(format!("Margin could not read the display: {e}")))?;
+    .map_err(|e| AppError::internal(format!("Cilica could not read the display: {e}")))?;
     Ok(IslandInfo { has_notch: rx.await.unwrap_or(false) })
 }
 

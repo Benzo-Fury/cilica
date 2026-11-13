@@ -9,7 +9,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use margin_domain::{AudioChannel, Id, Person, Quote, Segment, Speaker, SpeakerSuggestion, Timestamp, Transcript};
+use cilica_domain::{AudioChannel, Id, Person, Quote, Segment, Speaker, SpeakerSuggestion, Timestamp, Transcript};
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 
@@ -147,9 +147,9 @@ impl Db {
     }
 
     /// Link a speaker to a Saved person or unlink it with `None`. This is the person confirming
-    /// who someone is, so it teaches Margin their voice: the speaker's embedding becomes one of
+    /// who someone is, so it teaches Cilica their voice: the speaker's embedding becomes one of
     /// the person's samples. A sample this speaker gave someone else before is taken back out,
-    /// so a correction ("not Sam, Kim") untrains the wrong person. Confirming the person Margin
+    /// so a correction ("not Sam, Kim") untrains the wrong person. Confirming the person Cilica
     /// already picked adds the sample too.
     pub async fn link_speaker(&self, speaker_id: Id, person_id: Option<Id>) -> StoreResult<Speaker> {
         let mut tx = self.pool().begin().await?;
@@ -189,7 +189,7 @@ impl Db {
         self.get_speaker(speaker_id).await
     }
 
-    /// Margin's own guess of who a speaker is (a voice it recognised): shown like a link, but it
+    /// Cilica's own guess of who a speaker is (a voice it recognised): shown like a link, but it
     /// teaches nothing until the person confirms it with [`Db::link_speaker`].
     pub async fn assign_speaker(&self, speaker_id: Id, person_id: Id) -> StoreResult<()> {
         sqlx::query("UPDATE speakers SET person_id = ? WHERE id = ?")
@@ -206,12 +206,12 @@ impl Db {
         if let Some((id,)) = found {
             return self.get_person(parse_id(&id)?).await;
         }
-        let id = margin_domain::new_id();
+        let id = cilica_domain::new_id();
         // The unique index keeps it to one even if two callers race here.
         sqlx::query("INSERT OR IGNORE INTO people (id, name, color_index, voiceprint, sample_count, created_at, is_self) VALUES (?, ?, 1, NULL, 0, ?, 1)")
             .bind(id.to_string())
             .bind(SELF_PERSON_NAME)
-            .bind(crate::codec::ts(margin_domain::now()))
+            .bind(crate::codec::ts(cilica_domain::now()))
             .execute(self.pool())
             .await?;
         let (id,): (String,) = sqlx::query_as("SELECT id FROM people WHERE is_self = 1").fetch_one(self.pool()).await?;
@@ -370,7 +370,7 @@ impl Db {
     }
 
     pub async fn create_speaker(&self, note_id: Id, new: NewSpeaker) -> StoreResult<Speaker> {
-        let id = margin_domain::new_id();
+        let id = cilica_domain::new_id();
         sqlx::query("INSERT INTO speakers (id, note_id, label, color_index, is_self, embedding) VALUES (?, ?, ?, ?, ?, ?)")
             .bind(id.to_string())
             .bind(note_id.to_string())
@@ -449,7 +449,7 @@ impl Db {
         let mut tx = self.pool().begin().await?;
         let mut ids = Vec::with_capacity(speakers.len());
         for new in &speakers {
-            let id = margin_domain::new_id();
+            let id = cilica_domain::new_id();
             sqlx::query("INSERT INTO speakers (id, note_id, label, color_index, is_self, embedding) VALUES (?, ?, ?, ?, ?, ?)")
                 .bind(id.to_string())
                 .bind(note_id.to_string())
@@ -513,7 +513,7 @@ impl Db {
         if name.is_empty() {
             return Err(StoreError::Invalid("A person needs a name. Type one and try again.".into()));
         }
-        let id = margin_domain::new_id();
+        let id = cilica_domain::new_id();
         let (count,): (i64,) = sqlx::query_as("SELECT count(*) FROM people").fetch_one(self.pool()).await?;
         let color = (count.rem_euclid(COLOR_COUNT as i64) as u8) + 1;
         let mut tx = self.pool().begin().await?;
@@ -521,7 +521,7 @@ impl Db {
             .bind(id.to_string())
             .bind(name)
             .bind(color as i64)
-            .bind(crate::codec::ts(margin_domain::now()))
+            .bind(crate::codec::ts(cilica_domain::now()))
             .execute(&mut *tx)
             .await?;
         if let Some(v) = voiceprint {
@@ -595,7 +595,7 @@ impl Db {
         self.get_person(target_id).await
     }
 
-    /// Every Saved person Margin knows the voice of, with their samples.
+    /// Every Saved person Cilica knows the voice of, with their samples.
     pub async fn list_voiceprints(&self) -> StoreResult<Vec<Voiceprint>> {
         let rows = sqlx::query("SELECT id, name, voiceprint FROM people WHERE voiceprint IS NOT NULL").fetch_all(self.pool()).await?;
         let mut samples: HashMap<String, Vec<Vec<f32>>> = HashMap::new();
@@ -805,11 +805,11 @@ pub fn cosine(a: &[f32], b: &[f32]) -> f32 {
 /// Add one voice sample (normalised) for a person.
 async fn insert_sample(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, person_id: Id, speaker_id: Option<Id>, embedding: &[f32]) -> StoreResult<()> {
     sqlx::query("INSERT INTO voice_samples (id, person_id, speaker_id, embedding, created_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(margin_domain::new_id().to_string())
+        .bind(cilica_domain::new_id().to_string())
         .bind(person_id.to_string())
         .bind(speaker_id.map(|s| s.to_string()))
         .bind(vec_to_blob(&normalized(embedding)))
-        .bind(crate::codec::ts(margin_domain::now()))
+        .bind(crate::codec::ts(cilica_domain::now()))
         .execute(&mut **tx)
         .await?;
     Ok(())
@@ -841,11 +841,11 @@ async fn refresh_voiceprint(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, person
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::new_id;
+    use cilica_domain::new_id;
 
     async fn note(db: &Db) -> Id {
         let id = new_id();
-        let now = margin_domain::now().to_rfc3339();
+        let now = cilica_domain::now().to_rfc3339();
         sqlx::query("INSERT INTO notes (id, title, kind, created_at, updated_at) VALUES (?, 'Test', 'meeting', ?, ?)")
             .bind(id.to_string())
             .bind(&now)
@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(db.get_person(kim.id).await.unwrap().sample_count, 0);
     }
 
-    /// Margin's own guesses link without teaching; recognition picks the closest sample.
+    /// Cilica's own guesses link without teaching; recognition picks the closest sample.
     #[tokio::test]
     async fn recognition_uses_every_sample_and_guesses_teach_nothing() {
         let db = Db::open_in_memory().await.unwrap();

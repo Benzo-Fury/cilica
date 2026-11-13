@@ -1,6 +1,6 @@
 //! Windows: system audio through WASAPI loopback on the default render device; the microphone
 //! privacy switch read from the registry. Type-checked with
-//! `cargo check -p margin-audio --target x86_64-pc-windows-msvc`; not yet run on Windows.
+//! `cargo check -p cilica-audio --target x86_64-pc-windows-msvc`; not yet run on Windows.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
-use margin_domain::{PermissionKind, PermissionStatus};
+use cilica_domain::{PermissionKind, PermissionStatus};
 use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat};
 
 use crate::source::CallbackSink;
@@ -87,7 +87,7 @@ impl CaptureSource for SystemSource {
         let (tx, rx) = mpsc::channel();
         let thread_stop = stop.clone();
         let handle = std::thread::Builder::new()
-            .name("margin-loopback".into())
+            .name("cilica-loopback".into())
             .spawn(move || run_loopback(sink, thread_stop, tx))
             .map_err(AudioError::Io)?;
         let run = LoopbackRun { stop, handle: Some(handle) };

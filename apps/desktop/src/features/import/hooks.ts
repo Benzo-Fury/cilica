@@ -1,5 +1,5 @@
 /**
- * Settings › Import: what Margin finds on this computer, previews and running imports. Imports keep
+ * Settings › Import: what Cilica finds on this computer, previews and running imports. Imports keep
  * no history: the done toast offers Undo, and after that the notes are ordinary notes.
  * Progress arrives as `import_progress` events and is kept per run in a small store, so it survives
  * leaving the page and coming back.

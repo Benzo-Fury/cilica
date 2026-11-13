@@ -1,4 +1,4 @@
-use margin_domain::{AppError, ErrorCode};
+use cilica_domain::{AppError, ErrorCode};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SttError {
@@ -31,7 +31,7 @@ pub enum SttError {
     #[error("{0}")]
     NotAllowed(String),
     /// The provider could not be reached. Holds the provider's name.
-    #[error("Margin could not reach {0}. Check your connection; the audio is still being recorded.")]
+    #[error("Cilica could not reach {0}. Check your connection; the audio is still being recorded.")]
     Network(String),
     /// The provider answered with an error. Holds a message fit for people (never the key).
     #[error("{0}")]

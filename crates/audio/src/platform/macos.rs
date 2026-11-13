@@ -7,14 +7,14 @@ use std::time::Duration;
 
 use cidre::core_audio::aggregate_device_keys as agg_keys;
 use cidre::{arc, av, blocks, cat, cf, core_audio as ca, ns, os};
-use margin_domain::{PermissionKind, PermissionStatus};
+use cilica_domain::{PermissionKind, PermissionStatus};
 
 use crate::source::CallbackSink;
 use crate::{AudioError, AudioResult, CaptureSource, RawStream, SourceKind};
 
 // ── System audio ─────────────────────────────────────────────────────────
 
-/// Everything the Mac plays, minus Margin's own process, as one mono stream.
+/// Everything the Mac plays, minus Cilica's own process, as one mono stream.
 #[derive(Debug, Clone, Default)]
 pub struct SystemSource;
 
@@ -80,7 +80,7 @@ fn ca_err(what: &str, e: os::Error) -> AudioError {
     AudioError::Device(format!("{what} failed ({e:?})"))
 }
 
-/// Process objects to leave out of the tap: Margin itself, so its sounds are never recorded.
+/// Process objects to leave out of the tap: Cilica itself, so its sounds are never recorded.
 fn excluded_processes() -> arc::R<ns::Array<ns::Number>> {
     let pid = std::process::id() as i32;
     match ca::Process::with_pid(pid) {
@@ -103,7 +103,7 @@ struct StartedTap {
 fn start_tap() -> AudioResult<StartedTap> {
     let mut desc = ca::TapDesc::with_mono_global_tap_excluding_processes(&excluded_processes());
     desc.set_private(true);
-    desc.set_name(Some(ns::str!(c"Margin system audio")));
+    desc.set_name(Some(ns::str!(c"Cilica system audio")));
     let tap = desc.create_process_tap().map_err(|e| {
         AudioError::SystemUnsupported(format!(
             "the system audio tap could not be created ({e:?}); it needs macOS 14.4 or later"
@@ -119,7 +119,7 @@ fn start_tap() -> AudioResult<StartedTap> {
         &[
             cf::Boolean::value_true().as_type_ref(),
             cf::Boolean::value_false(),
-            cf::String::from_str("Margin system audio").as_ref(),
+            cf::String::from_str("Cilica system audio").as_ref(),
             &agg_uid,
             &cf::ArrayOf::from_slice(&[sub_tap.as_ref()]),
         ],

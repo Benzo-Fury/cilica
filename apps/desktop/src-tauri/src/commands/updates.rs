@@ -5,7 +5,7 @@
 
 use std::sync::Mutex;
 
-use margin_domain::*;
+use cilica_domain::*;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -30,7 +30,7 @@ pub fn setup(app: &AppHandle) {
 
 // ───────── Commands ─────────
 
-/// Ask GitHub whether a newer version exists. Returns `None` when Margin is up to date.
+/// Ask GitHub whether a newer version exists. Returns `None` when Cilica is up to date.
 #[tauri::command]
 #[specta::specta]
 pub async fn check_for_update(
@@ -44,7 +44,7 @@ pub async fn check_for_update(
     })?;
     let update = updater.check().await.map_err(|e| {
         tracing::warn!("update check failed: {e}");
-        AppError::upstream("Margin could not check for updates. Check your connection and try again.")
+        AppError::upstream("Cilica could not check for updates. Check your connection and try again.")
     })?;
 
     // Remember it for install_update
@@ -74,7 +74,7 @@ pub async fn install_update(pending: State<'_, PendingUpdate>) -> AppResult<()> 
     })
 }
 
-/// Restart Margin, finishing an installed update.
+/// Restart Cilica, finishing an installed update.
 #[tauri::command]
 #[specta::specta]
 pub async fn restart_app(app: AppHandle) -> AppResult<()> {

@@ -1,10 +1,10 @@
-//! The global recording hotkey: works while Margin is in the background.
+//! The global recording hotkey: works while Cilica is in the background.
 //!
 //! The accelerator comes from `settings.keybinds["recording.toggle"]` in the UI registry's format
 //! (`Mod+Shift+R`, where `Mod` is Cmd on macOS and Ctrl elsewhere). A missing entry means the
 //! default; an empty string turns the hotkey off.
 
-use margin_domain::{RecordingTrigger, Settings, ToastAction, ToastKind, ToastRequest};
+use cilica_domain::{RecordingTrigger, Settings, ToastAction, ToastKind, ToastRequest};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -94,7 +94,7 @@ pub fn sync(app: &AppHandle, settings: &Settings) {
         Err(error) => {
             tracing::warn!(%error, accelerator, "invalid recording hotkey");
             shell.toast(taken_toast(
-                format!("{} is not a shortcut Margin can use", display(&accelerator)),
+                format!("{} is not a shortcut Cilica can use", display(&accelerator)),
                 "Choose a different shortcut for Start or stop recording in Settings.",
             ));
             return;

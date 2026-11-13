@@ -1,8 +1,8 @@
-//! Time raw whisper.cpp decodes of single utterances with the shortened encoder window Margin
+//! Time raw whisper.cpp decodes of single utterances with the shortened encoder window Cilica
 //! uses live, in order, to see warm-up and per-window-size costs.
 //!
 //! ```sh
-//! cargo run --release -p margin-stt --example bench -- <model.bin> <16 kHz mono wav> <start_ms-end_ms>...
+//! cargo run --release -p cilica-stt --example bench -- <model.bin> <16 kHz mono wav> <start_ms-end_ms>...
 //! ```
 
 use std::time::Instant;

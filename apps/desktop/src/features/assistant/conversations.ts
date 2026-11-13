@@ -1,6 +1,6 @@
 /**
  * The conversation list shown when no conversation is open: day groups, each row's meta line,
- * and the retention line under the list (Settings › Margin › Delete conversations after).
+ * and the retention line under the list (Settings › Cilica › Delete conversations after).
  */
 import type { Thread } from "@/ipc/types";
 import { relativeDate } from "@/lib/format";

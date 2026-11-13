@@ -1,5 +1,5 @@
 /**
- * Margin's few sounds (sound-and-haptics.md), synthesised with the Web Audio API so no audio files
+ * Cilica's few sounds (sound-and-haptics.md), synthesised with the Web Audio API so no audio files
  * ship: two rising tones when recording starts, the same two falling when it stops, a warm
  * notes-ready chime (Chime, Bloom, Ready or Glass), an optional soft tick, and the swear jar's
  * optional clink (Settings › Swear jar). Mixed at 60% and

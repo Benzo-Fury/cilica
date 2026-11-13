@@ -1,6 +1,6 @@
 /**
  * Home's newer faces, worked out the way `crates/store/src/home.rs` and `written.rs` do: filler
- * phrases, overtime, slow decisions, monologues, bare and cut-off notes, spelling fixes, Margin's
+ * phrases, overtime, slow decisions, monologues, bare and cut-off notes, spelling fixes, Cilica's
  * share of your writing and undone edits. A rough copy, tuned for the small seed.
  */
 import type { HomeGlance } from "@/ipc/types";
@@ -229,7 +229,7 @@ export function spellFixes(saves: string[], into: Map<string, number>) {
   }
 }
 
-/** Words added by you and by Margin across saves: (author of the change, body after it). */
+/** Words added by you and by Cilica across saves: (author of the change, body after it). */
 export function addedWords(chain: ["user" | "ai", string][]): [number, number] {
   const n = (b: string) => b.split(/\s+/).filter(Boolean).length;
   let you = chain[0] ? n(chain[0][1]) : 0;

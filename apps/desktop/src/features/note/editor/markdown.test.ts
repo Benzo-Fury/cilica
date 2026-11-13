@@ -28,7 +28,7 @@ const EXACT = [
   "A [link](https://example.com) here.",
   "Line one\n\n---\n\nAfter rule",
   "~~struck~~ text",
-  "**Bold with a [link](https://margin.app) inside** and plain",
+  "**Bold with a [link](https://cilica.app) inside** and plain",
   "##### Fifth level\n\n###### Sixth level",
   "![Whiteboard](https://example.com/board.png)",
   "```\nplain block\n```",

@@ -34,8 +34,8 @@ describe("normalizeHref", () => {
   it.each([
     ["", ""],
     ["   ", ""],
-    ["margin.app", "https://margin.app"],
-    ["https://margin.app/a?b", "https://margin.app/a?b"],
+    ["cilica.app", "https://cilica.app"],
+    ["https://cilica.app/a?b", "https://cilica.app/a?b"],
     ["localhost:3000", "https://localhost:3000"],
     ["ada@example.com", "mailto:ada@example.com"],
     ["mailto:ada@example.com", "mailto:ada@example.com"],

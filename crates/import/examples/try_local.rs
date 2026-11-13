@@ -1,18 +1,18 @@
 //! Try the importer against what is really on this computer, writing into a throwaway database.
-//! Nothing is changed in the other apps, and Margin's own database is not touched.
+//! Nothing is changed in the other apps, and Cilica's own database is not touched.
 //!
 //! ```sh
-//! cargo run -p margin-import --example try_local -- obsidian
-//! cargo run -p margin-import --example try_local -- anarlog --counts-only
+//! cargo run -p cilica-import --example try_local -- obsidian
+//! cargo run -p cilica-import --example try_local -- anarlog --counts-only
 //! ```
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use margin_domain::{AppEvent, ImportCategoryMode, ImportInput, ImportOptions, ImportPhase, RecordingSink};
-use margin_import::{Importer, KnownPaths, Secrets};
-use margin_store::Db;
+use cilica_domain::{AppEvent, ImportCategoryMode, ImportInput, ImportOptions, ImportPhase, RecordingSink};
+use cilica_import::{Importer, KnownPaths, Secrets};
+use cilica_store::Db;
 
 struct NoSecrets;
 impl Secrets for NoSecrets {

@@ -23,8 +23,8 @@ export function GeneralPage() {
       <SettingsGroup title="Startup">
         <SettingsRow
           id="launch-label"
-          label="Open Margin when you log in"
-          description="Margin starts in the background so it can listen for meetings."
+          label="Open Cilica when you log in"
+          description="Cilica starts in the background so it can listen for meetings."
           control={
             <Switch
               aria-labelledby="launch-label"
@@ -54,7 +54,7 @@ export function GeneralPage() {
         <SettingsRow
           id="auto-update-label"
           label="Install updates automatically"
-          description="New versions download in the background and apply when Margin restarts."
+          description="New versions download in the background and apply when Cilica restarts."
           control={
             <Switch
               aria-labelledby="auto-update-label"
@@ -148,13 +148,13 @@ function updateLabel(phase: string, version: string | undefined): string {
     case "checking":
       return "Checking for updates…";
     case "current":
-      return "Margin is up to date";
+      return "Cilica is up to date";
     case "available":
-      return `Margin ${version} is available`;
+      return `Cilica ${version} is available`;
     case "installing":
-      return `Downloading Margin ${version}…`;
+      return `Downloading Cilica ${version}…`;
     case "ready":
-      return `Margin ${version} is ready`;
+      return `Cilica ${version} is ready`;
     case "error":
       return "The last update check failed";
     default:

@@ -26,7 +26,7 @@ export interface FoundApp {
   provider: string;
   name: string;
   logo: string | undefined;
-  /** Notes and meetings Margin can read. */
+  /** Notes and meetings Cilica can read. */
   count: number;
   detail: string;
 }
@@ -99,7 +99,7 @@ export function ImportStep({ status, skipped, onNext, onReopen }: StepProps) {
       try {
         preview = await scan.mutateAsync({ provider: app.provider, input: { type: "local" } });
       } catch (error) {
-        toast.error(`Margin could not read ${app.name}`, {
+        toast.error(`Cilica could not read ${app.name}`, {
           description: `${errorMessage(error)} Try again from Settings › Import.`,
         });
         continue;
@@ -138,8 +138,8 @@ export function ImportStep({ status, skipped, onNext, onReopen }: StepProps) {
         isLoading
           ? `Looking for notes from other apps on ${THIS_DEVICE}…`
           : found.length > 0
-            ? `Margin found these on ${THIS_DEVICE}. Imports keep folders, dates and transcripts, and run in the background.`
-            : `Margin did not find notes from other apps on ${THIS_DEVICE}. Import files, or connect a meeting note taker, any time in Settings › Import.`
+            ? `Cilica found these on ${THIS_DEVICE}. Imports keep folders, dates and transcripts, and run in the background.`
+            : `Cilica did not find notes from other apps on ${THIS_DEVICE}. Import files, or connect a meeting note taker, any time in Settings › Import.`
       }
       actions={
         found.length > 0 ? (

@@ -1,5 +1,5 @@
 [package]
-name = "margin-import"
+name = "cilica-import"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,8 +11,8 @@ base64 = "0.23.1"
 csv = "1.4.0"
 futures = "0.3.34"
 htmd = "0.5.6"
-margin-domain = { path = "../domain" }
-margin-store = { path = "../store" }
+cilica-domain = { path = "../domain" }
+cilica-store = { path = "../store" }
 md-5 = "0.11.0"
 quick-xml = "0.42.0"
 regex = "1.13.1"

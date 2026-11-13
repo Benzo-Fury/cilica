@@ -1,10 +1,10 @@
 # References
 
-What Margin borrows from the products it was studied against, so later decisions stay consistent with the reasons.
+What Cilica borrows from the products it was studied against, so later decisions stay consistent with the reasons.
 
-| Pattern | Seen in | Margin's version |
+| Pattern | Seen in | Cilica's version |
 | --- | --- | --- |
-| A small floating pill that shows recording with live bars | Granola ("Transcribing" pill), Notion AI meeting notes (floating mini card), Loom (dark control bar) | Recorder capsule in glass, plus the Dynamic Island when Margin is in the background |
+| A small floating pill that shows recording with live bars | Granola ("Transcribing" pill), Notion AI meeting notes (floating mini card), Loom (dark control bar) | Recorder capsule in glass, plus the Dynamic Island when Cilica is in the background |
 | A big black Record capsule bottom-centre | Voicenotes | Idle capsule bottom-centre, but glass and quiet, because it sits over the note |
 | Speaker identity as a coloured initial, text stays monochrome | Amie, Fireflies, Grain | Colour only on the avatar ring; Saved People choose theirs |
 | Inset content sheet on a grey window, panels around it | Linear (2025–26), macOS Tahoe | Not used: the shell is one flush sheet split by hairlines |

@@ -52,7 +52,7 @@ const SETTINGS_PAGES: readonly string[] = [
   "keybinds",
   "recording",
   "transcription",
-  "margin",
+  "cilica",
   "sounds",
   "swear_jar",
   "import",
@@ -87,7 +87,7 @@ export function runToastAction(action: ToastAction): Promise<unknown> | undefine
         .undoTurn(action.turn_id)
         .then((count) =>
           count > 0
-            ? toast(count === 1 ? "Undid Margin's change" : `Undid Margin's ${count} changes`)
+            ? toast(count === 1 ? "Undid Cilica's change" : `Undid Cilica's ${count} changes`)
             : toast("Nothing left to undo", { description: "Those changes were already undone." }),
         )
         .catch(fail);
@@ -122,7 +122,7 @@ export function showBackendToast(request: ToastRequest) {
     case "undo":
       if (action) {
         const run = () => runToastAction(action);
-        // ⌘Z after the toast has gone still undoes Margin's last turn (see aiUndo.ts).
+        // ⌘Z after the toast has gone still undoes Cilica's last turn (see aiUndo.ts).
         if (action.type === "undo_turn" || action.type === "undo_ai_action") {
           rememberAiUndo(request.title, run);
         }

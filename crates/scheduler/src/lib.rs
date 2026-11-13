@@ -12,14 +12,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::Local;
-use margin_agent::Agent;
-use margin_agent::prompt::NOTES_REVIEW_PROMPT;
-use margin_domain::{
+use cilica_agent::Agent;
+use cilica_agent::prompt::NOTES_REVIEW_PROMPT;
+use cilica_domain::{
     AppError, AppEvent, AppResult, DataScope, ErrorCode, Events, Id, Task, TaskDraft, TaskRun, TaskRunDetail,
     TaskRunStatus, TaskSchedule, TaskScope, ToastAction, ToastKind, ToastRequest, Timestamp, new_id, now,
 };
-use margin_llm::CancellationToken;
-use margin_store::Db;
+use cilica_llm::CancellationToken;
+use cilica_store::Db;
 
 pub mod schedule;
 
@@ -156,7 +156,7 @@ impl Scheduler {
     /// Start a run now, in the background. `TaskRunFinished` arrives when it is done.
     pub async fn run_now(&self, task_id: Id) -> AppResult<TaskRun> {
         if (self.inner.is_recording)() {
-            return Err(AppError::new(ErrorCode::Conflict, "Margin does not run tasks while recording. Try again after the meeting."));
+            return Err(AppError::new(ErrorCode::Conflict, "Cilica does not run tasks while recording. Try again after the meeting."));
         }
         let task = self.inner.db.get_task(task_id).await?;
         let guard = self

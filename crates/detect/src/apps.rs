@@ -87,10 +87,10 @@ const WEB_MEETINGS: &[(&str, &str)] = &[
     ("whatsapp", "WhatsApp"),
 ];
 
-/// True for Margin's own processes (bundle id `app.margin.desktop`, executable `margin`).
-pub fn is_margin(id: &str) -> bool {
+/// True for Cilica's own processes (bundle id `app.cilica.desktop`, executable `cilica`).
+pub fn is_cilica(id: &str) -> bool {
     let id = id.to_lowercase();
-    id.starts_with("app.margin") || id == "margin" || id == "margin.exe" || id == "margin-desktop" || id == "margin-desktop.exe"
+    id.starts_with("app.cilica") || id == "cilica" || id == "cilica.exe" || id == "cilica-desktop" || id == "cilica-desktop.exe"
 }
 
 fn lookup<'a>(table: &'a [(&'a str, &'a str)], id: &str) -> Option<&'a str> {
@@ -153,7 +153,7 @@ mod tests {
         assert!(matches_allow_list("zoom", &allow));
         assert!(matches_allow_list("Slack", &["Slack huddles".to_string()]));
         assert!(!matches_allow_list("Discord", &allow));
-        assert!(is_margin("app.margin.desktop"));
-        assert!(!is_margin("us.zoom.xos"));
+        assert!(is_cilica("app.cilica.desktop"));
+        assert!(!is_cilica("us.zoom.xos"));
     }
 }

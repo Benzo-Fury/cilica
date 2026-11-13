@@ -76,7 +76,7 @@ export function extendSelection(
   return { selection: { ids: rangeIds(order, anchor, next), anchor }, focus: next };
 }
 
-/** Drop ids that are no longer live notes (trashed by Margin, removed in another window). */
+/** Drop ids that are no longer live notes (trashed by Cilica, removed in another window). */
 export function pruneSelection(selection: Selection, live: ReadonlySet<string>): Selection {
   const ids = selection.ids.filter((id) => live.has(id));
   if (ids.length === selection.ids.length) return selection;

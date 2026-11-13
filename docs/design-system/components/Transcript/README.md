@@ -12,4 +12,4 @@ Transcript lines show who said what, when, with the speaker's colour only on the
 
 ## Lines worth keeping
 
-Up to three quotes Margin picked while writing the meeting notes sit at the bottom of the transcript, each with its speaker and time. Clicking one scrolls to the turn and, when the recording is still on disk, plays from there.
+Up to three quotes Cilica picked while writing the meeting notes sit at the bottom of the transcript, each with its speaker and time. Clicking one scrolls to the turn and, when the recording is still on disk, plays from there.

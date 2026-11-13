@@ -2,16 +2,16 @@
 //! [`DbNoteStore`] uses the real database; [`FakeNotes`] is an in-memory stand-in for tests.
 //!
 //! The assistant's own tables (threads, messages, proposals, audit log, tasks) always go through
-//! `margin_store::Db` directly; only areas owned by other engineers sit behind this seam.
+//! `cilica_store::Db` directly; only areas owned by other engineers sit behind this seam.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use margin_domain::{
+use cilica_domain::{
     AppError, AppResult, Author, Category, Id, Note, NoteKind, NoteSummary, NoteVersion, Person, SearchHit, SearchSource,
     Speaker, new_id, now,
 };
-use margin_store::{Db, NewNote};
+use cilica_store::{Db, NewNote};
 
 #[async_trait::async_trait]
 pub trait NoteStore: Send + Sync {

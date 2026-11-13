@@ -49,7 +49,7 @@ describe("home faces", () => {
     expect(availableFaces(undefined)).toEqual(["doodle"]);
     expect(availableFaces({ ...EMPTY, tics: TICS })).toEqual(["tics"]);
     expect(
-      availableFaces({ ...EMPTY, mid_sentence: 3, ghostwriter: { margin_pct: 20, words: 900 } }),
+      availableFaces({ ...EMPTY, mid_sentence: 3, ghostwriter: { cilica_pct: 20, words: 900 } }),
     ).toEqual(["mid_sentence", "ghostwriter"]);
   });
 

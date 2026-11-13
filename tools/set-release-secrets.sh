@@ -5,9 +5,9 @@
 #   tools/set-release-secrets.sh <owner/repo> <App Store Connect Key ID> <Issuer ID>
 #
 # Needs `gh` signed in with access to the repository, and these files:
-#   ~/margin-signing/devid.p12 (+ devid.p12.password)  Developer ID certificate and key
+#   ~/cilica-signing/devid.p12 (+ devid.p12.password)  Developer ID certificate and key
 #   ~/.appstoreconnect/private_keys/AuthKey_<KeyID>.p8  App Store Connect API key
-#   ~/.tauri/margin-updater.key                         updater signing key
+#   ~/.tauri/cilica-updater.key                         updater signing key
 set -euo pipefail
 
 # ───────── Arguments ─────────
@@ -20,9 +20,9 @@ REPO="$1"
 KEY_ID="$2"
 ISSUER_ID="$3"
 
-SIGNING="$HOME/margin-signing"
+SIGNING="$HOME/cilica-signing"
 P8="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
-UPDATER_KEY="$HOME/.tauri/margin-updater.key"
+UPDATER_KEY="$HOME/.tauri/cilica-updater.key"
 
 for file in "$SIGNING/devid.p12" "$SIGNING/devid.p12.password" "$P8" "$UPDATER_KEY"; do
   [[ -f "$file" ]] || { echo "Missing $file. See docs/releasing.md." >&2; exit 1; }

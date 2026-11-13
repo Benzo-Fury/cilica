@@ -7,19 +7,19 @@
 //! curl -L -o silero_vad.onnx https://raw.githubusercontent.com/snakers4/silero-vad/v5.1.2/src/silero_vad/data/silero_vad.onnx
 //! # optional, for the benchmark:
 //! curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
-//! cd ../.. && cargo test -p margin-stt --release -- --ignored --nocapture
+//! cd ../.. && cargo test -p cilica-stt --release -- --ignored --nocapture
 //! ```
 //!
-//! `MARGIN_TEST_MODELS` overrides the folder.
+//! `CILICA_TEST_MODELS` overrides the folder.
 
 use std::path::PathBuf;
 use std::time::Instant;
 
-use margin_stt::vad::{Segmenter, SegmenterConfig, SileroVad};
-use margin_stt::{StreamOptions, SttEvent, Transcriber, WhisperLocal, WhisperOptions};
+use cilica_stt::vad::{Segmenter, SegmenterConfig, SileroVad};
+use cilica_stt::{StreamOptions, SttEvent, Transcriber, WhisperLocal, WhisperOptions};
 
 fn models_dir() -> PathBuf {
-    std::env::var_os("MARGIN_TEST_MODELS")
+    std::env::var_os("CILICA_TEST_MODELS")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/test-models"))
 }

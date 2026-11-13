@@ -1,4 +1,4 @@
-# margin-pipeline
+# cilica-pipeline
 
 One recording session end to end, independent of Tauri:
 capture → echo cancellation → VAD → speech-to-text → store → events → diarize → summarise.
@@ -42,7 +42,7 @@ summarizer: SummarizerProvider, ServiceConfig, tokio Handle)`, cheap to clone:
   { Transcript }`.
 - `DataChanged` when the note is created, when capture ends (meeting times), when the audio is
   kept, after diarization (Transcript, People, Notes) and after the summary.
-- Toasts: device lost and back, mic only, transcription problems, a voice Margin may know
+- Toasts: device lost and back, mic only, transcription problems, a voice Cilica may know
   ("Is Person 2 Sam?": never applied silently), summary unavailable or failed (with
   `RegenerateSummary`), recovery at launch.
 
@@ -66,24 +66,24 @@ centroids stored; voiceprint suggestions computed; the note reindexed; the summa
 
 ## Echo
 
-Two layers: WebRTC AEC3 on the mic with system audio as reference (`margin-audio`), then a text
+Two layers: WebRTC AEC3 on the mic with system audio as reference (`cilica-audio`), then a text
 check here: a final mic utterance of three or more words, overlapping a system utterance within
 1.5 s and sharing at least 60 % of its words with it, is dropped (whichever finished first).
 
 ## Must not depend on
 
-`tauri` or `margin-agent`: the summariser comes in as `Arc<dyn MeetingSummarizer>` through a
+`tauri` or `cilica-agent`: the summariser comes in as `Arc<dyn MeetingSummarizer>` through a
 provider closure.
 
 ## Tests
 
-- `cargo test -p margin-pipeline` (about 40 s): whole sessions from `tests/fixtures` (a 32 s
+- `cargo test -p cilica-pipeline` (about 40 s): whole sessions from `tests/fixtures` (a 32 s
   meeting: "You" on the mic with a -16 dB echo of the call, two people on the system channel;
   `make_fixtures.sh` rebuilds it with `say` and `afconvert`) through `ClipSource`s and a
   scripted transcriber: segments, speakers, phases, levels, auto-stop, kept audio, search;
   mic-only with an unplugged mic; missing model; recording twice into one note; recovery of a
   crashed recording; retention; detection (ask first, auto start, keep recording).
-- `cargo test --release -p margin-pipeline -- --ignored --nocapture` runs the same meeting through
-  Whisper (tiny by default, `MARGIN_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin` for the default
+- `cargo test --release -p cilica-pipeline -- --ignored --nocapture` runs the same meeting through
+  Whisper (tiny by default, `CILICA_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin` for the default
   model), Silero VAD and the speaker models in `target/test-models/`: word error rate, live lag,
   no echo duplicates, two people on the call, a Saved person suggested and not linked.

@@ -1,7 +1,7 @@
 /**
  * Proposals (diff and confirm cards) shared by the assistant and task reports: their live status,
  * Apply (whole, or the accepted hunks of an edit as `final_md`) and Dismiss. A `conflict` means
- * the note changed after Margin suggested the edit; the card says so and stays pending.
+ * the note changed after Cilica suggested the edit; the card says so and stays pending.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { forgetAiUndo, rememberAiUndo } from "@/app/aiUndo";
@@ -34,11 +34,11 @@ async function offerUndo(proposal: Proposal) {
     if (!action) return;
     const run = () =>
       api.undoAiAction(action.id).then(
-        () => toast("Undid Margin's change"),
+        () => toast("Undid Cilica's change"),
         (error) => toast.error("That change was not undone", { description: errorMessage(error) }),
       );
     rememberAiUndo(action.summary, run);
-    toast.undo(action.summary || "Applied Margin's change", {
+    toast.undo(action.summary || "Applied Cilica's change", {
       onUndo: () => {
         forgetAiUndo(run);
         void run();

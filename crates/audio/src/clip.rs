@@ -76,7 +76,7 @@ impl CaptureSource for ClipSource {
         let (mut sink, consumer, status) = CallbackSink::new();
         let stop = Arc::new(AtomicBool::new(false));
         let (samples, rate, thread_stop, thread_status) = (self.samples.clone(), self.sample_rate, stop.clone(), status.clone());
-        let handle = std::thread::Builder::new().name("margin-clip-source".into()).spawn(move || {
+        let handle = std::thread::Builder::new().name("cilica-clip-source".into()).spawn(move || {
             let per_tick = (rate / 100) as usize;
             let due = || (started.elapsed().as_secs_f64() * rate as f64) as usize;
             // Resume on a 10 ms boundary of the shared timeline.

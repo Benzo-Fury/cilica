@@ -5,7 +5,7 @@ import { SwearMatcher } from "./swears";
 const m = new SwearMatcher(SWEAR_WORDS);
 const roots = (text: string, mild = true) => m.find(text, mild).map((h) => h.root);
 
-// The same cases as `margin_domain::swears` tests, so the editor and the backend agree.
+// The same cases as `cilica_domain::swears` tests, so the editor and the backend agree.
 describe("SwearMatcher", () => {
   it("finds whole words only", () => {
     expect(roots("Oh, for fuck’s sake. That's bullshit.")).toEqual(["fuck", "shit"]);

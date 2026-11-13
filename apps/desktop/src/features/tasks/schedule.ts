@@ -82,7 +82,7 @@ export type FormErrors = Partial<Record<"name" | "prompt" | "time" | "category" 
 export function validateForm(form: TaskForm): FormErrors {
   const errors: FormErrors = {};
   if (!form.name.trim()) errors.name = "Give the task a name.";
-  if (!form.prompt.trim()) errors.prompt = "Tell Margin what to do each time it runs.";
+  if (!form.prompt.trim()) errors.prompt = "Tell Cilica what to do each time it runs.";
   if (!parseTime(form.time)) errors.time = "Use a 24-hour time like 09:00.";
   if (form.scope === "category" && !form.categoryId) errors.category = "Pick a category.";
   if (form.scope === "last_days" && !(form.lastDays >= 1 && form.lastDays <= 365))

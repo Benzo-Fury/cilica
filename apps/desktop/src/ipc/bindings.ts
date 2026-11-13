@@ -84,11 +84,11 @@ export const commands = {
 	/**  The setup window starts hidden; its UI calls this after the first paint. */
 	showOnboardingWindow: () => __TAURI_INVOKE<null>("show_onboarding_window"),
 	/**
-	 *  Open Margin from setup: marks setup done, writes the welcome note on the first run, closes
+	 *  Open Cilica from setup: marks setup done, writes the welcome note on the first run, closes
 	 *  the setup window and shows the main window on that note.
 	 */
 	finishOnboarding: () => __TAURI_INVOKE<null>("finish_onboarding"),
-	/**  Settings › General › Run setup again: open the setup window over Margin. */
+	/**  Settings › General › Run setup again: open the setup window over Cilica. */
 	openOnboarding: () => __TAURI_INVOKE<null>("open_onboarding"),
 	/**
 	 *  The user double-clicked an empty part of the title band: do what the system setting for
@@ -122,7 +122,7 @@ export const commands = {
 	/**  Starts the download; progress arrives as ModelDownload events. */
 	downloadSttModel: (modelId: string) => __TAURI_INVOKE<null>("download_stt_model", { modelId }),
 	/**
-	 *  Download a speech model if needed, then make it the one Margin transcribes with. Returns at
+	 *  Download a speech model if needed, then make it the one Cilica transcribes with. Returns at
 	 *  once; progress arrives as ModelDownload events and Settings changes when the model is ready.
 	 */
 	downloadAndUseSttModel: (modelId: string) => __TAURI_INVOKE<null>("download_and_use_stt_model", { modelId }),
@@ -190,7 +190,7 @@ export const commands = {
 	clearProviderKey: (kind: ProviderKind) => __TAURI_INVOKE<null>("clear_provider_key", { kind }),
 	detectClaudeCode: () => __TAURI_INVOKE<ClaudeCodeStatus_Serialize>("detect_claude_code"),
 	getOllamaStatus: () => __TAURI_INVOKE<OllamaStatus_Serialize>("get_ollama_status"),
-	/**  The models Margin offers, marked with what Ollama already has. */
+	/**  The models Cilica offers, marked with what Ollama already has. */
 	listLocalModels: () => __TAURI_INVOKE<LocalLlmModel[]>("list_local_models"),
 	/**
 	 *  Install and start Ollama if needed. Downloads no model: the person picks one afterwards.
@@ -223,14 +223,14 @@ export const commands = {
 	addSwearCoin: (noteId: string | null, word: string) => __TAURI_INVOKE<null>("add_swear_coin", { noteId, word }),
 	/**  Empty this week's jar. Past weeks keep their coins. */
 	emptySwearJar: () => __TAURI_INVOKE<null>("empty_swear_jar"),
-	/**  Ask GitHub whether a newer version exists. Returns `None` when Margin is up to date. */
+	/**  Ask GitHub whether a newer version exists. Returns `None` when Cilica is up to date. */
 	checkForUpdate: () => __TAURI_INVOKE<UpdateInfo_Serialize | null>("check_for_update"),
 	/**  Download and install the update found by the last check. Takes effect after a restart. */
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
-	/**  Restart Margin, finishing an installed update. */
+	/**  Restart Cilica, finishing an installed update. */
 	restartApp: () => __TAURI_INVOKE<null>("restart_app"),
 	/**
-	 *  What Margin can find on this computer for one app: its data with counts, whether the app is
+	 *  What Cilica can find on this computer for one app: its data with counts, whether the app is
 	 *  installed, and whether an API key is saved.
 	 */
 	importDetect: (provider: string) => __TAURI_INVOKE<ImportDetection_Serialize>("import_detect", { provider }),
@@ -415,7 +415,7 @@ export type AppearanceSettings_Deserialize = {
 	note_font?: NoteFont,
 	/**  Under a theme with a scene, set note titles and headings in the serif. */
 	scene_headings?: boolean,
-	margin_placement?: MarginPlacement,
+	cilica_placement?: CilicaPlacement,
 	home_face?: HomeFace_Deserialize,
 };
 
@@ -426,7 +426,7 @@ export type AppearanceSettings_Serialize = {
 	note_font: NoteFont,
 	/**  Under a theme with a scene, set note titles and headings in the serif. */
 	scene_headings: boolean,
-	margin_placement: MarginPlacement,
+	cilica_placement: CilicaPlacement,
 	home_face: HomeFace_Serialize,
 };
 
@@ -556,7 +556,7 @@ export type DetectedLocation = {
 	transcripts: number,
 	/**  Attachments (images, PDFs) that come along. */
 	attachments: number,
-	/**  Things found that Margin will not import, such as Obsidian canvases. */
+	/**  Things found that Cilica will not import, such as Obsidian canvases. */
 	unsupported: UnsupportedItem[],
 };
 
@@ -569,8 +569,8 @@ export type ErrorCode = "not_found" | "invalid" | "conflict" | "permission_denie
 
 export type Ghostwriter = {
 	/**  0..=100. */
-	margin_pct: number,
-	/**  Words added across the notes counted, by you and Margin together. */
+	cilica_pct: number,
+	/**  Words added across the notes counted, by you and Cilica together. */
 	words: number,
 };
 
@@ -625,7 +625,7 @@ export type GraphNode_Serialize = {
 	degree: number,
 };
 
-/**  The three NSHapticFeedbackManager patterns Margin uses. */
+/**  The three NSHapticFeedbackManager patterns Cilica uses. */
 export type HapticKind = 
 /**  A dragged item snaps into place; a resize snaps to its default width. */
 "alignment" | 
@@ -692,7 +692,7 @@ export type HomeGlance = HomeGlance_Serialize | HomeGlance_Deserialize;
 export type HomeGlance_Deserialize = {
 	/**  Your most repeated filler phrase this week, with the favourites of a couple of others. */
 	tics?: VerbalTics_Deserialize | null,
-	/**  Lines Margin lifted from recent meetings, newest meeting first. */
+	/**  Lines Cilica lifted from recent meetings, newest meeting first. */
 	quotes: Overheard_Deserialize[],
 	/**  Who did the talking, across the week's meetings. */
 	talk?: TalkShare_Deserialize | null,
@@ -718,9 +718,9 @@ export type HomeGlance_Deserialize = {
 	mid_sentence?: number | null,
 	/**  The word spellcheck fixed for you most often across saved versions. */
 	spelling?: SpellFix | null,
-	/**  How much of the text in your written notes Margin wrote. */
+	/**  How much of the text in your written notes Cilica wrote. */
 	ghostwriter?: Ghostwriter | null,
-	/**  Margin edits you undid this week. */
+	/**  Cilica edits you undid this week. */
 	undos?: Undos_Deserialize | null,
 	/**  The swear jar. None when it is switched off. */
 	swear_jar?: SwearJar_Deserialize | null,
@@ -730,7 +730,7 @@ export type HomeGlance_Deserialize = {
 export type HomeGlance_Serialize = {
 	/**  Your most repeated filler phrase this week, with the favourites of a couple of others. */
 	tics: VerbalTics_Serialize | null,
-	/**  Lines Margin lifted from recent meetings, newest meeting first. */
+	/**  Lines Cilica lifted from recent meetings, newest meeting first. */
 	quotes: Overheard_Serialize[],
 	/**  Who did the talking, across the week's meetings. */
 	talk: TalkShare_Serialize | null,
@@ -756,9 +756,9 @@ export type HomeGlance_Serialize = {
 	mid_sentence: number | null,
 	/**  The word spellcheck fixed for you most often across saved versions. */
 	spelling: SpellFix | null,
-	/**  How much of the text in your written notes Margin wrote. */
+	/**  How much of the text in your written notes Cilica wrote. */
 	ghostwriter: Ghostwriter | null,
-	/**  Margin edits you undid this week. */
+	/**  Cilica edits you undid this week. */
 	undos: Undos_Serialize | null,
 	/**  The swear jar. None when it is switched off. */
 	swear_jar: SwearJar_Serialize | null,
@@ -773,15 +773,15 @@ export type ImportCategoryMode =
 /**  Notes are left uncategorised. */
 "none";
 
-/**  What Margin found for a provider without being asked to read anything heavy. */
+/**  What Cilica found for a provider without being asked to read anything heavy. */
 export type ImportDetection = ImportDetection_Serialize | ImportDetection_Deserialize;
 
-/**  What Margin found for a provider without being asked to read anything heavy. */
+/**  What Cilica found for a provider without being asked to read anything heavy. */
 export type ImportDetection_Deserialize = {
 	provider: string,
 	/**  The provider's app is installed on this computer. */
 	app_installed: boolean,
-	/**  Data Margin can read directly, with counts. */
+	/**  Data Cilica can read directly, with counts. */
 	locations: DetectedLocation[],
 	/**  An API key for this provider is saved in the keychain. */
 	has_key: boolean,
@@ -789,12 +789,12 @@ export type ImportDetection_Deserialize = {
 	note?: string | null,
 };
 
-/**  What Margin found for a provider without being asked to read anything heavy. */
+/**  What Cilica found for a provider without being asked to read anything heavy. */
 export type ImportDetection_Serialize = {
 	provider: string,
 	/**  The provider's app is installed on this computer. */
 	app_installed: boolean,
-	/**  Data Margin can read directly, with counts. */
+	/**  Data Cilica can read directly, with counts. */
 	locations: DetectedLocation[],
 	/**  An API key for this provider is saved in the keychain. */
 	has_key: boolean,
@@ -812,10 +812,10 @@ export type ImportFidelity = {
 	attachments: boolean,
 };
 
-/**  What the person gives Margin to import from. */
+/**  What the person gives Cilica to import from. */
 export type ImportInput = ImportInput_Serialize | ImportInput_Deserialize;
 
-/**  What the person gives Margin to import from. */
+/**  What the person gives Cilica to import from. */
 export type ImportInput_Deserialize = 
 /**
  *  Data found on this computer. `path` picks one of the detected locations (an Obsidian vault);
@@ -829,7 +829,7 @@ export type ImportInput_Deserialize =
 /**  Text pasted into the import sheet. */
 { type: "paste"; text: string; title?: string | null };
 
-/**  What the person gives Margin to import from. */
+/**  What the person gives Cilica to import from. */
 export type ImportInput_Serialize = 
 /**
  *  Data found on this computer. `path` picks one of the detected locations (an Obsidian vault);
@@ -866,7 +866,7 @@ export type ImportKeyStatus_Serialize = {
 
 export type ImportOptions = {
 	category_mode: ImportCategoryMode,
-	/**  Speaker names that are the person using Margin; their lines show as "You". */
+	/**  Speaker names that are the person using Cilica; their lines show as "You". */
 	self_names: string[],
 };
 
@@ -895,7 +895,7 @@ export type ImportPreview_Deserialize = {
 	folders: string[],
 	/**  Named speakers, most frequent first. */
 	speakers: SpeakerCount[],
-	/**  Items that are already notes in Margin (outside Trash): skipped. */
+	/**  Items that are already notes in Cilica (outside Trash): skipped. */
 	existing: number,
 	unsupported: UnsupportedItem[],
 	/**  Problems with single items ("2 files could not be read"), written for people. */
@@ -926,7 +926,7 @@ export type ImportPreview_Serialize = {
 	folders: string[],
 	/**  Named speakers, most frequent first. */
 	speakers: SpeakerCount[],
-	/**  Items that are already notes in Margin (outside Trash): skipped. */
+	/**  Items that are already notes in Cilica (outside Trash): skipped. */
 	existing: number,
 	unsupported: UnsupportedItem[],
 	/**  Problems with single items ("2 files could not be read"), written for people. */
@@ -985,7 +985,7 @@ export type ImportRun_Deserialize = {
 	origin: string,
 	status: ImportRunStatus,
 	imported: number,
-	/**  Already notes in Margin. */
+	/**  Already notes in Cilica. */
 	skipped: number,
 	failed: number,
 	/**  Per-item problems, written for people. */
@@ -1004,7 +1004,7 @@ export type ImportRun_Serialize = {
 	origin: string,
 	status: ImportRunStatus,
 	imported: number,
-	/**  Already notes in Margin. */
+	/**  Already notes in Cilica. */
 	skipped: number,
 	failed: number,
 	/**  Per-item problems, written for people. */
@@ -1057,7 +1057,7 @@ export type LinkGraph_Serialize = {
 	focus: number | null,
 };
 
-/**  A local model Margin can pull into Ollama (Settings › Margin › Local model). */
+/**  A local model Cilica can pull into Ollama (Settings › Cilica › Local model). */
 export type LocalLlmModel = {
 	/**  Ollama tag, e.g. `qwen3:8b`. */
 	id: string,
@@ -1071,7 +1071,7 @@ export type LocalLlmModel = {
 };
 
 /**  Where the assistant lives in the window. */
-export type MarginPlacement = 
+export type CilicaPlacement = 
 /**  A panel on the right that pushes the note aside. */
 "side_panel" | 
 /**  A bar at the bottom of the page that grows into the conversation. */
@@ -1487,7 +1487,7 @@ export type Person = {
 	name: string,
 	/**  1..=8, maps to the `speaker-N` colour tokens. */
 	color_index: number,
-	/**  Voice samples Margin recognises them by (one per speaker you confirmed as them). */
+	/**  Voice samples Cilica recognises them by (one per speaker you confirmed as them). */
 	sample_count: number,
 	meeting_count: number,
 	created_at: string,
@@ -2269,7 +2269,7 @@ export type Transcript_Deserialize = {
 	duration_ms?: number | null,
 	/**  True when the audio file is still on disk (retention has not removed it). */
 	has_audio: boolean,
-	/**  The few lines Margin picked out when it wrote the notes. Empty until then. */
+	/**  The few lines Cilica picked out when it wrote the notes. Empty until then. */
 	quotes?: Quote[],
 	/**
 	 *  False for transcripts imported without times (pasted text, some apps' exports): segment
@@ -2286,7 +2286,7 @@ export type Transcript_Serialize = {
 	duration_ms: number | null,
 	/**  True when the audio file is still on disk (retention has not removed it). */
 	has_audio: boolean,
-	/**  The few lines Margin picked out when it wrote the notes. Empty until then. */
+	/**  The few lines Cilica picked out when it wrote the notes. Empty until then. */
 	quotes: Quote[],
 	/**
 	 *  False for transcripts imported without times (pasted text, some apps' exports): segment
@@ -2316,7 +2316,7 @@ export type TranscriptionSettings_Deserialize = {
 	live_speaker_labels?: boolean,
 	/**
 	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
-	 *  accurate than live labels) and suggest names for voices Margin knows.
+	 *  accurate than live labels) and suggest names for voices Cilica knows.
 	 */
 	identify_speakers_after_meeting?: boolean,
 	/**
@@ -2346,7 +2346,7 @@ export type TranscriptionSettings_Serialize = {
 	live_speaker_labels: boolean,
 	/**
 	 *  When the meeting ends, tell speakers apart on this computer from their voices (more
-	 *  accurate than live labels) and suggest names for voices Margin knows.
+	 *  accurate than live labels) and suggest names for voices Cilica knows.
 	 */
 	identify_speakers_after_meeting: boolean,
 	/**
@@ -2401,20 +2401,20 @@ export type UndoneEdit = UndoneEdit_Serialize | UndoneEdit_Deserialize;
 
 export type UndoneEdit_Deserialize = {
 	note_id?: string | null,
-	/**  What Margin said it did: "Rewrote the intro". */
+	/**  What Cilica said it did: "Rewrote the intro". */
 	summary: string,
-	/**  A line Margin wrote that the undo removed. */
-	margin_text?: string | null,
+	/**  A line Cilica wrote that the undo removed. */
+	cilica_text?: string | null,
 	/**  A line of yours the undo brought back. */
 	your_text?: string | null,
 };
 
 export type UndoneEdit_Serialize = {
 	note_id: string | null,
-	/**  What Margin said it did: "Rewrote the intro". */
+	/**  What Cilica said it did: "Rewrote the intro". */
 	summary: string,
-	/**  A line Margin wrote that the undo removed. */
-	margin_text: string | null,
+	/**  A line Cilica wrote that the undo removed. */
+	cilica_text: string | null,
 	/**  A line of yours the undo brought back. */
 	your_text: string | null,
 };
@@ -2433,7 +2433,7 @@ export type Undos_Serialize = {
 	latest: UndoneEdit_Serialize | null,
 };
 
-/**  Something Margin saw but will not bring across, and why. */
+/**  Something Cilica saw but will not bring across, and why. */
 export type UnsupportedItem = {
 	/**  "Canvases", "Encrypted notes". */
 	kind: string,

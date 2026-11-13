@@ -1,5 +1,5 @@
 /**
- * Matching words against the swear jar's list, the same way `margin_domain::Swears` does in Rust:
+ * Matching words against the swear jar's list, the same way `cilica_domain::Swears` does in Rust:
  * whole words, any case, a trailing "'s" ignored, stretched letters ("fuuuck") squeezed and
  * censored forms ("f***") read letter for letter. The list itself comes from the backend.
  */

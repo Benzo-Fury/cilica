@@ -26,7 +26,7 @@ pub enum NoteFont {
 /// Where the assistant lives in the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-pub enum MarginPlacement {
+pub enum CilicaPlacement {
     /// A panel on the right that pushes the note aside.
     #[default]
     SidePanel,
@@ -76,7 +76,7 @@ pub struct AppearanceSettings {
     /// When false every glass layer paints its opaque ground.
     pub transparency: bool,
     pub note_font: NoteFont,
-    pub margin_placement: MarginPlacement,
+    pub cilica_placement: CilicaPlacement,
     pub home_face: HomeFace,
 }
 
@@ -86,7 +86,7 @@ impl Default for AppearanceSettings {
             theme: ThemeMode::System,
             transparency: true,
             note_font: NoteFont::Sans,
-            margin_placement: MarginPlacement::SidePanel,
+            cilica_placement: CilicaPlacement::SidePanel,
             home_face: HomeFace::Random,
         }
     }
@@ -184,7 +184,7 @@ pub struct TranscriptionSettings {
     /// the meeting is live (only services where [`SttEngine::has_live_speakers`]).
     pub live_speaker_labels: bool,
     /// When the meeting ends, tell speakers apart on this computer from their voices (more
-    /// accurate than live labels) and suggest names for voices Margin knows.
+    /// accurate than live labels) and suggest names for voices Cilica knows.
     pub identify_speakers_after_meeting: bool,
     /// Name speakers whose voice sounds like a Saved person, live (with live labels) and after
     /// the meeting. Voiceprints stay on this computer.

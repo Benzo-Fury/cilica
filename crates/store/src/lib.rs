@@ -1,4 +1,4 @@
-//! SQLite storage for Margin: the only crate that talks SQL.
+//! SQLite storage for Cilica: the only crate that talks SQL.
 //!
 //! [`Db`] is a cheap-to-clone handle to the connection pool. Each area of the schema has its own
 //! module that adds methods to `Db` (`impl Db { ... }`), so owners do not edit each other's files:
@@ -21,7 +21,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use margin_domain::{AppError, ErrorCode, Id, Timestamp};
+use cilica_domain::{AppError, ErrorCode, Id, Timestamp};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 mod assistant;
@@ -48,7 +48,7 @@ pub use transcripts::{NewSpeaker, OTHERS_LABEL, SELF_LABEL, Voiceprint, blob_to_
 /// crate should use these helpers so joins and comparisons match (binding a raw `Uuid` with sqlx
 /// writes a BLOB, which never equals the TEXT ids in `notes`).
 pub(crate) mod codec {
-    use margin_domain::chrono::{DateTime, SecondsFormat, Utc};
+    use cilica_domain::chrono::{DateTime, SecondsFormat, Utc};
 
     use super::{Id, StoreError, StoreResult, Timestamp};
 

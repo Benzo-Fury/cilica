@@ -1,5 +1,5 @@
 /**
- * Margin's conversation list (shown when no conversation is open): uppercase caption groups and
+ * Cilica's conversation list (shown when no conversation is open): uppercase caption groups and
  * rows with a title, a quiet meta line and a trash button that shows on hover or focus.
  */
 import { Trash2 } from "lucide-react";

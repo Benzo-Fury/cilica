@@ -16,11 +16,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use margin_domain::{
+use cilica_domain::{
     AiAction, AiActionStatus, AppEvent, AppResult, AssistantEvent, DataScope, Events, Id, NoteRef, Proposal,
     ProposalSource, ProposalStatus, TaskDraft, TaskSchedule, TaskScope, ToolTier, new_id, now,
 };
-use margin_store::Db;
+use cilica_store::Db;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -120,7 +120,7 @@ fn e<T>(r: AppResult<T>) -> Result<T, String> {
     r.map_err(|e| e.message)
 }
 
-fn day(t: margin_domain::Timestamp) -> String {
+fn day(t: cilica_domain::Timestamp) -> String {
     t.format("%Y-%m-%d").to_string()
 }
 
@@ -185,7 +185,7 @@ impl ToolRunner {
                 let used = ctx.writes.fetch_add(1, Ordering::SeqCst);
                 if used >= MAX_WRITES_PER_TURN {
                     return Err(format!(
-                        "Margin can make at most {MAX_WRITES_PER_TURN} changes in one turn. Stop here and tell the user what is left to do."
+                        "Cilica can make at most {MAX_WRITES_PER_TURN} changes in one turn. Stop here and tell the user what is left to do."
                     ));
                 }
             }
@@ -315,7 +315,7 @@ impl ToolRunner {
         ))
     }
 
-    async fn note_ref(&self, field: &str, raw: &str, live: bool) -> Result<(NoteRef, margin_domain::Note), String> {
+    async fn note_ref(&self, field: &str, raw: &str, live: bool) -> Result<(NoteRef, cilica_domain::Note), String> {
         let id = parse_id(field, raw)?;
         let note = self.notes.get_note(id).await.map_err(|_| format!("No note has the id {id}. Search for it first."))?;
         if live && note.deleted_at.is_some() {
@@ -354,7 +354,7 @@ impl ToolRunner {
                             "- \"{}\" (id: {}, {}, updated {}{}) {}",
                             n.title,
                             n.id,
-                            if n.kind == margin_domain::NoteKind::Meeting { "meeting" } else { "note" },
+                            if n.kind == cilica_domain::NoteKind::Meeting { "meeting" } else { "note" },
                             day(n.updated_at),
                             cat_name(n.category_id).map(|c| format!(", category: {c}")).unwrap_or_default(),
                             n.snippet
@@ -399,7 +399,7 @@ impl ToolRunner {
                     "Note \"{}\" (id: {}), {}, created {}, updated {}",
                     n.title,
                     n.id,
-                    if n.kind == margin_domain::NoteKind::Meeting { "meeting note" } else { "note" },
+                    if n.kind == cilica_domain::NoteKind::Meeting { "meeting note" } else { "note" },
                     day(n.created_at),
                     day(n.updated_at)
                 );
@@ -463,7 +463,7 @@ impl ToolRunner {
                 Ok(Exec::Read { content, summary: format!("Listed {} saved people", people.len()) })
             }
             "list_tasks" => {
-                let tasks = e(self.db.list_tasks().await.map_err(margin_domain::AppError::from))?;
+                let tasks = e(self.db.list_tasks().await.map_err(cilica_domain::AppError::from))?;
                 let lines: Vec<String> = tasks
                     .iter()
                     .map(|t| {
@@ -496,7 +496,7 @@ impl ToolRunner {
                         format!(
                             "- {} by {} — \"{}\", {} characters: {}",
                             v.created_at.format("%Y-%m-%d %H:%M"),
-                            if v.author == margin_domain::Author::Ai { "Margin" } else { "the user" },
+                            if v.author == cilica_domain::Author::Ai { "Cilica" } else { "the user" },
                             v.title,
                             v.body_md.chars().count(),
                             first

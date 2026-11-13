@@ -34,7 +34,7 @@ impl Http {
     pub fn new(name: &'static str, gap: Duration) -> Self {
         let client = reqwest::Client::builder()
             // tl;dv refuses library user agents; every provider gets an honest, descriptive one.
-            .user_agent(concat!("Margin-notes-importer/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("Cilica-notes-importer/", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(60))
             .connect_timeout(Duration::from_secs(15))
             .build()
@@ -72,7 +72,7 @@ impl Http {
             self.pace().await;
             let response = build().headers(self.headers.clone()).send().await.map_err(|e| {
                 if e.is_timeout() || e.is_connect() {
-                    ImportError::upstream(format!("Margin could not reach {}. Check your internet connection and try again.", self.name))
+                    ImportError::upstream(format!("Cilica could not reach {}. Check your internet connection and try again.", self.name))
                 } else {
                     ImportError::upstream(format!("{} did not answer properly. Try again in a minute.", self.name))
                 }
@@ -82,7 +82,7 @@ impl Http {
                 attempt += 1;
                 if attempt > 6 {
                     return Err(if status.as_u16() == 429 {
-                        ImportError::upstream(format!("{} is limiting how fast Margin can read. Try again later; notes already imported stay.", self.name))
+                        ImportError::upstream(format!("{} is limiting how fast Cilica can read. Try again later; notes already imported stay.", self.name))
                     } else {
                         ImportError::upstream(format!("{} is having trouble right now. Try again later.", self.name))
                     });
@@ -119,7 +119,7 @@ impl Http {
             }
             let next_link = response.headers().get("link").and_then(|v| v.to_str().ok()).and_then(next_from_link);
             let text = response.text().await.map_err(|_| ImportError::upstream(format!("{} stopped answering halfway. Try again.", self.name)))?;
-            let body = if text.trim().is_empty() { Value::Null } else { serde_json::from_str(&text).map_err(|_| ImportError::upstream(format!("{} answered in a way Margin did not understand.", self.name)))? };
+            let body = if text.trim().is_empty() { Value::Null } else { serde_json::from_str(&text).map_err(|_| ImportError::upstream(format!("{} answered in a way Cilica did not understand.", self.name)))? };
             return Ok(Reply { body, next_link });
         }
     }

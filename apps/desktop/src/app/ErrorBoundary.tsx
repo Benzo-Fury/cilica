@@ -10,7 +10,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Margin hit an error it could not recover from", error, info.componentStack);
+    console.error("Cilica hit an error it could not recover from", error, info.componentStack);
   }
 
   render() {
@@ -19,10 +19,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
       <div className="nt-crash">
         <EmptyState
           art="note"
-          title="Margin hit a problem"
+          title="Cilica hit a problem"
           actions={
             <Button variant="primary" onClick={() => window.location.reload()}>
-              Reload Margin
+              Reload Cilica
             </Button>
           }
         >

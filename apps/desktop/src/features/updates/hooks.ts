@@ -1,7 +1,7 @@
 /**
  * App updates from GitHub Releases.
  *
- * Margin checks shortly after launch and then every six hours. With automatic updates on, a new
+ * Cilica checks shortly after launch and then every six hours. With automatic updates on, a new
  * version downloads and installs in the background and a toast offers to restart. With them off,
  * the toast offers to install it. Settings › General can check on demand; a version found there
  * downloads only when its Download button is pressed.
@@ -42,17 +42,17 @@ const setState = useUpdateState.setState;
 
 // ───────── Actions ─────────
 
-/** Restart Margin to finish an installed update. */
+/** Restart Cilica to finish an installed update. */
 export function restartToUpdate() {
   api
     .restartApp()
     .catch((error: unknown) =>
-      toast.error("Margin did not restart", { description: errorMessage(error) }),
+      toast.error("Cilica did not restart", { description: errorMessage(error) }),
     );
 }
 
 function showReady(update: UpdateInfo) {
-  toast.action(`Margin ${update.version} is ready`, {
+  toast.action(`Cilica ${update.version} is ready`, {
     id: TOAST_ID,
     description: "Restart to finish updating.",
     duration: null,
@@ -102,7 +102,7 @@ export async function checkForUpdate({
     if (autoInstall) {
       await installUpdate();
     } else {
-      toast.action(`Margin ${update.version} is available`, {
+      toast.action(`Cilica ${update.version} is available`, {
         id: TOAST_ID,
         duration: null,
         action: { label: "Install", onClick: () => void installUpdate() },
@@ -111,7 +111,7 @@ export async function checkForUpdate({
   } catch (error) {
     const message = errorMessage(error);
     setState({ phase: "error", error: message });
-    if (manual) toast.error("Margin could not check for updates", { description: message });
+    if (manual) toast.error("Cilica could not check for updates", { description: message });
   }
 }
 

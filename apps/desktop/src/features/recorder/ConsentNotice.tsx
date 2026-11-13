@@ -24,12 +24,12 @@ export function ConsentNotice() {
         <div className="nt-consent-icon">
           <Icon icon={ShieldCheck} />
         </div>
-        <DialogTitle>{before ? "Before you record" : "Margin is recording"}</DialogTitle>
+        <DialogTitle>{before ? "Before you record" : "Cilica is recording"}</DialogTitle>
         <DialogDescription asChild>
           <div className="nt-consent-body">
             <p>
               Recording other people may need their consent where you or they live. Tell everyone on
-              the call that you are taking notes with Margin.
+              the call that you are taking notes with Cilica.
             </p>
             <p className="nt-faint">
               {cloud

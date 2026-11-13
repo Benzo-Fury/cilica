@@ -1,7 +1,7 @@
 //! Where a recording lives on disk, the crash-recovery sidecar, and audio retention.
 //!
 //! While capturing, `<data_dir>/recordings/<note>-<unix ms>.wav` grows (crash-safe, see
-//! `margin_audio::WavWriter`) next to `<same stem>.json`, the [`Sidecar`] that says how far the
+//! `cilica_audio::WavWriter`) next to `<same stem>.json`, the [`Sidecar`] that says how far the
 //! recording got. A finished recording is `recordings/<note>.ogg` (or `.wav` in builds without
 //! Opus), stored in `notes.audio_path` relative to the data dir. A sidecar left at launch means
 //! the app stopped mid-recording; [`crate::RecordingService::startup`] finishes it.
@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use margin_domain::{Id, Timestamp};
+use cilica_domain::{Id, Timestamp};
 use serde::{Deserialize, Serialize};
 
 /// The recordings folder, relative to the data dir (the webview may only play files here).
@@ -150,9 +150,9 @@ mod tests {
     #[test]
     fn sidecar_roundtrip_and_listing() {
         let dir = tempfile::tempdir().unwrap();
-        let note = margin_domain::new_id();
+        let note = cilica_domain::new_id();
         let files = RecordingFiles::new(dir.path(), note);
-        let sidecar = Sidecar { note_id: note, started_at: margin_domain::now(), offset_ms: 1200, previous_audio: None, stage: Stage::Recording };
+        let sidecar = Sidecar { note_id: note, started_at: cilica_domain::now(), offset_ms: 1200, previous_audio: None, stage: Stage::Recording };
         files.write_sidecar(&sidecar).unwrap();
         std::fs::write(files.wav(), b"RIFF").unwrap();
         let found = unfinished(dir.path());
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn retention_picks_old_kept_files_only() {
         let dir = tempfile::tempdir().unwrap();
-        let note = margin_domain::new_id();
+        let note = cilica_domain::new_id();
         let (path, rel) = kept_audio(dir.path(), note, "ogg");
         assert_eq!(rel, format!("recordings/{note}.ogg"));
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

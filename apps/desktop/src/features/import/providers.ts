@@ -1,5 +1,5 @@
 /**
- * Every app Margin imports from: how people get their notes out of it, step by step, and what
+ * Every app Cilica imports from: how people get their notes out of it, step by step, and what
  * comes across. The ids match `crates/import/src/providers/mod.rs`.
  *
  * Steps use a little markup: `**Settings › API**` is something to click (menus use ›), and
@@ -30,7 +30,7 @@ export const GROUP_LABELS: Record<ProviderGroup, string> = {
   other: "Anything else",
 };
 
-/** How a person gets notes from the app into Margin. */
+/** How a person gets notes from the app into Cilica. */
 export type ImportRoute =
   | {
       kind: "local";
@@ -85,7 +85,7 @@ const DOC_FILES = ["md", "markdown", "txt", "docx", "html", "zip"];
 
 const recordings = (name: string) => ({
   kind: "Recordings",
-  reason: `Audio and video stay in ${name}. Margin imports the words.`,
+  reason: `Audio and video stay in ${name}. Cilica imports the words.`,
 });
 
 const pasteRoute = (where: string): ImportRoute => ({
@@ -117,14 +117,14 @@ const CATALOGUE: readonly ImportProvider[] = [
         accept: ["md", "zip"],
         steps: [
           "In Obsidian, click the vault name at the bottom left and choose **Manage vaults…** to see where the vault lives.",
-          "Choose that folder below, or drop it here. Margin reads it and changes nothing in it.",
+          "Choose that folder below, or drop it here. Cilica reads it and changes nothing in it.",
         ],
       },
     ],
     leftOut: [
       {
         kind: "Canvases",
-        reason: "Margin has no canvas view. The notes on a canvas are imported on their own.",
+        reason: "Cilica has no canvas view. The notes on a canvas are imported on their own.",
       },
       {
         kind: "Bases",
@@ -137,7 +137,7 @@ const CATALOGUE: readonly ImportProvider[] = [
       },
       {
         kind: "Dataview queries",
-        reason: "Kept as code blocks. Margin does not run them.",
+        reason: "Kept as code blocks. Cilica does not run them.",
       },
       {
         kind: "Links and embeds",
@@ -160,8 +160,8 @@ const CATALOGUE: readonly ImportProvider[] = [
         askFirst: true,
         button: "Read Apple Notes",
         steps: [
-          "Margin asks Notes for your notes. macOS will ask whether Margin may control Notes: choose **OK**.",
-          "If you said no before, turn Notes on in **System Settings › Privacy & Security › Automation › Margin**.",
+          "Cilica asks Notes for your notes. macOS will ask whether Cilica may control Notes: choose **OK**.",
+          "If you said no before, turn Notes on in **System Settings › Privacy & Security › Automation › Cilica**.",
         ],
       },
       {
@@ -233,7 +233,7 @@ const CATALOGUE: readonly ImportProvider[] = [
     leftOut: [
       { kind: "Encrypted text", reason: "Text you encrypted in Evernote stays encrypted there." },
       { kind: "PDFs and other files", reason: "Only images come along, inside their notes." },
-      { kind: "Reminders", reason: "Margin has no reminders." },
+      { kind: "Reminders", reason: "Cilica has no reminders." },
     ],
   },
   {
@@ -313,7 +313,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         ],
       },
     ],
-    leftOut: [{ kind: "Reminders and colours", reason: "Margin has neither." }],
+    leftOut: [{ kind: "Reminders and colours", reason: "Cilica has neither." }],
   },
   {
     id: "google_docs",
@@ -452,7 +452,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         placeholder: "grn_…",
         steps: [
           "In Granola, open **Settings** and find **API keys**. Create a personal key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       {
@@ -534,7 +534,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         plan: "Works on every plan. Free plans allow 500 requests a day, about 25,000 meetings.",
         steps: [
           "In Fireflies, open **Settings › Developer settings** and copy your **API key**.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       {
@@ -561,10 +561,10 @@ const CATALOGUE: readonly ImportProvider[] = [
       {
         kind: "key",
         label: "API key",
-        plan: "Works on every plan. Fathom limits how fast Margin can read, so big accounts take a few minutes.",
+        plan: "Works on every plan. Fathom limits how fast Cilica can read, so big accounts take a few minutes.",
         steps: [
           "In Fathom, open **Settings › API Access** and create a key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       pasteRoute("Fathom (use the copy buttons on the summary and transcript)"),
@@ -587,7 +587,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         steps: [
           "Open a conversation, choose **⋯ › Export text**, and pick **TXT** or **DOCX** with **Speaker names** and **Timestamps** on. Free plans can export TXT.",
           "On Business plans, select several conversations and choose **Export** to get one zip.",
-          "Export the summary too (**Export summary**) and drop both here; Margin pairs them by name.",
+          "Export the summary too (**Export summary**) and drop both here; Cilica pairs them by name.",
         ],
       },
       {
@@ -596,7 +596,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         plan: "Otter's API is for Enterprise workspaces.",
         steps: [
           "In Otter, open **Integrations › Developer** and create an API key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
     ],
@@ -616,7 +616,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         plan: "tl;dv's API comes with Pro, Business and Enterprise plans.",
         steps: [
           "In tl;dv, open **Settings** and create an API key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       pasteRoute("tl;dv (Free plans can copy the transcript)"),
@@ -645,7 +645,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         placeholder: "cb_…",
         steps: [
           "In Circleback, open **Settings › API keys** and create a key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
     ],
@@ -661,10 +661,10 @@ const CATALOGUE: readonly ImportProvider[] = [
       {
         kind: "key",
         label: "API key",
-        plan: "Free and Pro plans allow 100 API calls a day, about 33 meetings; run the import again each day to finish. Margin finds your region (EU or US) by itself.",
+        plan: "Free and Pro plans allow 100 API calls a day, about 33 meetings; run the import again each day to finish. Cilica finds your region (EU or US) by itself.",
         steps: [
           "In MeetGeek, open **Integrations › Public API** and copy your key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
     ],
@@ -685,7 +685,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         placeholder: "jk_…",
         steps: [
           "In Jamie, open **Settings** and create a personal API key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       pasteRoute("Jamie"),
@@ -693,7 +693,7 @@ const CATALOGUE: readonly ImportProvider[] = [
     leftOut: [
       {
         kind: "Timestamps",
-        reason: "Jamie's transcripts have none, so Margin shows the lines in order without times.",
+        reason: "Jamie's transcripts have none, so Cilica shows the lines in order without times.",
       },
     ],
   },
@@ -711,7 +711,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         plan: "Limitless is winding down after Meta bought it. Import soon.",
         steps: [
           "In Limitless, open **Settings › Developer** and create an API key.",
-          "Paste it below. Margin keeps it in your keychain and checks it straight away.",
+          "Paste it below. Cilica keeps it in your keychain and checks it straight away.",
         ],
       },
       {
@@ -1157,7 +1157,7 @@ const CATALOGUE: readonly ImportProvider[] = [
         ],
         folder: true,
         steps: [
-          "Margin reads Markdown, Word, text, HTML, transcripts (VTT, SRT, text with speaker names), CSV, Evernote and zips of any of these.",
+          "Cilica reads Markdown, Word, text, HTML, transcripts (VTT, SRT, text with speaker names), CSV, Evernote and zips of any of these.",
           "Choose files or a folder below, or drop them here.",
         ],
       },

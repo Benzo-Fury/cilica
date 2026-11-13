@@ -4,7 +4,7 @@
  * that already went in the jar, never counts it again. The word is washed in amber while its coin
  * leaves; the wash fades and is removed after `WASH_MS`.
  *
- * Only typed text is seen: pastes, Markdown imports and Margin's own writing never reach
+ * Only typed text is seen: pastes, Markdown imports and Cilica's own writing never reach
  * `handleTextInput`.
  */
 import { Extension } from "@tiptap/core";

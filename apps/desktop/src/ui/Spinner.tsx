@@ -1,6 +1,6 @@
 import { cn } from "./cn";
 
-/** A 14px spinner for loading controls. Prefer shimmer text for Margin's work. */
+/** A 14px spinner for loading controls. Prefer shimmer text for Cilica's work. */
 export function Spinner({ className, label }: { className?: string; label?: string }) {
   if (label) {
     return (

@@ -1,5 +1,5 @@
 {
-  "name": "margin",
+  "name": "cilica",
   "private": true,
   "workspaces": ["apps/*"],
   "scripts": {
@@ -12,6 +12,6 @@
     "tokens": "python3 tools/build-tokens.py",
     "import-apps": "python3 tools/build-import-apps.py",
     "dmg-background": "bun tools/build-dmg-background.ts",
-    "bindings": "cargo test -p margin-desktop export_bindings"
+    "bindings": "cargo test -p cilica-desktop export_bindings"
   }
 }

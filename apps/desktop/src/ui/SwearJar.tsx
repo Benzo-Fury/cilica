@@ -223,7 +223,7 @@ export interface SwearJarPopupProps {
   /** Coins in this visit: "+1", "+2"… Zero hides the badge. */
   streak: number;
   shown: boolean;
-  /** These coins were said while Margin was in the background. */
+  /** These coins were said while Cilica was in the background. */
   away: boolean;
 }
 

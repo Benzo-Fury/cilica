@@ -1,11 +1,11 @@
-//! Every app Margin imports from, by id. Each provider says what it can find on this computer,
+//! Every app Cilica imports from, by id. Each provider says what it can find on this computer,
 //! and turns an [`ImportInput`] into a [`Scan`].
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use margin_domain::{DetectedLocation, ImportFidelity, ImportInput, Timestamp, UnsupportedItem};
+use cilica_domain::{DetectedLocation, ImportFidelity, ImportInput, Timestamp, UnsupportedItem};
 
 use crate::formats::files::{Collected, Tree, collect};
 use crate::http::WaitNotice;
@@ -93,7 +93,7 @@ pub trait Provider: Send + Sync {
         match input {
             ImportInput::Paths { paths } => scan_paths(paths).await,
             ImportInput::Paste { text, title } => Ok(scan_paste(text, title.as_deref())),
-            ImportInput::Local { .. } => Err(ImportError::invalid(format!("Margin found no {} data on this computer. Export your notes from {} and choose the export instead.", self.name(), self.name()))),
+            ImportInput::Local { .. } => Err(ImportError::invalid(format!("Cilica found no {} data on this computer. Export your notes from {} and choose the export instead.", self.name(), self.name()))),
             ImportInput::Account => {
                 let _ = cx;
                 Err(ImportError::invalid(format!("{} has no API key import. Export your notes from {} and choose the export instead.", self.name(), self.name())))
@@ -154,7 +154,7 @@ pub fn scan_paste(text: &str, title: Option<&str>) -> Scan {
     use crate::formats::transcript::{parse_cues, parse_text, split_transcript_section};
     let text = text.trim();
     let title = title.map(str::trim).filter(|t| !t.is_empty()).map(str::to_string);
-    let now = margin_domain::now();
+    let now = cilica_domain::now();
     let id = format!("paste:{}", crate::model::note_hash(title.as_deref().unwrap_or(""), text));
     let mut note = ImportedNote { external_id: id, created_at: Some(now), ..Default::default() };
     if let Some(t) = parse_text(text).or_else(|| text.contains("-->").then(|| parse_cues(text)).flatten()) {

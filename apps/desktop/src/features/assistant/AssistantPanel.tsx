@@ -1,9 +1,9 @@
 /**
  * The assistant (spec › Right sidebar, AssistantThread / Composer docs), as the right-hand panel
- * or inside the floating bar (`variant="bar"`, see MarginBar): the context line,
- * prompt chips when the thread is empty, the conversation (your bubbles, Margin's plain-text
+ * or inside the floating bar (`variant="bar"`, see CilicaBar): the context line,
+ * prompt chips when the thread is empty, the conversation (your bubbles, Cilica's plain-text
  * replies streaming in, one-line tool steps, diff and confirm cards) and the composer.
- * When no model is ready it says why and links to Settings › Margin.
+ * When no model is ready it says why and links to Settings › Cilica.
  */
 import {
   ChevronDown,
@@ -96,7 +96,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
   const thread = threads.find((t) => t.id === threadId);
   const chips = usePromptChips(context, open && empty && ready);
   const notReady =
-    !statusLoading && !ready ? (status?.problem ?? "Choose a model for Margin in Settings.") : null;
+    !statusLoading && !ready ? (status?.problem ?? "Choose a model for Cilica in Settings.") : null;
   /** No conversation open: your earlier conversations show, and the first send starts a new one. */
   const listing = threadId === null && empty && !working;
   const hasList = listing && listed.length > 0;
@@ -109,7 +109,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
       setThreadId(null);
   }, [threadId, threads, setThreadId]);
 
-  // Opening the panel (⌘J, Ask Margin) puts the caret in the composer and asks for fresh chips.
+  // Opening the panel (⌘J, Ask Cilica) puts the caret in the composer and asks for fresh chips.
   const { refetch: refetchChips } = chips;
   // biome-ignore lint/correctness/useExhaustiveDependencies: on open and on request only
   useEffect(() => {
@@ -138,10 +138,10 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
 
   const Head = bar ? BarHead : TitleBand;
   const notice = notReady !== null && (
-    <div className="nt-margin-notice" role="status">
+    <div className="nt-cilica-notice" role="status">
       <Icon icon={KeyRound} size="sm" />
       <span>{notReady}</span>
-      <Button size="sm" variant="secondary" onClick={() => openSettings("margin")}>
+      <Button size="sm" variant="secondary" onClick={() => openSettings("cilica")}>
         Set up
       </Button>
     </div>
@@ -157,8 +157,8 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
       disabled={!ready && !statusLoading}
       placeholder={
         ready || statusLoading
-          ? "Ask about your notes, or tell Margin what to change"
-          : "Set up Margin in Settings first"
+          ? "Ask about your notes, or tell Cilica what to change"
+          : "Set up Cilica in Settings first"
       }
     />
   );
@@ -168,7 +168,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
       data-compact={compact || undefined}
       data-working={working || undefined}
     >
-      <span className="nt-margin-glow" aria-hidden />
+      <span className="nt-cilica-glow" aria-hidden />
       <Head className="nt-assistant-head">
         {!listing && (
           <IconButton
@@ -179,7 +179,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
           />
         )}
         <strong className="nt-assistant-title">
-          {listing ? "Margin" : thread?.title || "New conversation"}
+          {listing ? "Cilica" : thread?.title || "New conversation"}
         </strong>
         {thread && !listing && (
           <IconButton
@@ -195,7 +195,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
             <IconButton
               icon={PanelRight}
               label="Open in side panel"
-              onClick={() => patch("appearance", { margin_placement: "side_panel" })}
+              onClick={() => patch("appearance", { cilica_placement: "side_panel" })}
             />
             <IconButton
               icon={ChevronDown}
@@ -208,13 +208,13 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
           <IconButton
             icon={PanelBottom}
             label="Show as floating bar"
-            onClick={() => patch("appearance", { margin_placement: "floating_bar" })}
+            onClick={() => patch("appearance", { cilica_placement: "floating_bar" })}
           />
         )}
         {!bar && (
           <IconButton
             icon={PanelRight}
-            label="Hide Margin"
+            label="Hide Cilica"
             shortcut={toggleKeys}
             onClick={() => usePanels.getState().setAssistantOpen(false)}
           />
@@ -263,7 +263,7 @@ export function AssistantPanel({ variant = "panel" }: { variant?: "panel" | "bar
           ) : compact ? (
             notReady === null &&
             (chips.data ?? []).length > 0 && (
-              <div className="nt-marginbar-chips">
+              <div className="nt-cilicabar-chips">
                 {(chips.data ?? []).slice(0, 3).map((chip) => (
                   <ChipButton key={chip.label} onClick={() => submit(chip.prompt)}>
                     {chip.label}
@@ -346,7 +346,7 @@ function ConversationList({
   );
 }
 
-/** What Margin is for, with suggested prompts: shown whenever no conversation has started. */
+/** What Cilica is for, with suggested prompts: shown whenever no conversation has started. */
 function AssistantIntro({
   chips,
   chipsLoading,
@@ -358,9 +358,9 @@ function AssistantIntro({
 }) {
   return (
     <div className="nt-assistant-empty">
-      <h3 className="nt-assistant-empty-title">Ask Margin</h3>
+      <h3 className="nt-assistant-empty-title">Ask Cilica</h3>
       <p className="nt-assistant-empty-text">
-        About this note, a meeting, or everything you have written. Margin can also tidy, file and
+        About this note, a meeting, or everything you have written. Cilica can also tidy, file and
         edit notes, and asks before it changes anything that matters.
       </p>
       <div className="nt-chip-list" aria-busy={chipsLoading || undefined}>
@@ -384,7 +384,7 @@ function RetentionNote({ days }: { days: number }) {
   return (
     <ConversationFootnote>
       {retentionLine(days)}{" "}
-      <button type="button" className="nt-cite" onClick={() => openSettings("margin")}>
+      <button type="button" className="nt-cite" onClick={() => openSettings("cilica")}>
         Change in Settings
       </button>
     </ConversationFootnote>
@@ -393,7 +393,7 @@ function RetentionNote({ days }: { days: number }) {
 
 /** The bar's header row: the same controls as the panel's title band, without window chrome. */
 function BarHead({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("nt-marginbar-head", className)}>{children}</div>;
+  return <div className={cn("nt-cilicabar-head", className)}>{children}</div>;
 }
 
 function ThreadView({
@@ -589,8 +589,8 @@ function PartView({
           tone="danger"
           action={
             /key|setting|model|provider/i.test(part.message) && (
-              <button type="button" className="nt-cite" onClick={() => openSettings("margin")}>
-                <Icon icon={Settings2} size="sm" /> Open Settings › Margin
+              <button type="button" className="nt-cite" onClick={() => openSettings("cilica")}>
+                <Icon icon={Settings2} size="sm" /> Open Settings › Cilica
               </button>
             )
           }

@@ -16,9 +16,9 @@ import type { ComponentType } from "react";
 import type { SettingsPageId } from "@/app/router";
 import { ImportPage } from "@/features/import/ImportPage";
 import { AppearancePage } from "./pages/AppearancePage";
+import { CilicaPage } from "./pages/CilicaPage";
 import { GeneralPage } from "./pages/GeneralPage";
 import { KeybindsPage } from "./pages/KeybindsPage";
-import { MarginPage } from "./pages/MarginPage";
 import { RecordingPage } from "./pages/RecordingPage";
 import { SoundsPage } from "./pages/SoundsPage";
 import { SwearJarPage } from "./pages/SwearJarPage";
@@ -70,11 +70,11 @@ export const SETTINGS_PAGES: readonly SettingsPageDef[] = [
     component: TranscriptionPage,
   },
   {
-    id: "margin",
+    id: "cilica",
     label: "AI",
     icon: Bot,
     keywords: ["assistant", "provider", "anthropic", "api key", "model"],
-    component: MarginPage,
+    component: CilicaPage,
   },
   {
     id: "sounds",
@@ -85,7 +85,7 @@ export const SETTINGS_PAGES: readonly SettingsPageDef[] = [
   },
 ];
 
-/** Pages about what Margin has kept, listed under "Your data". */
+/** Pages about what Cilica has kept, listed under "Your data". */
 export const DATA_PAGES: readonly SettingsPageDef[] = [
   {
     id: "import",

@@ -1,5 +1,5 @@
 /**
- * Renders Margin's Markdown replies as React elements (never HTML): paragraphs, headings, lists,
+ * Renders Cilica's Markdown replies as React elements (never HTML): paragraphs, headings, lists,
  * tasks, quotes, code and tables, with bold, italic, code, links and note citations inline.
  * While a reply streams (`streaming`), each word is its own span so new words fade in with
  * `nt-word-in` while earlier ones stay put.

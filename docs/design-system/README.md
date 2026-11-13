@@ -1,4 +1,4 @@
-Margin is a private, local-first desktop notes app with an AI assistant and a meeting summariser. You write in Markdown, the assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. It runs on macOS, Windows and Linux (Tauri 2, React 19). The interface should feel like a first-party Apple app on every platform: one calm opaque sheet, glass only on controls that float, one graphite accent, and quick, physical motion on everything that moves.
+Cilica is a private, local-first desktop notes app with an AI assistant and a meeting summariser. You write in Markdown, the assistant can read and edit every note, and calls are recorded without a bot, transcribed on-device and summarised into notes. It runs on macOS, Windows and Linux (Tauri 2, React 19). The interface should feel like a first-party Apple app on every platform: one calm opaque sheet, glass only on controls that float, one graphite accent, and quick, physical motion on everything that moves.
 
 ## Principles
 
@@ -7,7 +7,7 @@ Margin is a private, local-first desktop notes app with an AI assistant and a me
 3. **Everything that moves, springs.** Every change of position, size or state animates, fast enough that it never makes you wait (most settle in under 350ms). See Motion.
 4. **Quiet, with small delights.** No mascots, confetti or colour for its own sake. Delight lives in details: icons that react to hover, the record button morph, a tick that draws itself.
 5. **Comfortable density.** 32px rows, 14px UI text, hit areas never under 28px. Roomier than Linear, tighter than a consumer app.
-6. **Same app on every OS.** One bundled typeface, one icon set, Margin's own window chrome on Windows and Linux. Each OS still gets its own shortcut glyphs.
+6. **Same app on every OS.** One bundled typeface, one icon set, Cilica's own window chrome on Windows and Linux. Each OS still gets its own shortcut glyphs.
 
 ## Voice and copy
 
@@ -15,7 +15,7 @@ Margin is a private, local-first desktop notes app with an AI assistant and a me
 - Buttons are verbs that name the outcome: "Delete 3 notes", "Accept", "Move to Trash". Never "OK", "Submit" or "Yes".
 - Toasts report what happened in past tense: "Moved 3 notes to Trash", "Notes ready". Never "Success!".
 - Errors say what went wrong and what to do next: "That key was rejected by Anthropic. Check it and paste it again." No apologies, no error codes in the title.
-- The assistant is "Margin" in copy, never "AI" or "the bot". The one exception is the "AI" section in Settings. It replies in plain text, cites the note and timecode it used, and never uses emoji.
+- The assistant is "Cilica" in copy, never "AI" or "the bot". The one exception is the "AI" section in Settings. It replies in plain text, cites the note and timecode it used, and never uses emoji.
 - Privacy copy is concrete: "Audio stays on this Mac", "No bot joins the call".
 - No emoji anywhere in the UI. Numbers use digits ("3 notes", "42 min").
 
@@ -31,15 +31,15 @@ Two themes, designed together and following the OS setting (Light, Dark or Syste
 - **Status**: `success`, `danger`, `warning`, `info` each with a `-soft` ground. Status is never colour alone: success has a check, warning a triangle, danger an icon or strike-through. Success is a blue-leaning teal so it never relies on red/green alone.
 - **Speakers**: `speaker-1` … `speaker-8` (ring, dot, waveform) with `speaker-N-soft` grounds behind `ink` initials. A Saved Person keeps the colour they choose.
 
-**Dark theme ground.** Margin's dark grounds are warm graphite (`bg-canvas` #1b1917, `bg-window` #131110), not pure black. Pure white text on #000 causes halation for readers with astigmatism; shadows and glass depth disappear on black; and Material Design, macOS and most premium tools settle on an 8–14% grey. The faint warm bias (hue 70) keeps the neutrals in the same family as the graphite accent. Text is off-white `ink` (#ebe9e7), never #fff.
+**Dark theme ground.** Cilica's dark grounds are warm graphite (`bg-canvas` #1b1917, `bg-window` #131110), not pure black. Pure white text on #000 causes halation for readers with astigmatism; shadows and glass depth disappear on black; and Material Design, macOS and most premium tools settle on an 8–14% grey. The faint warm bias (hue 70) keeps the neutrals in the same family as the graphite accent. Text is off-white `ink` (#ebe9e7), never #fff.
 
-**Accent.** Margin has one accent, Graphite: near-black in light (`accent` #302d2b) and near-white in dark (#dad7d5), so the interface stays monochrome and colour is left to status, recording and speakers. `on-accent` is the `bg-canvas` colour. There is no accent setting.
+**Accent.** Cilica has one accent, Graphite: near-black in light (`accent` #302d2b) and near-white in dark (#dad7d5), so the interface stays monochrome and colour is left to status, recording and speakers. `on-accent` is the `bg-canvas` colour. There is no accent setting.
 
 **Focus ring.** `--focus`: a 2px `bg-canvas` gap, then a solid 2px `accent-text` ring. Passes 3:1 on every surface in both themes. Shown on keyboard focus only (`:focus-visible`).
 
 ## Typography
 
-One bundled family on every OS: **Inter** (variable, with the optical-size axis), shipped as a woff2 inside the app; Margin never falls back to the system font. Inter's optical sizes do what SF Pro Text and Display do on a Mac: tighter, crisper letterforms at 28px, more open ones at 12px. Turn on `font-optical-sizing: auto` and the `cv05` (tailed l) and `cv08` features. **Newsreader** is the optional serif note font and **Geist Mono** sets timecodes, inline code and the Mono note font. All three are open-licensed (OFL).
+One bundled family on every OS: **Inter** (variable, with the optical-size axis), shipped as a woff2 inside the app; Cilica never falls back to the system font. Inter's optical sizes do what SF Pro Text and Display do on a Mac: tighter, crisper letterforms at 28px, more open ones at 12px. Turn on `font-optical-sizing: auto` and the `cv05` (tailed l) and `cv08` features. **Newsreader** is the optional serif note font and **Geist Mono** sets timecodes, inline code and the Mono note font. All three are open-licensed (OFL).
 
 - Interface: `display` (note title), `title` (dialogs, settings pages), `headline` (panel and card titles), `body` (default UI), `callout` (secondary UI), `label` (chips, tooltips), `caption` (uppercase sidebar section labels).
 - Note body: `note-h1`, `note-h2`, `note-h3`, `note-body` (Sans, default), `note-body-serif`, `note-body-mono`, `transcript`.
@@ -50,7 +50,7 @@ Letter-spacing tightens as size grows (-0.022em at 28px, 0 at 12px, +0.02em on u
 ## Layout and density
 
 - Window: left sidebar (`size-sidebar` 248px) and right assistant (`size-assistant` 380px) sit flush against the note: sidebar on `bg-sunken`, note and assistant on `bg-canvas`, split by `line-strong` hairlines, with no card, radius or shadow.
-- Title band: `size-titlebar` 52px, shared by the traffic lights (or Margin's own window buttons), the sidebar toggle, the note title and the Notes / Transcript segmented control.
+- Title band: `size-titlebar` 52px, shared by the traffic lights (or Cilica's own window buttons), the sidebar toggle, the note title and the Notes / Transcript segmented control.
 - Note column: `size-measure` 720px max, centred, `space-12` top padding, `space-16` bottom runway for the recorder capsule.
 - 4px spacing grid (`space-*`). Group siblings with `gap`, not margins.
 - Rows and controls: `size-row` and `size-control` 32px, `size-control-sm` 28px, `size-control-lg` 40px. Icon glyphs 18px (`size-icon`), 16px in chips and menus.
@@ -79,7 +79,7 @@ Every interactive element has rest, hover, pressed, focus-visible and disabled s
 
 ## Iconography
 
-Lucide icons (ISC licence), 1.75px stroke, 18px default and 16px in dense places, always `currentColor`. Icons have no boxes, tiles or backgrounds around them: an icon button is just the glyph until hover. The animated set comes from lucide-animated (MIT, built on Motion) where an icon exists there; otherwise the `nt-i-*` classes in bundle.css give a one-shot transform (plus rotates 90°, arrow nudges 3px, bell rings, trash tips, gear turns, undo winds back). Icons animate on the parent's hover or focus and on meaningful state change (the bell rings when a scheduled-task proposal arrives). They never loop, except the recording dot's breathing and the AI shimmer. The app icon is a cream tile with an amber margin rule, a dot in the margin and three ink text lines (sources in `apps/desktop/src-tauri/icons/source/`); the menu bar glyph in `shell/tray.rs` is the same mark as a template image. The wordmark is "Margin" in Inter at 640 weight.
+Lucide icons (ISC licence), 1.75px stroke, 18px default and 16px in dense places, always `currentColor`. Icons have no boxes, tiles or backgrounds around them: an icon button is just the glyph until hover. The animated set comes from lucide-animated (MIT, built on Motion) where an icon exists there; otherwise the `nt-i-*` classes in bundle.css give a one-shot transform (plus rotates 90°, arrow nudges 3px, bell rings, trash tips, gear turns, undo winds back). Icons animate on the parent's hover or focus and on meaningful state change (the bell rings when a scheduled-task proposal arrives). They never loop, except the recording dot's breathing and the AI shimmer. The app icon is a cream tile with an amber margin rule, a dot in the margin and three ink text lines (sources in `apps/desktop/src-tauri/icons/source/`); the menu bar glyph in `shell/tray.rs` is the same mark as a template image. The wordmark is "Cilica" in Inter at 640 weight.
 
 ## Accessibility
 

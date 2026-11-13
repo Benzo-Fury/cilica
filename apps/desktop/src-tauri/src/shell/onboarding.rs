@@ -9,8 +9,8 @@
 
 use std::sync::atomic::Ordering;
 
-use margin_domain::{AppError, AppEvent, AppResult, DataScope};
-use margin_store::ShortcutStyle;
+use cilica_domain::{AppError, AppEvent, AppResult, DataScope};
+use cilica_store::ShortcutStyle;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use super::Shell;
@@ -30,7 +30,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         return Ok(window);
     }
     let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html?window=onboarding".into()))
-        .title("Set up Margin")
+        .title("Set up Cilica")
         .inner_size(SIZE.0, SIZE.1)
         .resizable(false)
         .maximizable(false)
@@ -38,7 +38,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .center()
         .visible(false)
         .theme(super::window_theme(app.state::<Shell>().settings().appearance.theme));
-    // macOS keeps its traffic lights over the art; Windows and Linux get Margin's own close button.
+    // macOS keeps its traffic lights over the art; Windows and Linux get Cilica's own close button.
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
@@ -51,17 +51,17 @@ pub fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
 
 /// Show and focus the setup window (its UI calls this after the first paint).
 pub fn show(app: &AppHandle) -> AppResult<()> {
-    let window = app.get_webview_window(LABEL).ok_or_else(|| AppError::internal("The setup window is missing. Restart Margin."))?;
+    let window = app.get_webview_window(LABEL).ok_or_else(|| AppError::internal("The setup window is missing. Restart Cilica."))?;
     window
         .unminimize()
         .and_then(|_| window.show())
         .and_then(|_| window.set_focus())
-        .map_err(|e| AppError::internal(format!("Margin could not show the setup window: {e}")))
+        .map_err(|e| AppError::internal(format!("Cilica could not show the setup window: {e}")))
 }
 
-/// Mark setup done, write the welcome note the first time, close setup and show Margin on that
-/// note. Runs for Open Margin and for closing the window early; a second call while one is
-/// running does nothing. Margin always ends up with its main window showing, even on an error.
+/// Mark setup done, write the welcome note the first time, close setup and show Cilica on that
+/// note. Runs for Open Cilica and for closing the window early; a second call while one is
+/// running does nothing. Cilica always ends up with its main window showing, even on an error.
 pub async fn finish(app: &AppHandle) -> AppResult<()> {
     let shell = app.state::<Shell>();
     if shell.onboarding_finishing.swap(true, Ordering::SeqCst) {

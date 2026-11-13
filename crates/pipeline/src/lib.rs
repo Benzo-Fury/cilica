@@ -22,7 +22,7 @@ mod service;
 pub use backend::{AudioBackend, DeviceAudio, LocalModels, REFINE_MODEL_ID, SpeechBackend, SttKeys};
 pub use files::RECORDINGS_DIR;
 pub use service::{RecordingService, ServiceConfig, SummarizerProvider, default_title};
-pub use margin_detect::DetectEvent;
+pub use cilica_detect::DetectEvent;
 
 #[cfg(test)]
 mod tests;

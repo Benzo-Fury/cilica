@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
-/// The three NSHapticFeedbackManager patterns Margin uses.
+/// The three NSHapticFeedbackManager patterns Cilica uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum HapticKind {

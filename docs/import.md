@@ -2,7 +2,7 @@
 
 > v0.2, 12 Nov 2026. Built: see Status below.  Facts about other products were researched on 12 Nov 2026; anything marked **unverified** needs a real sample file or account before we write its parser.
 
-Switching to Margin should take one click and a minute. The user should never have to know what a "VTT" or a "GraphQL key" is. This page lists every competitor we know of, says how each one's notes can get out, and specifies one import pipeline that handles all of them.
+Switching to Cilica should take one click and a minute. The user should never have to know what a "VTT" or a "GraphQL key" is. This page lists every competitor we know of, says how each one's notes can get out, and specifies one import pipeline that handles all of them.
 
 ## Status
 
@@ -25,14 +25,14 @@ Built on 12 Nov 2026 (`crates/import`, Settings › Import).
 
 1. **Detect, don't ask.** On the Import screen, show sources we found on this machine first ("Anarlog is on this Mac: 212 meetings"). If the user drops a file, work out what it is from the file itself.
 2. **Show a preview before anything is written.** The preview gives the number of notes, the date range and what will come across (summary, your notes, transcript, speakers, timestamps), what won't, and any duplicates.
-3. **Never lose data, never duplicate it.** Importing again skips what is already a note in Margin and brings back anything that was deleted or undone. A whole import can be undone in one step from its done toast: it goes to Trash and can be restored. Imports keep no history; once the toast is gone, imported notes are ordinary notes.
-4. **Stay local-first.** Reading files and local databases never touches the network. An account connection talks only to that vendor's own host. Margin makes no LLM calls during an import.
+3. **Never lose data, never duplicate it.** Importing again skips what is already a note in Cilica and brings back anything that was deleted or undone. A whole import can be undone in one step from its done toast: it goes to Trash and can be restored. Imports keep no history; once the toast is gone, imported notes are ordinary notes.
+4. **Stay local-first.** Reading files and local databases never touches the network. An account connection talks only to that vendor's own host. Cilica makes no LLM calls during an import.
 5. **Work in the background.** An import can be cancelled and resumed, and it reports progress through the toast and event system. The user can keep working meanwhile.
 6. **Treat imported content as data.** It is untrusted text and gets the same prompt-injection isolation as transcripts.
 
 ## Who we import from
 
-The apps fall into four groups. The **route** is how Margin gets the data out, listed best first. **Fidelity** is what that route carries: S = AI summary, N = the user's own typed notes, T = transcript, Sp = speaker names, Ts = timestamps.
+The apps fall into four groups. The **route** is how Cilica gets the data out, listed best first. **Fidelity** is what that route carries: S = AI summary, N = the user's own typed notes, T = transcript, Sp = speaker names, Ts = timestamps.
 
 ### 1. Bot-free desktop note takers
 
@@ -52,7 +52,7 @@ These users are the most likely to switch, so they come first.
 | **Bluedot** | MCP with OAuth. TXT or PDF export. | S T Sp Ts | 3 |
 | **Notion AI Meeting Notes** | Notion OAuth: `POST /v1/blocks/meeting_notes/query`, then `GET /v1/pages/{id}/markdown?include_transcript=true`. | S N T, Sp and Ts unverified | 2 |
 | **Plaud** (NotePin, Desktop) | Official CLI (`plaud transcript`, `plaud summary`) or MCP. SRT + MD export. | S T Sp Ts | 3 |
-| **Apple Notes recordings / Voice Memos** | Notes: the user exports Markdown (macOS 26+). Voice Memos: read the transcript JSON from the `tsrp` atom inside each `.m4a`, or re-transcribe the audio with Margin's local Whisper. | Notes: S N T. Memos: T | 3 |
+| **Apple Notes recordings / Voice Memos** | Notes: the user exports Markdown (macOS 26+). Voice Memos: read the transcript JSON from the `tsrp` atom inside each `.m4a`, or re-transcribe the audio with Cilica's local Whisper. | Notes: S N T. Memos: T | 3 |
 | **Limitless / Rewind** (Meta) | Lifelogs API key (`GET /v1/lifelogs?includeContents`). Export zip. **The service may shut down around the end of 2026, so ship quickly if at all.** | S T Sp Ts, audio | 2 (time-boxed) |
 
 ### 2. Bot-based cloud meeting assistants
@@ -117,7 +117,7 @@ Every adapter uses one of four routes. Each one turns its input into the same in
 | --- | --- | --- |
 | **On this Mac** | Nothing. The card already says "Found Anarlog: 212 meetings". Clicking Import opens the preview. | Anarlog, Meetily, MacWhisper, Quill, Superwhisper/Plaud/Anarlog CLIs, Voice Memos |
 | **Connect account** | Paste an API key (with a "Where do I find this?" link to the vendor's settings page), or sign in in the browser (OAuth with PKCE and a loopback redirect). | Granola, Fireflies, Fathom, Otter Enterprise, tl;dv, Circleback, Fellow, Grain, MeetGeek, Jamie, Limitless, Read AI, Notion, Teams/Zoom/Google later |
-| **Drop a file or folder** | Drag onto the window, or choose a file. Margin recognises the format. | Every export: ZIP, CSV, VTT, SRT, TXT, MD, DOCX, ENEX, `.bear2bk`, Takeout |
+| **Drop a file or folder** | Drag onto the window, or choose a file. Cilica recognises the format. | Every export: ZIP, CSV, VTT, SRT, TXT, MD, DOCX, ENEX, `.bear2bk`, Takeout |
 | **Paste** | Paste a transcript or notes into the import sheet. | Copy-only cases (tl;dv Free, Jamie Free/Plus, Microsoft Loop, Granola's "Copy notes") |
 
 A further route, **MCP with OAuth**, is deferred. One generic Streamable-HTTP MCP client with dynamic client registration could reach Granola, Otter, Krisp, Bluedot, Jamie, Read, Fellow, Avoma, Circleback, Grain, Tactiq and Bubbles. Each vendor names its tools differently, though, so each still needs a small mapping, and most of them already offer a better REST route. Add it in phase 3, where it covers Krisp and Bluedot, which have no REST API.
@@ -139,7 +139,7 @@ Pick source ─▶ Provide input ─▶ Preview ─▶ Import (background) ─�
    │              │               │
    │              │               ├─ 214 notes · Mar 2024 – Nov 2026
    │              │               ├─ Summary ✓  Your notes ✓  Transcript ✓  Speakers ✓  Timestamps –
-   │              │               ├─ 12 already in your notes · 3 look like meetings you recorded in Margin
+   │              │               ├─ 12 already in your notes · 3 look like meetings you recorded in Cilica
    │              │               ├─ Which of these is you?  [Sam Lee ▾]  (pre-filled from the most frequent "me" speaker)
    │              │               ├─ Folders: keep Granola's folders as categories  /  put everything in "From Granola"
    │              │               └─ Include audio (Anarlog, Fireflies takeout)  ☐
@@ -148,10 +148,10 @@ Pick source ─▶ Provide input ─▶ Preview ─▶ Import (background) ─�
 ```
 
 - **Card copy explains the route in plain words.** For example: "Paste your Fireflies API key. You'll find it in Fireflies → Settings → Developer settings."
-- **The preview shows five sample notes** rendered as Margin would show them, so the user can see the result before committing.
+- **The preview shows five sample notes** rendered as Cilica would show them, so the user can see the result before committing.
 - **Progress** appears as a `toast.promise`-style pill ("Importing from Granola · 84 of 214"). The import sheet can be closed. Cancelling keeps what has already been imported.
 - **The done toast** reads "Imported 214 notes from Granola", with a Review action that filters the sidebar to that import and an Undo action.
-- **Undo** sends every note from that import to Trash through the destructive confirm card ("Move 214 imported notes to Trash?"). It is offered only by the done toast, while the app stays open; Margin keeps no list of past imports.
+- **Undo** sends every note from that import to Trash through the destructive confirm card ("Move 214 imported notes to Trash?"). It is offered only by the done toast, while the app stays open; Cilica keeps no list of past imports.
 - **Partial failures** go in a report: "211 imported, 3 skipped. Two had no content, and one could not be read; the file may be damaged." Each line names the source item.
 
 ### Copy
@@ -159,12 +159,12 @@ Pick source ─▶ Provide input ─▶ Preview ─▶ Import (background) ─�
 Sentence case and plain verbs, as in the design system. Errors say what went wrong and what to do next. For example:
 
 - Bad API key: "Fireflies didn't accept that key. Copy it again from Fireflies → Settings → Developer settings."
-- Plan limit: "Fathom is limiting how fast Margin can read. The import will finish on its own in about 6 minutes."
-- Unreadable file: "Margin couldn't read this file as a transcript. Try exporting it again as .txt or .vtt."
+- Plan limit: "Fathom is limiting how fast Cilica can read. The import will finish on its own in about 6 minutes."
+- Unreadable file: "Cilica couldn't read this file as a transcript. Try exporting it again as .txt or .vtt."
 
-Never write "AI". The assistant is "Margin".
+Never write "AI". The assistant is "Cilica".
 
-## Mapping into Margin
+## Mapping into Cilica
 
 ### The intermediate type
 
@@ -200,10 +200,10 @@ pub enum SpeakerRef { Me, Them, Named(String), Unknown }
 
 ### Field mapping
 
-| Margin | From |
+| Cilica | From |
 | --- | --- |
 | `notes.title` | `title`, or "{Source} meeting · {date}" if empty |
-| `notes.body_md` | The summary as-is, then `## My notes` + the user's notes when both exist, then `## Action items` (`- [ ] text, Owner, due date`) when the action items were separate. When there are only notes, the body is just the notes. This matches Margin's own layout: summary first, the user's jottings below. |
+| `notes.body_md` | The summary as-is, then `## My notes` + the user's notes when both exist, then `## Action items` (`- [ ] text, Owner, due date`) when the action items were separate. When there are only notes, the body is just the notes. This matches Cilica's own layout: summary first, the user's jottings below. |
 | `notes.kind` | `meeting` if there is a transcript or `started_at`; otherwise `manual` |
 | `notes.started_at` / `ended_at` / `meeting_app` | As given. `duration_ms` comes from the times, or from the last transcript turn |
 | `notes.created_at` / `updated_at` | From the source, so that imported notes sort into history and don't all sit on top as "today" |
@@ -220,23 +220,23 @@ pub enum SpeakerRef { Me, Them, Named(String), Unknown }
 
 - **Speaker names are never auto-linked to Saved people.** Saved people are matched by voiceprint, and imported audio has none.
 - **The preview lists distinct speaker names with counts.** An exact, case-insensitive name match to a Saved person is pre-ticked as a suggestion, and the user confirms it.
-- **Optional: "Save frequent speakers as people".** Anyone in 3 or more imported meetings becomes a Saved person with `sample_count = 0`. A voiceprint gets added later, the first time they speak in a real Margin recording and the user confirms the "Is Person 2 Sam?" suggestion.
+- **Optional: "Save frequent speakers as people".** Anyone in 3 or more imported meetings becomes a Saved person with `sample_count = 0`. A voiceprint gets added later, the first time they speak in a real Cilica recording and the user confirms the "Is Person 2 Sam?" suggestion.
 
 ### Categories
 
-Categories in Margin are flat.
+Categories in Cilica are flat.
 
 - **Source has folders** (Granola folders, Notion pages, Obsidian directories, Evernote notebooks, Meetily folders): the default is to keep them. A nested path becomes "Parent / Child". An existing category with the same name, case-insensitive, is reused.
 - **Source has no folders:** everything goes into one new category, "From {Source}". The user can switch this off so notes land uncategorised.
-- **Tags** are written into the body as a final `Tags: #a #b` line. Margin has no tags yet, and dropping them would lose data.
+- **Tags** are written into the body as a final `Tags: #a #b` line. Cilica has no tags yet, and dropping them would lose data.
 
 ### Duplicates and re-import
 
 - **Same source, same item:** each imported note keeps the provider and item id it came from (`notes.import_provider`, `notes.import_id`).
-  - If a note outside Trash already has that source, skip the item, whether or not it changed at the source or in Margin. Account items are skipped before they are fetched, which saves the provider's rate limit.
+  - If a note outside Trash already has that source, skip the item, whether or not it changed at the source or in Cilica. Account items are skipped before they are fetched, which saves the provider's rate limit.
   - If its note is in Trash, was deleted, or was undone, import the item again as a new note. Restoring the old note from Trash as well leaves two copies; the person deletes one.
-  - Changes made at the source after an import are not merged in. To take them, delete the note in Margin and import again.
-- **Same meeting from two places** (recorded in Margin and in Granola, or imported from both Otter and Fireflies): it is a likely duplicate when the start time is within 5 minutes and the titles share at least 60% of their tokens. The preview groups these. The default is to import anyway and tag the pair, so the Notes review task can suggest a merge through the normal destructive-tier flow. An import never merges anything silently.
+  - Changes made at the source after an import are not merged in. To take them, delete the note in Cilica and import again.
+- **Same meeting from two places** (recorded in Cilica and in Granola, or imported from both Otter and Fireflies): it is a likely duplicate when the start time is within 5 minutes and the titles share at least 60% of their tokens. The preview groups these. The default is to import anyway and tag the pair, so the Notes review task can suggest a merge through the normal destructive-tier flow. An import never merges anything silently.
 
 ## Architecture
 
@@ -282,7 +282,7 @@ pub trait Source: Send + Sync {
 
 ```sql
 ALTER TABLE notes ADD COLUMN transcript_timed INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE notes ADD COLUMN import_provider TEXT;  -- 'granola', 'obsidian', …; NULL for notes written in Margin
+ALTER TABLE notes ADD COLUMN import_provider TEXT;  -- 'granola', 'obsidian', …; NULL for notes written in Cilica
 ALTER TABLE notes ADD COLUMN import_id TEXT;        -- the item's id at the source
 CREATE INDEX notes_import_source ON notes(import_provider, import_id) WHERE import_provider IS NOT NULL;
 ```
@@ -296,7 +296,7 @@ The commands live in `src-tauri/src/commands/import.rs`, which is a new area. Al
 | Command | Purpose |
 | --- | --- |
 | `import_sources() -> Vec<ImportSourceCard>` | The catalogue plus detection: id, name, group, route, input needed (`none \| api_key \| oauth \| file \| folder \| paste`), the fidelity that route gives, a help URL, and `detected: Option<{ label, count }>` |
-| `import_save_key(source, key) -> ()` | Store the key in the keychain (`app.margin.desktop`, account `import.<source>`) and verify it with one cheap call. Like the provider keys, it never comes back over IPC |
+| `import_save_key(source, key) -> ()` | Store the key in the keychain (`app.cilica.desktop`, account `import.<source>`) and verify it with one cheap call. Like the provider keys, it never comes back over IPC |
 | `import_connect(source) -> ()` | Run the OAuth flow (system browser, loopback, PKCE). Tokens go to the keychain |
 | `import_scan(source, input: ImportInput) -> ImportPreview` | `ImportInput` is `Local`, `Account`, `Paths { paths }` or `Paste { text }`. Returns `scan_id`, total, date range, fidelity flags, folders, speaker names with counts, how many are already notes (`existing`), likely duplicates, warnings and 5 sample notes |
 | `import_start(scan_id, options: ImportOptions) -> ImportRun` | Options: `category_mode`, `self_names`, `link_people`, `save_frequent_speakers`, `include_audio`, `skip_external_ids` |
@@ -323,13 +323,13 @@ These are worth building well because most sources reuse them.
 | **VTT** | `WEBVTT` header | `<v Name>` voice tags (Teams), `Name: text` cues (Zoom). Merge consecutive cues from the same speaker into one turn |
 | **SRT** | Numbered blocks with `-->` | Speaker from a `Name:` prefix if present |
 | **Speaker TXT** | Line patterns | Otter `Name  0:03` then text; `[00:01:02] Name: text`; `Name (00:01:02)`; plain `Name: text`. Pick the pattern that matches the most lines, and give a confidence score |
-| **Markdown** | `.md` | YAML frontmatter (title, date, created, tags, attendees), `[[wikilinks]]` kept as text, embeds resolved. A `## Transcript` section in Margin's, Shadow's or Grain's layout becomes segments |
+| **Markdown** | `.md` | YAML frontmatter (title, date, created, tags, attendees), `[[wikilinks]]` kept as text, embeds resolved. A `## Transcript` section in Cilica's, Shadow's or Grain's layout becomes segments |
 | **DOCX** | zip with `word/document.xml` | Convert to Markdown (headings, lists, bold), then try the speaker-TXT patterns on the transcript part |
 | **CSV** | Header row | Granola CSV columns (**unverified: needs a sample**), Notion database CSVs |
 | **ENEX** | `<en-export` | Streaming XML, ENML → Markdown, `<en-todo>` → `- [ ]`, `<en-crypt>` reported as skipped |
 | **Notion zip** | 32-hex suffixed names | Strip IDs, rebuild hierarchy, rewrite links |
 | **TextBundle** | `.textbundle` / `.bear2bk` | `text.md` + `assets/` + `info.json` dates |
-| **ProseMirror JSON** | Anarlog `body_format = prosemirror_json` | Render to Markdown, the same direction as Margin's TipTap round-trip |
+| **ProseMirror JSON** | Anarlog `body_format = prosemirror_json` | Render to Markdown, the same direction as Cilica's TipTap round-trip |
 
 **How a dropped file is identified.** `sniff.rs` asks each source's matcher for a confidence score; matchers check things like ZIP entry names and CSV headers. The highest score wins, and the preview says what it decided ("Looks like an Otter export"). Below a threshold, the generic parser for that extension takes the file.
 
@@ -374,12 +374,12 @@ VTT (Teams, Zoom, Webex, Avoma), SRT, speaker TXT, Markdown folders (Obsidian, S
 ## Privacy and security
 
 - **Keys and tokens** live only in the OS keychain. When an import finishes, the card offers "Forget key"; the default is to forget unless "Keep importing new meetings" is on (phase 3). Keys never appear in logs, `options_json`, run reports or IPC responses.
-- **Network** calls go only to the source's documented API host. The connect dialog names it ("Margin will connect to api.fireflies.ai"). File and local imports make no network calls at all.
+- **Network** calls go only to the source's documented API host. The connect dialog names it ("Cilica will connect to api.fireflies.ai"). File and local imports make no network calls at all.
 - **Local reads** are read-only on copies. Each adapter names the exact tables or files it reads, and a test fails if an adapter opens anything else.
 - **macOS permissions:** non-sandboxed apps' data under `~/Library/Application Support` is readable. App Store containers (such as MacWhisper's) trigger macOS's "access data from other apps" prompt, and Apple Notes' or Voice Memos' group containers need Full Disk Access. Those cards explain the prompt before triggering it and fall back to the export route if it is declined.
-- **No LLM calls during an import.** After a large import, Margin may offer once: "Tidy titles and snippets for 214 imported notes with Margin?" That runs as an opt-in task on the user's configured provider, and its edits go through the normal tiers.
+- **No LLM calls during an import.** After a large import, Cilica may offer once: "Tidy titles and snippets for 214 imported notes with Cilica?" That runs as an opt-in task on the user's configured provider, and its edits go through the normal tiers.
 - **Imported text is untrusted.** Imported bodies and transcripts get the same quoted-data wrapping as live transcripts when the assistant reads them.
-- **Consent:** importing someone else's meeting transcript is the user's own data, carried over. Margin adds no notice.
+- **Consent:** importing someone else's meeting transcript is the user's own data, carried over. Cilica adds no notice.
 
 ## Testing
 
@@ -402,8 +402,8 @@ Phase 1 fits after **Notes** in the build order. It needs the store and editor b
 ## Open questions
 
 - **Fixtures to collect before writing parsers:** Granola CSV, Fireflies takeout ZIP, Otter bulk ZIP + summary export, Grain Markdown ZIP, Krisp bulk export, Shadow folder, Read AI TXT, Tactiq TXT.
-- **Category depth:** should "Parent / Child" category names stay, or should Margin add nested categories? Flat is fine for v1.
-- **Tags:** Margin has none. Writing a `Tags:` line keeps the data; a real tag model is a separate decision.
+- **Category depth:** should "Parent / Child" category names stay, or should Cilica add nested categories? Flat is fine for v1.
+- **Tags:** Cilica has none. Writing a `Tags:` line keeps the data; a real tag model is a separate decision.
 - **Continuous sync:** phase 3 proposes a time-limited sync to ease switching. Confirm we want that rather than one-shot imports only.
 - **Terms:** reading another app's local database and using personal API keys is the user exercising access to their own data. Re-check each vendor's API terms before shipping its adapter, as the spec does for the Claude Code bridge.
 

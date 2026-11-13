@@ -1,7 +1,7 @@
 //! The tray (menu bar) icon and its menu:
-//! Open Margin · Start/Stop recording · Listening for meetings · Quit Margin.
+//! Open Cilica · Start/Stop recording · Listening for meetings · Quit Cilica.
 
-use margin_domain::{RecordingPhase, RecordingTrigger, Settings};
+use cilica_domain::{RecordingPhase, RecordingTrigger, Settings};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
@@ -9,10 +9,10 @@ use tauri::{AppHandle, Manager, Wry};
 
 use super::Shell;
 
-const OPEN: &str = "margin.tray.open";
-const RECORD: &str = "margin.tray.record";
-const LISTEN: &str = "margin.tray.listen";
-const QUIT: &str = "margin.tray.quit";
+const OPEN: &str = "cilica.tray.open";
+const RECORD: &str = "cilica.tray.record";
+const LISTEN: &str = "cilica.tray.listen";
+const QUIT: &str = "cilica.tray.quit";
 
 /// Handles kept to update the menu and icon.
 pub struct Items {
@@ -22,18 +22,18 @@ pub struct Items {
 }
 
 pub fn create(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, OPEN, "Open Margin", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, OPEN, "Open Cilica", true, None::<&str>)?;
     let record = MenuItem::with_id(app, RECORD, "Start recording", true, None::<&str>)?;
     let listen = CheckMenuItem::with_id(app, LISTEN, "Listening for meetings", true, settings.recording.auto_detect, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT, "Quit Margin", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, QUIT, "Quit Cilica", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[&open, &record, &PredefinedMenuItem::separator(app)?, &listen, &PredefinedMenuItem::separator(app)?, &quit],
     )?;
-    let tray = TrayIconBuilder::with_id("margin")
+    let tray = TrayIconBuilder::with_id("cilica")
         .icon(icon(app, false))
         .icon_as_template(cfg!(target_os = "macos"))
-        .tooltip("Margin")
+        .tooltip("Cilica")
         .menu(&menu)
         .show_menu_on_left_click(true)
         .build(app)?;
@@ -74,7 +74,7 @@ pub fn set_recording(app: &AppHandle, phase: RecordingPhase) {
     let _ = items.record.set_enabled(enabled);
     let _ = items.tray.set_icon(Some(icon(app, live)));
     let _ = items.tray.set_icon_as_template(cfg!(target_os = "macos"));
-    let _ = items.tray.set_tooltip(Some(if live { "Margin · Recording" } else { "Margin" }));
+    let _ = items.tray.set_tooltip(Some(if live { "Cilica · Recording" } else { "Cilica" }));
 }
 
 pub fn set_listening(app: &AppHandle, on: bool) {

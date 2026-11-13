@@ -25,7 +25,7 @@ pub trait Vad: Send {
 
 pub(crate) fn ort_env() -> SttResult<&'static ort::environment::Environment> {
     // Shared with speaker labelling: ONNX Runtime allows one environment per process.
-    margin_onnx::env().map_err(|e| SttError::ModelLoad(format!("ONNX Runtime: {e}")))
+    cilica_onnx::env().map_err(|e| SttError::ModelLoad(format!("ONNX Runtime: {e}")))
 }
 
 /// Silero VAD v5.

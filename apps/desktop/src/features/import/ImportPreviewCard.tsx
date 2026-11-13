@@ -115,7 +115,7 @@ export function ImportPreviewCard({
         </ul>
         {preview.details_pending && (
           <p className="nt-faint nt-import-note">
-            Margin reads each meeting's summary and transcript while it imports.
+            Cilica reads each meeting's summary and transcript while it imports.
           </p>
         )}
       </div>
@@ -152,7 +152,7 @@ export function ImportPreviewCard({
             <div>
               <div className="nt-settings-label">Which of these is you?</div>
               <div className="nt-settings-desc">
-                Your lines show as “You”, as in meetings Margin records. Skip this if none is you.
+                Your lines show as “You”, as in meetings Cilica records. Skip this if none is you.
               </div>
             </div>
             <fieldset className="nt-import-speakers" aria-label="Speakers">

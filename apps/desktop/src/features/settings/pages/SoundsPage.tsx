@@ -60,7 +60,7 @@ export function SoundsPage() {
         <SettingsRow
           id="sound-rec"
           label="Recording started and stopped"
-          description="Two soft tones that confirm capture began, even when Margin is behind your meeting app."
+          description="Two soft tones that confirm capture began, even when Cilica is behind your meeting app."
           control={
             <>
               <Preview kind="start" label="Play the start sound" />

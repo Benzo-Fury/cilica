@@ -15,7 +15,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::Sender;
-use margin_domain::AudioLevels;
+use cilica_domain::AudioLevels;
 use ringbuf::traits::{Consumer, Observer};
 
 use crate::{
@@ -87,7 +87,7 @@ impl CaptureSession {
         let thread_stop = stop.clone();
         let thread_stop_at = stop_at.clone();
         let handle = std::thread::Builder::new()
-            .name("margin-capture".into())
+            .name("cilica-capture".into())
             .spawn(move || {
                 let mut worker = match Worker::open(config, events) {
                     Ok(w) => w,
@@ -504,7 +504,7 @@ mod tests {
 
     #[test]
     fn records_both_channels_aligned_and_recovers_from_unplug() {
-        let dir = std::env::temp_dir().join(format!("margin-session-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cilica-session-test-{}", std::process::id()));
         let wav = dir.join("rec.wav");
         let mic_opens = Arc::new(Mutex::new(0));
         let config = CaptureConfig {

@@ -260,7 +260,7 @@ export function writtenGlance(state: MockState) {
   // body before a write by its author; the current body follows the last one.
   const fixes = new Map<string, number>();
   let byYou = 0;
-  let byMargin = 0;
+  let byCilica = 0;
   for (const n of notes) {
     const vs = state.versions
       .filter((v) => v.note_id === n.id)
@@ -276,11 +276,11 @@ export function writtenGlance(state: MockState) {
     );
     const [you, margin] = addedWords(chain);
     byYou += you;
-    byMargin += margin;
+    byCilica += margin;
   }
   const topFix = [...fixes].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1])[0];
-  const total = byYou + byMargin;
-  const pct = total >= 200 ? Math.floor((byMargin * 100) / total) : 0;
+  const total = byYou + byCilica;
+  const pct = total >= 200 ? Math.floor((byCilica * 100) / total) : 0;
 
   return {
     own_lines: ranked.slice(0, LINE_LIMIT).map(([, , l]) => l),
@@ -297,7 +297,7 @@ export function writtenGlance(state: MockState) {
           count: topFix[1],
         }
       : null,
-    ghostwriter: pct >= 5 ? { margin_pct: pct, words: total } : null,
+    ghostwriter: pct >= 5 ? { cilica_pct: pct, words: total } : null,
   } satisfies Pick<
     HomeGlance,
     | "own_lines"

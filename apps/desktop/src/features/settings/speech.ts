@@ -1,5 +1,5 @@
 /**
- * The cloud speech services Margin supports, shared by Settings › Transcription and setup.
+ * The cloud speech services Cilica supports, shared by Settings › Transcription and setup.
  */
 import type { SttEngine } from "@/ipc/types";
 

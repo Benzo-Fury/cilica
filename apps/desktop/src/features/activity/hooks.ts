@@ -1,4 +1,4 @@
-/** The audit log: every tool call Margin made, newest first, fetched a page at a time. */
+/** The audit log: every tool call Cilica made, newest first, fetched a page at a time. */
 import {
   type InfiniteData,
   useInfiniteQuery,

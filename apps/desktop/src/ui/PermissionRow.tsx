@@ -1,5 +1,5 @@
 /**
- * One OS permission (PermissionRow doc): icon, title, what Margin does with it, and its status.
+ * One OS permission (PermissionRow doc): icon, title, what Cilica does with it, and its status.
  * A granted row settles to a success chip; the button morphs into it with `bouncy`.
  */
 import type { LucideIcon } from "lucide-react";

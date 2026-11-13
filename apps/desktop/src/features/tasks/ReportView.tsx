@@ -72,7 +72,7 @@ export function destructiveLine(proposal: Proposal): string | null {
     case "bulk_move":
       return `Move ${names(k.notes)} to ${k.category_name}`;
     default:
-      return `Apply a change Margin marked as destructive`;
+      return `Apply a change Cilica marked as destructive`;
   }
 }
 
@@ -111,7 +111,7 @@ export function ReportView({ runId }: { runId: string }) {
     if (failed === 0) toast.success(`Applied ${plural(applied, "suggestion")}`);
     else
       toast.error(`Applied ${applied} of ${queue.length} suggestions`, {
-        description: `${plural(failed, "suggestion")} could not be applied. They stay open below; ask Margin to run the task again for fresh ones.`,
+        description: `${plural(failed, "suggestion")} could not be applied. They stay open below; ask Cilica to run the task again for fresh ones.`,
       });
   };
 
@@ -164,7 +164,7 @@ export function ReportView({ runId }: { runId: string }) {
                     {data.run.status === "running" ? (
                       <Shimmer>Running now…</Shimmer>
                     ) : (
-                      data.run.summary || "Margin found nothing to suggest."
+                      data.run.summary || "Cilica found nothing to suggest."
                     )}
                   </p>
                   {progress && (
@@ -185,7 +185,7 @@ export function ReportView({ runId }: { runId: string }) {
                 proposals.length === 0 &&
                 data.run.status !== "failed" && (
                   <EmptyState art="tasks" title="Nothing to suggest">
-                    Your notes look tidy. Margin checks again on the next run.
+                    Your notes look tidy. Cilica checks again on the next run.
                   </EmptyState>
                 )}
               {GROUPS.map((group) => {

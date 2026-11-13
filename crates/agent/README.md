@@ -1,4 +1,4 @@
-# margin-agent
+# cilica-agent
 
 The assistant and the only write path for AI.
 
@@ -10,4 +10,4 @@ The assistant and the only write path for AI.
 
 Note and transcript content always reaches the model as quoted data (`prompt::quoted`).
 
-Must not depend on tauri. Test with `cargo test -p margin-agent` (MockProvider + FakeNotes + in-memory Db; one test runs against the real store).
+Must not depend on tauri. Test with `cargo test -p cilica-agent` (MockProvider + FakeNotes + in-memory Db; one test runs against the real store).

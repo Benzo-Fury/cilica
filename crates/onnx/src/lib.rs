@@ -11,7 +11,7 @@ pub use ort;
 /// The shared environment, created on first use. The error is the runtime's own message.
 pub fn env() -> Result<&'static ort::environment::Environment, String> {
     static ENV: OnceLock<Result<ort::environment::Environment, String>> = OnceLock::new();
-    ENV.get_or_init(|| ort::init().with_name("margin").build().map_err(|e| e.to_string())).as_ref().map_err(Clone::clone)
+    ENV.get_or_init(|| ort::init().with_name("cilica").build().map_err(|e| e.to_string())).as_ref().map_err(Clone::clone)
 }
 
 #[cfg(test)]

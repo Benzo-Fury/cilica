@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use margin_domain::chrono::TimeDelta;
-use margin_domain::{ImportFidelity, ImportInput, Timestamp};
+use cilica_domain::chrono::TimeDelta;
+use cilica_domain::{ImportFidelity, ImportInput, Timestamp};
 use serde_json::{Value, json};
 
 use super::{Cx, Loader, Provider, RemoteEntry, Scan, scan_paste, scan_paths};
@@ -120,7 +120,7 @@ impl Provider for Granola {
         let installed = super::app_installed(paths, self.apps());
         super::Detect {
             app_installed: installed,
-            note: installed.then(|| "Granola encrypts the notes it keeps on this Mac, so Margin reads them through your API key or a CSV export instead.".to_string()),
+            note: installed.then(|| "Granola encrypts the notes it keeps on this Mac, so Cilica reads them through your API key or a CSV export instead.".to_string()),
             ..Default::default()
         }
     }

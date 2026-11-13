@@ -1,5 +1,5 @@
 [package]
-name = "margin-store"
+name = "cilica-store"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = "0.4.45"
-margin-domain = { path = "../domain" }
+cilica-domain = { path = "../domain" }
 serde = "1.0.229"
 serde_json = "1.0.154"
 similar = "3.2.1"

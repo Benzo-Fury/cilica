@@ -11,7 +11,7 @@ export type SettingsPageId =
   | "keybinds"
   | "recording"
   | "transcription"
-  | "margin"
+  | "cilica"
   | "sounds"
   | "swear_jar";
 

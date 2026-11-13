@@ -3,14 +3,14 @@
 //! Every command here is part of the IPC contract in `src/ipc/bindings.ts`. Keep names, arguments and
 //! return types as they are unless the orchestrator agrees to a change.
 //!
-//! The work lives in `margin-pipeline` ([`RecordingService`]); this module builds it at startup,
+//! The work lives in `cilica-pipeline` ([`RecordingService`]); this module builds it at startup,
 //! keeps the meeting detector in step with Settings, and maps commands onto it and the store.
 
 use std::sync::Arc;
 
-use margin_domain::*;
-use margin_pipeline::{DeviceAudio, LocalModels, RecordingService, ServiceConfig, SpeechBackend, SttKeys, SummarizerProvider};
-use margin_stt::ModelManager;
+use cilica_domain::*;
+use cilica_pipeline::{DeviceAudio, LocalModels, RecordingService, ServiceConfig, SpeechBackend, SttKeys, SummarizerProvider};
+use cilica_stt::ModelManager;
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
@@ -95,7 +95,7 @@ fn people_changed(core: &Core) {
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> AppResult<T> {
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| AppError::internal(format!("Margin could not finish that: {e}")))
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| AppError::internal(format!("Cilica could not finish that: {e}")))
 }
 
 #[tauri::command]
@@ -127,27 +127,27 @@ pub async fn keep_recording(area: State<'_, RecordingArea>) -> AppResult<Recordi
 #[tauri::command]
 #[specta::specta]
 pub async fn list_input_devices() -> AppResult<Vec<AudioDevice>> {
-    Ok(blocking(margin_audio::list_input_devices).await??)
+    Ok(blocking(cilica_audio::list_input_devices).await??)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn get_permissions() -> AppResult<Permissions> {
-    blocking(margin_audio::permissions::all).await
+    blocking(cilica_audio::permissions::all).await
 }
 
 /// Trigger the OS prompt where one exists.
 #[tauri::command]
 #[specta::specta]
 pub async fn request_permission(kind: PermissionKind) -> AppResult<PermissionStatus> {
-    blocking(move || margin_audio::permissions::request(kind)).await
+    blocking(move || cilica_audio::permissions::request(kind)).await
 }
 
 /// Open the matching pane of the OS privacy settings.
 #[tauri::command]
 #[specta::specta]
 pub async fn open_permission_settings(kind: PermissionKind) -> AppResult<()> {
-    Ok(blocking(move || margin_audio::permissions::open_settings(kind)).await??)
+    Ok(blocking(move || cilica_audio::permissions::open_settings(kind)).await??)
 }
 
 #[tauri::command]
@@ -163,7 +163,7 @@ pub async fn download_stt_model(area: State<'_, RecordingArea>, model_id: String
     Ok(area.models.start_download(&model_id)?)
 }
 
-/// Download a speech model if needed, then make it the one Margin transcribes with. Returns at
+/// Download a speech model if needed, then make it the one Cilica transcribes with. Returns at
 /// once; progress arrives as ModelDownload events and Settings changes when the model is ready.
 #[tauri::command]
 #[specta::specta]
@@ -197,8 +197,6 @@ async fn use_stt_model(core: &Core, model_id: &str) -> AppResult<()> {
 
 // ── Cloud speech keys ────────────────────────────────────────────────────
 
-const KEYCHAIN_SERVICE: &str = "app.margin.desktop";
-
 /// Keychain account for a cloud speech provider: "stt.soniox", "stt.open_ai_compatible".
 fn stt_account(engine: SttEngine) -> String {
     let name = serde_json::to_value(engine).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
@@ -209,7 +207,7 @@ fn read_stt_key(engine: SttEngine) -> Option<String> {
     if !engine.is_cloud() {
         return None;
     }
-    keyring::Entry::new(KEYCHAIN_SERVICE, &stt_account(engine)).ok()?.get_password().ok().filter(|k| !k.trim().is_empty())
+    crate::keychain::read(&stt_account(engine)).ok().flatten().filter(|k| !k.trim().is_empty())
 }
 
 /// How the pipeline reads keys: from the keychain, each time a stream opens.
@@ -241,18 +239,17 @@ pub async fn set_stt_provider_key(core: State<'_, Core>, engine: SttEngine, key:
     }
     let settings = core.db.get_settings().await?;
     let base_url = settings.transcription.cloud.base_url.clone();
-    let checked = tokio::time::timeout(std::time::Duration::from_secs(15), margin_stt::cloud::verify_key(engine, &key, base_url.as_deref())).await;
+    let checked = tokio::time::timeout(std::time::Duration::from_secs(15), cilica_stt::cloud::verify_key(engine, &key, base_url.as_deref())).await;
     let problem = match checked {
         Ok(Ok(())) => None,
-        Ok(Err(error @ (margin_stt::SttError::Auth(_) | margin_stt::SttError::NotAllowed(_) | margin_stt::SttError::Provider(_)))) => {
+        Ok(Err(error @ (cilica_stt::SttError::Auth(_) | cilica_stt::SttError::NotAllowed(_) | cilica_stt::SttError::Provider(_)))) => {
             return Err(error.into());
         }
-        Ok(Err(_)) | Err(_) => Some("Saved. Margin could not check the key just now.".to_string()),
+        Ok(Err(_)) | Err(_) => Some("Saved. Cilica could not check the key just now.".to_string()),
     };
     blocking(move || {
-        keyring::Entry::new(KEYCHAIN_SERVICE, &stt_account(engine))
-            .and_then(|e| e.set_password(&key))
-            .map_err(|_| AppError::unavailable("Margin could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
+        crate::keychain::write(&stt_account(engine), &key)
+            .map_err(|_| AppError::unavailable("Cilica could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
         Ok(stt_status(engine, problem))
     })
     .await?
@@ -262,9 +259,9 @@ pub async fn set_stt_provider_key(core: State<'_, Core>, engine: SttEngine, key:
 #[specta::specta]
 pub async fn clear_stt_provider_key(engine: SttEngine) -> AppResult<SttProviderStatus> {
     blocking(move || {
-        match keyring::Entry::new(KEYCHAIN_SERVICE, &stt_account(engine)).and_then(|e| e.delete_credential()) {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(stt_status(engine, None)),
-            Err(_) => Err(AppError::unavailable("Margin could not remove the key from your keychain. Check that it is unlocked and try again.")),
+        match crate::keychain::delete(&stt_account(engine)) {
+            Ok(()) => Ok(stt_status(engine, None)),
+            Err(_) => Err(AppError::unavailable("Cilica could not remove the key from your keychain. Check that it is unlocked and try again.")),
         }
     })
     .await?
@@ -285,13 +282,13 @@ pub async fn test_transcription(core: State<'_, Core>, area: State<'_, Recording
     let events = core.events.clone();
     blocking(move || {
         let transcriber = speech.transcriber(&settings)?;
-        let run = margin_stt::sample::stream_sample(transcriber.as_ref(), true, &mut |text| {
+        let run = cilica_stt::sample::stream_sample(transcriber.as_ref(), true, &mut |text| {
             events.emit(AppEvent::TranscriptionTestProgress { text: text.to_string() });
         })?;
         Ok(TranscriptionTest {
             engine,
             text: run.text,
-            expected: margin_stt::sample::SAMPLE_TEXT.to_string(),
+            expected: cilica_stt::sample::SAMPLE_TEXT.to_string(),
             first_words_ms: run.first_words.map(|d| d.as_millis() as u32),
             took_ms: run.took.as_millis() as u32,
         })
@@ -313,7 +310,7 @@ fn hardware_profile() -> HardwareProfile {
     system.refresh_memory();
     let ram_gb = (system.total_memory() as f64 / 1_073_741_824.0).round() as u32;
     let apple_silicon = cfg!(all(target_os = "macos", target_arch = "aarch64"));
-    margin_stt::recommend::profile(cores, ram_gb, apple_silicon)
+    cilica_stt::recommend::profile(cores, ram_gb, apple_silicon)
 }
 
 #[tauri::command]
@@ -369,7 +366,7 @@ pub async fn save_speaker_as_person(core: State<'_, Core>, speaker_id: Id, name:
 #[tauri::command]
 #[specta::specta]
 pub async fn list_speaker_suggestions(core: State<'_, Core>, note_id: Id) -> AppResult<Vec<SpeakerSuggestion>> {
-    Ok(core.db.speaker_suggestions(note_id, margin_diarize::SUGGEST_THRESHOLD).await?)
+    Ok(core.db.speaker_suggestions(note_id, cilica_diarize::SUGGEST_THRESHOLD).await?)
 }
 
 #[tauri::command]

@@ -1,4 +1,4 @@
-//! Speaker diarization for Margin, run once after a meeting.
+//! Speaker diarization for Cilica, run once after a meeting.
 //!
 //! Pipeline: slide a 10 s window (2.5 s step) over the channel and run pyannote segmentation 3.0
 //! to find up to three local speakers per window; embed each local speaker's clean (non-overlapped)
@@ -7,7 +7,7 @@
 //! transcript segment to the speaker who talks most during it. Each speaker gets an
 //! L2-normalised centroid embedding for voiceprint matching ([`suggest_people`]).
 //!
-//! Models are loaded from paths (downloaded by `margin-stt`'s model manager); this crate never
+//! Models are loaded from paths (downloaded by `cilica-stt`'s model manager); this crate never
 //! touches the network. See README.md for sources and licences.
 
 mod cluster;
@@ -17,7 +17,7 @@ pub mod segmentation;
 
 use std::path::Path;
 
-use margin_domain::{AppError, ErrorCode, Id};
+use cilica_domain::{AppError, ErrorCode, Id};
 
 pub use cluster::agglomerative;
 use embedding::Embedder;
@@ -29,8 +29,8 @@ pub const SAMPLE_RATE: u32 = 16_000;
 /// the same synthetic voice across turns scores 0.7–0.9, different voices below 0.4.
 pub const SUGGEST_THRESHOLD: f32 = 0.6;
 
-/// Cosine similarity at or above which Margin names a speaker as a Saved person by itself (still
-/// a guess the person can correct). Stricter than [`SUGGEST_THRESHOLD`]: between the two Margin
+/// Cosine similarity at or above which Cilica names a speaker as a Saved person by itself (still
+/// a guess the person can correct). Stricter than [`SUGGEST_THRESHOLD`]: between the two Cilica
 /// only asks.
 pub const RECOGNISE_THRESHOLD: f32 = 0.72;
 
@@ -64,7 +64,7 @@ impl From<DiarizeError> for AppError {
 
 pub(crate) fn ort_env() -> DiarizeResult<&'static ort::environment::Environment> {
     // Shared with voice-activity detection: ONNX Runtime allows one environment per process.
-    margin_onnx::env().map_err(|e| DiarizeError::Model(format!("ONNX Runtime: {e}")))
+    cilica_onnx::env().map_err(|e| DiarizeError::Model(format!("ONNX Runtime: {e}")))
 }
 
 pub fn l2_normalize(v: &[f32]) -> Vec<f32> {
@@ -381,7 +381,7 @@ mod tests {
             Turn { start_ms: 3000, end_ms: 6000, speaker: 1 },
             Turn { start_ms: 9000, end_ms: 10_000, speaker: 0 },
         ];
-        let ids: Vec<Id> = (0..4).map(|_| margin_domain::new_id()).collect();
+        let ids: Vec<Id> = (0..4).map(|_| cilica_domain::new_id()).collect();
         let segs = vec![(ids[0], 500, 2500), (ids[1], 2500, 5500), (ids[2], 6500, 7000), (ids[3], 20_000, 21_000)];
         let got = assign_segments(&turns, &segs);
         assert_eq!(got, vec![(ids[0], 0), (ids[1], 1), (ids[2], 1)]);
@@ -391,7 +391,7 @@ mod tests {
     fn suggestions_are_one_to_one() {
         let a = SpeakerProfile { index: 0, embedding: l2_normalize(&[1.0, 0.1]), speech_ms: 1000 };
         let b = SpeakerProfile { index: 1, embedding: l2_normalize(&[0.9, 0.2]), speech_ms: 1000 };
-        let p = margin_domain::new_id();
+        let p = cilica_domain::new_id();
         let got = suggest_people(&[a, b], &[KnownVoice { person_id: p, embedding: vec![1.0, 0.0] }], 0.6);
         assert_eq!(got.len(), 1);
         assert_eq!((got[0].0, got[0].1), (0, p));

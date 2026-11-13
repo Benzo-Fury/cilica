@@ -277,7 +277,7 @@ function PendingCard({
       rejectLabel = "Keep";
       body = (
         <p className="nt-proposal-note-line">
-          Margin forgets their voice. Past meetings keep the speaker's name.
+          Cilica forgets their voice. Past meetings keep the speaker's name.
         </p>
       );
       break;
@@ -360,8 +360,8 @@ function PendingCard({
           <Icon icon={TriangleAlert} size="sm" />
           <span>
             {kind.type === "edit_note"
-              ? "This note changed after Margin suggested this edit. Ask Margin again for a fresh suggestion, or reject this one."
-              : "Something changed after Margin suggested this. Ask Margin again, or dismiss this one."}
+              ? "This note changed after Cilica suggested this edit. Ask Cilica again for a fresh suggestion, or reject this one."
+              : "Something changed after Cilica suggested this. Ask Cilica again, or dismiss this one."}
           </span>
         </p>
       )}

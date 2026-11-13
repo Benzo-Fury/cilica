@@ -2,8 +2,8 @@
 //! context-aware ones from the fast model once they are ready. Cached per note version (the key
 //! includes `updated_at`, so an edit invalidates it) and per category / home view.
 
-use margin_domain::{AppResult, NoteKind, PromptChip, ViewContext};
-use margin_llm::{CancellationToken, ChatMessage, ChatRequest, Effort};
+use cilica_domain::{AppResult, NoteKind, PromptChip, ViewContext};
+use cilica_llm::{CancellationToken, ChatMessage, ChatRequest, Effort};
 
 use crate::Agent;
 use crate::prompt::quoted;
@@ -109,7 +109,7 @@ pub(crate) async fn prompt_chips(agent: &Agent, view: &ViewContext) -> AppResult
         let mut req = ChatRequest::new(settings.fast_model.clone(), CHIP_SYSTEM, vec![ChatMessage::user(context)]);
         req.max_tokens = 2_000;
         req.effort = Some(Effort::Low);
-        if let Ok((text, _)) = margin_llm::complete(provider.as_ref(), req, CancellationToken::new()).await
+        if let Ok((text, _)) = cilica_llm::complete(provider.as_ref(), req, CancellationToken::new()).await
             && let Some(chips) = parse_chips(&text)
         {
             let mut cache = this.inner.chips.lock().unwrap();

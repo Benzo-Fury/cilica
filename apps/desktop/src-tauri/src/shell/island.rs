@@ -1,4 +1,4 @@
-//! The Dynamic Island: a small always-on-top window showing recording state while Margin is in the
+//! The Dynamic Island: a small always-on-top window showing recording state while Cilica is in the
 //! background (docs/design-system/components/DynamicIsland). It loads the same frontend with
 //! `?window=island` (its label is also `island`), is created hidden at startup, and shows by
 //! itself while capturing with the main window unfocused.
@@ -17,7 +17,7 @@ const TOP_GAP: f64 = 8.0;
 
 pub fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html?window=island".into()))
-        .title("Margin recording")
+        .title("Cilica recording")
         .inner_size(COMPACT.0, COMPACT.1)
         .resizable(false)
         .maximizable(false)

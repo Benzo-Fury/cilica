@@ -32,7 +32,7 @@ export interface MockState {
   messages: Message[];
   proposals: Proposal[];
   aiActions: AiAction[];
-  /** For undone note edits: the body before and after Margin's change (the real store keeps
+  /** For undone note edits: the body before and after Cilica's change (the real store keeps
    *  this in `ai_actions.undo_json`, which the UI type does not carry). */
   undoBodies: Map<string, { note_id: string; before_md: string; after_md: string }>;
   /** Recordings older than the seed's notes, so Home's overtime has a usual length to beat. */
@@ -75,7 +75,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       theme: "system",
       transparency: true,
       note_font: "sans",
-      margin_placement: "side_panel",
+      cilica_placement: "side_panel",
       home_face: "random",
     },
     recording: {

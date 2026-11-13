@@ -1,5 +1,5 @@
 /**
- * Margin activity: the audit log of every tool call (spec › Guardrails). Each row has the tool's
+ * Cilica activity: the audit log of every tool call (spec › Guardrails). Each row has the tool's
  * past-tense summary, when, its tier and status, the arguments on demand, Undo while it can
  * still be undone, and the suggestion it made. Windowed, so hundreds of rows stay smooth.
  */
@@ -81,13 +81,13 @@ export function ActivityView() {
 
   return (
     <ViewLayer>
-      <CanvasBand start={<Crumb parts={["Margin activity"]} />} />
+      <CanvasBand start={<Crumb parts={["Cilica activity"]} />} />
       <ScrollArea ref={scrollRef}>
         <PageColumn>
           <header className="nt-page-head">
             <div>
-              <h1 className="t-title">Margin activity</h1>
-              <p>Everything Margin read or changed, with an Undo while it still applies.</p>
+              <h1 className="t-title">Cilica activity</h1>
+              <p>Everything Cilica read or changed, with an Undo while it still applies.</p>
             </div>
           </header>
           {isLoading ? (
@@ -95,10 +95,10 @@ export function ActivityView() {
           ) : actions.length === 0 ? (
             <EmptyState
               art="activity"
-              title="Margin has not done anything yet"
-              tip={<ShortcutTip action="assistant.toggle">Open Margin from anywhere</ShortcutTip>}
+              title="Cilica has not done anything yet"
+              tip={<ShortcutTip action="assistant.toggle">Open Cilica from anywhere</ShortcutTip>}
             >
-              When you ask Margin to find, file or edit notes, every step it takes is listed here.
+              When you ask Cilica to find, file or edit notes, every step it takes is listed here.
             </EmptyState>
           ) : (
             <ul ref={listRef} className="nt-virtual" style={{ height: virtualizer.getTotalSize() }}>
@@ -128,7 +128,7 @@ export function ActivityView() {
       <DialogRoot open={proposalId !== null} onOpenChange={(o) => !o && setProposalId(null)}>
         {proposalId && (
           <DialogSurface className="nt-dialog-wide">
-            <DialogTitle>Margin's suggestion</DialogTitle>
+            <DialogTitle>Cilica's suggestion</DialogTitle>
             <ProposalCard proposalId={proposalId} />
           </DialogSurface>
         )}

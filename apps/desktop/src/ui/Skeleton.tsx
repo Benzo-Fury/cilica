@@ -25,7 +25,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
   );
 }
 
-/** Shimmer text for Margin's work in progress: say what is happening and how big it is. */
+/** Shimmer text for Cilica's work in progress: say what is happening and how big it is. */
 export function Shimmer({ children, className }: { children: string; className?: string }) {
   return <span className={cn("nt-shimmer", className)}>{children}</span>;
 }

@@ -2,10 +2,10 @@
 //! read like a thought, the hours you write in, and questions you left yourself.
 //! Reads notes and note_versions; owns no tables. Plain rules, no model.
 
-use margin_domain::chrono::{TimeZone, Timelike};
+use cilica_domain::chrono::{TimeZone, Timelike};
 use std::collections::HashMap;
 
-use margin_domain::{Author, BareNote, Ghostwriter, Id, NoteLine, SpellFix, Timestamp, WritingHours, chrono, now};
+use cilica_domain::{Author, BareNote, Ghostwriter, Id, NoteLine, SpellFix, Timestamp, WritingHours, chrono, now};
 use sqlx::Row;
 
 use crate::codec::{parse_id, parse_ts};
@@ -312,7 +312,7 @@ const MID_SENTENCE_MIN_WORDS: usize = 4;
 const MIN_SPELL_FIXES: u32 = 2;
 /// Words written before a share of them means anything.
 const MIN_GHOST_WORDS: u32 = 200;
-/// Margin's share below this is not worth a face.
+/// Cilica's share below this is not worth a face.
 const MIN_GHOST_PCT: u8 = 5;
 
 /// Famous misspellings, as (right, wrong forms). Only these count, so names and jargon never do.
@@ -465,7 +465,7 @@ impl Db {
         .await?
         {
             let author = if row.try_get::<String, _>("author")? == "ai" { Author::Ai } else { Author::User };
-            // Your own saves in between count for the writing clock (Margin's edits are not your writing).
+            // Your own saves in between count for the writing clock (Cilica's edits are not your writing).
             if author == Author::User {
                 times.push(parse_ts(&row.try_get::<String, _>("created_at")?)?);
             }
@@ -474,7 +474,7 @@ impl Db {
 
         // Spelling fixes and who wrote what, walking each note's saves in order
         let mut fixes: HashMap<(&'static str, &'static str), u32> = HashMap::new();
-        let (mut by_you, mut by_margin) = (0u32, 0u32);
+        let (mut by_you, mut by_cilica) = (0u32, 0u32);
         for (note_id, body) in &current {
             let versions = saves.remove(note_id).unwrap_or_default();
             // Each change belongs to the author on the version it replaced; the first body is yours.
@@ -487,18 +487,18 @@ impl Db {
             spell_fixes(&bodies, &mut fixes);
             let (you, margin) = added_words(&chain);
             by_you += you;
-            by_margin += margin;
+            by_cilica += margin;
         }
         let spelling = fixes
             .into_iter()
             .filter(|(_, n)| *n >= MIN_SPELL_FIXES)
             .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0)))
             .map(|((right, wrong), count)| SpellFix { word: right.to_string(), wrong: wrong.to_string(), count });
-        let total = by_you + by_margin;
+        let total = by_you + by_cilica;
         let ghostwriter = (total >= MIN_GHOST_WORDS)
-            .then(|| (by_margin as u64 * 100 / total as u64) as u8)
+            .then(|| (by_cilica as u64 * 100 / total as u64) as u8)
             .filter(|pct| *pct >= MIN_GHOST_PCT)
-            .map(|margin_pct| Ghostwriter { margin_pct, words: total });
+            .map(|cilica_pct| Ghostwriter { cilica_pct, words: total });
 
         // Strongest first, newer notes breaking ties.
         ranked.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
@@ -519,8 +519,8 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::chrono::{FixedOffset, TimeDelta};
-    use margin_domain::{NoteKind, now};
+    use cilica_domain::chrono::{FixedOffset, TimeDelta};
+    use cilica_domain::{NoteKind, now};
 
     use crate::NewNote;
 
@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn splits_written_words_by_author() {
-        // You write 4 words, Margin adds 6, you add 2.
+        // You write 4 words, Cilica adds 6, you add 2.
         let chain = [(Author::User, "one two three four"), (Author::Ai, "one two three four a b c d e f"), (Author::User, "one two three four a b c d e f g h")];
         assert_eq!(added_words(&chain), (6, 6));
     }
@@ -615,10 +615,10 @@ mod tests {
     async fn glance_reads_written_notes_only() {
         let db = Db::open_in_memory().await.unwrap();
         let note = db.create_note(NewNote { title: "Product thoughts".into(), ..NewNote::default() }).await.unwrap();
-        db.set_note_body(note.id, "We should stop adding settings. Is anyone using the export?", margin_domain::Author::User, None).await.unwrap();
+        db.set_note_body(note.id, "We should stop adding settings. Is anyone using the export?", cilica_domain::Author::User, None).await.unwrap();
         let meeting =
             db.create_note(NewNote { title: "Sync".into(), kind: NoteKind::Meeting, started_at: Some(now()), ..NewNote::default() }).await.unwrap();
-        db.set_note_body(meeting.id, "I think Margin wrote this summary.", margin_domain::Author::Ai, None).await.unwrap();
+        db.set_note_body(meeting.id, "I think Cilica wrote this summary.", cilica_domain::Author::Ai, None).await.unwrap();
 
         let w = db.written_glance().await.unwrap();
         assert_eq!(w.own_lines.len(), 1);
@@ -643,20 +643,20 @@ mod tests {
             .unwrap();
         for t in ["One", "Two"] {
             let n = db.create_note(NewNote { title: t.into(), ..NewNote::default() }).await.unwrap();
-            db.set_note_body(n.id, "We should really think about the", margin_domain::Author::User, None).await.unwrap();
+            db.set_note_body(n.id, "We should really think about the", cilica_domain::Author::User, None).await.unwrap();
         }
-        // You write 300 words, then Margin adds 100.
+        // You write 300 words, then Cilica adds 100.
         let ghost = db.create_note(NewNote { title: "Plan".into(), ..NewNote::default() }).await.unwrap();
         let yours = format!("{}.", vec!["word"; 300].join(" "));
-        db.set_note_body(ghost.id, &yours, margin_domain::Author::User, None).await.unwrap();
-        db.set_note_body(ghost.id, &format!("{yours} {}.", vec!["more"; 100].join(" ")), margin_domain::Author::Ai, None).await.unwrap();
+        db.set_note_body(ghost.id, &yours, cilica_domain::Author::User, None).await.unwrap();
+        db.set_note_body(ghost.id, &format!("{yours} {}.", vec!["more"; 100].join(" ")), cilica_domain::Author::Ai, None).await.unwrap();
 
         let w = db.written_glance().await.unwrap();
         assert_eq!(w.bare_note.map(|b| b.title), Some("Big idea".to_string()));
         assert_eq!(w.mid_sentence, Some(2));
-        // Margin's 100 words against your 300 here and 12 in the cut-off notes.
+        // Cilica's 100 words against your 300 here and 12 in the cut-off notes.
         let g = w.ghostwriter.unwrap();
-        assert_eq!((g.margin_pct, g.words), (24, 412));
+        assert_eq!((g.cilica_pct, g.words), (24, 412));
         assert!(w.spelling.is_none());
     }
 }

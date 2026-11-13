@@ -27,9 +27,9 @@ export function getMockBackend(): Promise<MockBackend> {
         seed: params?.has("fresh") ? "empty" : "demo",
         latencyMs: isTest ? 0 : 40,
       });
-      // Dev aid: drive the mock from the console, e.g. `__marginMock.emit({ type: "toast", … })`.
+      // Dev aid: drive the mock from the console, e.g. `__cilicaMock.emit({ type: "toast", … })`.
       if (import.meta.env.DEV && typeof window !== "undefined") {
-        (window as unknown as { __marginMock?: MockBackend }).__marginMock = mock;
+        (window as unknown as { __cilicaMock?: MockBackend }).__cilicaMock = mock;
       }
       return mock;
     });

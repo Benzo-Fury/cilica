@@ -126,7 +126,7 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
               </Button>
             }
           >
-            Margin heard nobody speak. Check that the right microphone is chosen and that Margin can
+            Cilica heard nobody speak. Check that the right microphone is chosen and that Cilica can
             hear call audio before your next meeting.
           </EmptyState>
         ) : (
@@ -525,7 +525,7 @@ function TranscriptBody({
             })}
           </ol>
           {!live && quotes.length > 0 && (
-            <section className="nt-quotes" aria-label="Lines Margin kept">
+            <section className="nt-quotes" aria-label="Lines Cilica kept">
               <span className="nt-quotes-label">Lines worth keeping</span>
               {quotes.map((quote) => {
                 const index = turnIndexAt(turns, quote.at_ms);

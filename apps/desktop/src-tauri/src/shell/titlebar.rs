@@ -83,7 +83,7 @@ mod macos {
         match Action::from_defaults(action.as_deref(), legacy_minimize) {
             Action::Nothing => {}
             Action::Minimize => ns_window.performMiniaturize(None),
-            // Margin has no custom standard frame, so Zoom and Fill reach the same size. Both go
+            // Cilica has no custom standard frame, so Zoom and Fill reach the same size. Both go
             // through window tiling: plain `zoom:` animates the frame, but the webview does not
             // repaint until it ends, so on screen the window jumps.
             Action::Zoom | Action::Fill => toggle_fill(window, ns_window),

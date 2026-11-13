@@ -1,4 +1,4 @@
-//! Audio capture for Margin: the microphone and the system output, each delivered as timestamped
+//! Audio capture for Cilica: the microphone and the system output, each delivered as timestamped
 //! 16 kHz mono `f32` frames, echo-cancelled, metered and written to disk as they arrive.
 //!
 //! - [`CaptureSource`] is the one trait every platform implements: [`MicSource`] (cpal, all
@@ -11,7 +11,7 @@
 //! - [`permissions`] and [`list_input_devices`] back the onboarding and Settings screens.
 //! - [`ClipSource`] plays a clip in real time as if it were a device, for tests.
 //!
-//! Platform `cfg` lives only in this crate (and `margin-detect`).
+//! Platform `cfg` lives only in this crate (and `cilica-detect`).
 
 mod aec;
 mod clip;

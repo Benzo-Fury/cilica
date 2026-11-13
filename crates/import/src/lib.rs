@@ -3,7 +3,7 @@
 //!
 //! Every provider turns what it reads into [`model::ImportedNote`]s. The [`Importer`] previews
 //! them, writes them through the store one note per transaction, and reports progress through the
-//! event sink. Importing the same source again skips items that are already notes in Margin;
+//! event sink. Importing the same source again skips items that are already notes in Cilica;
 //! anything deleted, undone or in Trash comes back as a new note. Imports keep no history: the done
 //! toast can undo the run while the app is open, and after that the notes are ordinary notes.
 //! This crate never depends on Tauri.
@@ -20,11 +20,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use margin_domain::{
+use cilica_domain::{
     AppError, AppEvent, AudioChannel, DataScope, ErrorCode, Events, Id, ImportCategoryMode, ImportDetection, ImportFidelity, ImportInput, ImportKeyStatus, ImportOptions,
     ImportPhase, ImportPreview, ImportProgress, ImportRun, ImportRunStatus, ImportSample, NoteKind, SpeakerCount, new_id, now,
 };
-use margin_store::{Db, ImportSegment, ImportSpeaker, ImportWrite};
+use cilica_store::{Db, ImportSegment, ImportSpeaker, ImportWrite};
 
 use crate::http::WaitNotice;
 use crate::model::{ImportedNote, SpeakerRef};
@@ -120,12 +120,12 @@ impl Importer {
     }
 
     fn provider(id: &str) -> Result<Arc<dyn Provider>, ImportError> {
-        providers::find(id).ok_or_else(|| ImportError::new(ErrorCode::NotImplemented, "Margin cannot import from that app yet."))
+        providers::find(id).ok_or_else(|| ImportError::new(ErrorCode::NotImplemented, "Cilica cannot import from that app yet."))
     }
 
     // ── Detecting ────────────────────────────────────────────────────────
 
-    /// What Margin can find for one provider without reading anything heavy.
+    /// What Cilica can find for one provider without reading anything heavy.
     pub async fn detect(&self, provider: &str) -> Result<ImportDetection, ImportError> {
         let p = Self::provider(provider)?;
         let d = p.detect(&self.paths).await;
@@ -167,7 +167,7 @@ impl Importer {
         let mut scan = provider.scan(&input, &cx).await?;
         scan.notes.retain(|n| !n.external_id.is_empty());
         if scan.notes.is_empty() && scan.remote.is_empty() {
-            let mut message = format!("Margin found nothing to import in {}.", scan.origin);
+            let mut message = format!("Cilica found nothing to import in {}.", scan.origin);
             if let Some(w) = scan.warnings.first() {
                 message = format!("{message} {w}");
             } else if let Some(u) = scan.unsupported.first() {
@@ -250,7 +250,7 @@ impl Importer {
             Ok(ids) => ids,
             Err(e) => {
                 run.status = ImportRunStatus::Failed;
-                report(&mut run, format!("Margin could not check which notes are already here: {e}. Try again."));
+                report(&mut run, format!("Cilica could not check which notes are already here: {e}. Try again."));
                 self.finish(run, &provider_id, 0);
                 return;
             }
@@ -353,7 +353,7 @@ impl Importer {
     }
 }
 
-fn store_error(e: margin_store::StoreError) -> ImportError {
+fn store_error(e: cilica_store::StoreError) -> ImportError {
     let app: AppError = e.into();
     ImportError::new(app.code, app.message)
 }
@@ -372,7 +372,7 @@ enum Item {
 }
 
 impl Item {
-    fn date(&self) -> Option<margin_domain::Timestamp> {
+    fn date(&self) -> Option<cilica_domain::Timestamp> {
         match self {
             Item::Ready(n) => n.date(),
             Item::Remote(e) => e.date,
@@ -438,7 +438,7 @@ impl Writer<'_> {
         let is_meeting = note.is_meeting();
         let is_self = |name: &str| self.options.self_names.iter().any(|n| n.trim().eq_ignore_ascii_case(name.trim()));
 
-        // Speakers in order of first appearance; "You" for the person using Margin.
+        // Speakers in order of first appearance; "You" for the person using Cilica.
         let mut speakers: Vec<ImportSpeaker> = Vec::new();
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut segments = Vec::new();
@@ -447,10 +447,10 @@ impl Writer<'_> {
         let mut cursor = 0u32;
         for (i, turn) in transcript.map(|t| t.turns.as_slice()).unwrap_or(&[]).iter().enumerate() {
             let (key, label, me) = match &turn.speaker {
-                SpeakerRef::Me => ("\u{0}me".to_string(), margin_store::SELF_LABEL.to_string(), true),
-                SpeakerRef::Named(n) if is_self(n) => ("\u{0}me".to_string(), margin_store::SELF_LABEL.to_string(), true),
+                SpeakerRef::Me => ("\u{0}me".to_string(), cilica_store::SELF_LABEL.to_string(), true),
+                SpeakerRef::Named(n) if is_self(n) => ("\u{0}me".to_string(), cilica_store::SELF_LABEL.to_string(), true),
                 SpeakerRef::Named(n) => (n.to_lowercase(), n.clone(), false),
-                SpeakerRef::Them => ("\u{0}them".to_string(), margin_store::OTHERS_LABEL.to_string(), false),
+                SpeakerRef::Them => ("\u{0}them".to_string(), cilica_store::OTHERS_LABEL.to_string(), false),
                 SpeakerRef::Unknown => (String::new(), String::new(), false),
             };
             let speaker = (!key.is_empty()).then(|| {
@@ -566,7 +566,7 @@ fn preview(scan_id: Id, provider: &str, scan: &Scan, existing: &HashSet<String>)
 /// A plain-text glimpse of a note for the preview.
 fn excerpt(n: &ImportedNote) -> String {
     let body = n.summary_md.as_deref().or(n.notes_md.as_deref()).unwrap_or("");
-    let plain = margin_store::notes::markdown_to_plain(body);
+    let plain = cilica_store::notes::markdown_to_plain(body);
     let text = if plain.trim().is_empty() {
         n.transcript.as_ref().map(|t| t.turns.iter().take(3).map(|x| x.text.as_str()).collect::<Vec<_>>().join(" ")).unwrap_or_default()
     } else {
@@ -578,7 +578,7 @@ fn excerpt(n: &ImportedNote) -> String {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::RecordingSink;
+    use cilica_domain::RecordingSink;
 
     use super::*;
 
@@ -641,9 +641,9 @@ mod tests {
         assert!(!t.timed);
         assert!(t.speakers.iter().any(|s| s.is_self), "Sam is the person importing");
 
-        // Everything is already here: everything is skipped, even notes edited in Margin.
+        // Everything is already here: everything is skipped, even notes edited in Cilica.
         let ideas = notes.iter().find(|n| n.title == "Ideas").unwrap();
-        db.set_note_body(ideas.id, "My own edit", margin_domain::Author::User, None).await.unwrap();
+        db.set_note_body(ideas.id, "My own edit", cilica_domain::Author::User, None).await.unwrap();
         let again = importer.scan("obsidian", input.clone()).await.unwrap();
         assert_eq!(again.existing, 2);
         let second = importer.start(again.scan_id, options.clone()).await.unwrap();

@@ -1274,7 +1274,7 @@ mark {
   text-align: right;
   margin-right: var(--space-1);
 }
-/* Words streaming in from Margin */
+/* Words streaming in from Cilica */
 .nt-note[data-streaming] .ProseMirror {
   caret-color: transparent;
 }
@@ -3774,8 +3774,8 @@ ul.nt-virtual {
   width: 72px;
 }
 
-/* ───────── Margin as a floating bar (MarginBar) ───────── */
-.nt-marginbar-dock {
+/* ───────── Cilica as a floating bar (CilicaBar) ───────── */
+.nt-cilicabar-dock {
   position: absolute;
   left: 0;
   right: 0;
@@ -3787,14 +3787,14 @@ ul.nt-virtual {
   align-items: flex-end;
   pointer-events: none;
 }
-.nt-marginbar-dock[hidden] {
+.nt-cilicabar-dock[hidden] {
   display: none;
 }
 /* A capsule (playback, the auto-stop countdown) keeps the bottom edge; the bar sits above it. */
-.nt-canvas:has(.nt-capsule-dock) .nt-marginbar-dock {
+.nt-canvas:has(.nt-capsule-dock) .nt-cilicabar-dock {
   bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
 }
-.nt-marginbar {
+.nt-cilicabar {
   position: relative;
   flex: none;
   pointer-events: auto;
@@ -3810,7 +3810,7 @@ ul.nt-virtual {
 }
 /* Both faces stay mounted and cross-fade: the pill's label on top of the resting shape, the
    open content pinned to the bottom at its final width so the growing shape reveals it. */
-.nt-marginbar-rest {
+.nt-cilicabar-rest {
   all: unset;
   box-sizing: border-box;
   position: absolute;
@@ -3829,24 +3829,24 @@ ul.nt-virtual {
     color var(--dur-fast) var(--ease-out),
     opacity var(--dur-base) var(--ease-out) var(--dur-fast);
 }
-.nt-marginbar[data-open] .nt-marginbar-rest {
+.nt-cilicabar[data-open] .nt-cilicabar-rest {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
-.nt-marginbar-rest:hover {
+.nt-cilicabar-rest:hover {
   color: var(--ink);
 }
-.nt-marginbar-rest:focus-visible {
+.nt-cilicabar-rest:focus-visible {
   box-shadow: var(--focus);
 }
-.nt-marginbar-label {
+.nt-cilicabar-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.nt-marginbar-open {
+.nt-cilicabar-open {
   position: absolute;
   left: 50%;
   bottom: 0;
@@ -3859,7 +3859,7 @@ ul.nt-virtual {
     opacity var(--dur-fast) var(--ease-out),
     visibility 0s linear var(--dur-fast);
 }
-.nt-marginbar[data-open] .nt-marginbar-open {
+.nt-cilicabar[data-open] .nt-cilicabar-open {
   opacity: 1;
   visibility: visible;
   transition: opacity var(--dur-base) var(--ease-out) var(--dur-fast);
@@ -3870,14 +3870,14 @@ ul.nt-virtual {
 .nt-assistant-bar[data-compact] {
   gap: var(--space-1);
 }
-.nt-marginbar-head {
+.nt-cilicabar-head {
   flex: none;
   display: flex;
   align-items: center;
   height: 44px;
   padding-left: var(--space-2);
 }
-.nt-marginbar-chips {
+.nt-cilicabar-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1-5);
@@ -3897,10 +3897,10 @@ ul.nt-virtual {
   border-radius: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .nt-marginbar-rest,
-  .nt-marginbar-open,
-  .nt-marginbar[data-open] .nt-marginbar-rest,
-  .nt-marginbar[data-open] .nt-marginbar-open {
+  .nt-cilicabar-rest,
+  .nt-cilicabar-open,
+  .nt-cilicabar[data-open] .nt-cilicabar-rest,
+  .nt-cilicabar[data-open] .nt-cilicabar-open {
     transition-delay: 0s;
   }
 }
@@ -4120,8 +4120,8 @@ ul.nt-virtual {
     padding: 0;
   }
 }
-/* ───────── Margin without a model: a notice above the composer ───────── */
-.nt-margin-notice {
+/* ───────── Cilica without a model: a notice above the composer ───────── */
+.nt-cilica-notice {
   flex: none;
   display: flex;
   align-items: center;
@@ -4133,12 +4133,12 @@ ul.nt-virtual {
   color: var(--accent-text);
   font: 450 13px / 18px var(--font-sans);
 }
-.nt-margin-notice > span {
+.nt-cilica-notice > span {
   flex: 1;
   min-width: 0;
   color: var(--ink);
 }
-.nt-assistant-bar .nt-margin-notice {
+.nt-assistant-bar .nt-cilica-notice {
   margin: 0 var(--space-1) var(--space-1);
 }
 
@@ -4167,18 +4167,18 @@ ul.nt-virtual {
   color: var(--ink-3);
 }
 
-/* ───────── Margin's glow: a band of light along the panel's bottom edge while it works ─────────
-   One fixed electric blue (`--margin-glow`, not the accent), no outline: the text box itself never
+/* ───────── Cilica's glow: a band of light along the panel's bottom edge while it works ─────────
+   One fixed electric blue (`--cilica-glow`, not the accent), no outline: the text box itself never
    changes. The light sits in the gap under
    the composer, so it is never behind words. */
 .nt-assistant {
   position: relative;
 }
-.nt-assistant > :not(.nt-margin-glow) {
+.nt-assistant > :not(.nt-cilica-glow) {
   position: relative;
   z-index: 1;
 }
-.nt-margin-glow {
+.nt-cilica-glow {
   position: absolute;
   z-index: 0;
   left: 12%;
@@ -4186,17 +4186,17 @@ ul.nt-virtual {
   bottom: calc(var(--space-3) * -1);
   height: var(--space-4);
   border-radius: 50%;
-  background: var(--margin-glow);
+  background: var(--cilica-glow);
   filter: blur(10px);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-base) var(--ease-out);
 }
-.nt-assistant[data-working] .nt-margin-glow {
+.nt-assistant[data-working] .nt-cilica-glow {
   opacity: 0.6;
-  animation: nt-margin-glow 2.6s ease-in-out infinite alternate;
+  animation: nt-cilica-glow 2.6s ease-in-out infinite alternate;
 }
-@keyframes nt-margin-glow {
+@keyframes nt-cilica-glow {
   from {
     opacity: 0.25;
     transform: scaleX(0.7);
@@ -4207,12 +4207,12 @@ ul.nt-virtual {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nt-assistant[data-working] .nt-margin-glow {
+  .nt-assistant[data-working] .nt-cilica-glow {
     animation: none;
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .nt-margin-glow {
+  .nt-cilica-glow {
     display: none;
   }
 }
@@ -4247,7 +4247,7 @@ ul.nt-virtual {
   box-shadow: var(--focus);
 }
 
-/* ───────── Lines Margin kept, under a transcript ───────── */
+/* ───────── Lines Cilica kept, under a transcript ───────── */
 .nt-quotes {
   display: grid;
   gap: var(--space-5);
@@ -4776,20 +4776,20 @@ ul.nt-virtual {
 .nt-home > .nt-doodle > .nt-doodle-content {
   margin-block: auto;
 }
-/* With Margin as the floating bar, the footer sits just above the resting pill (44px, REST in
-   MarginBar.tsx), wherever the bar rests: on the bottom edge, or above a capsule. */
-.nt-canvas:has(.nt-marginbar-dock:not([hidden])) {
-  --nt-marginbar-rest: 44px;
-  --nt-marginbar-bottom: var(--space-4);
+/* With Cilica as the floating bar, the footer sits just above the resting pill (44px, REST in
+   CilicaBar.tsx), wherever the bar rests: on the bottom edge, or above a capsule. */
+.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) {
+  --nt-cilicabar-rest: 44px;
+  --nt-cilicabar-bottom: var(--space-4);
 }
-.nt-canvas:has(.nt-marginbar-dock:not([hidden])):has(.nt-capsule-dock) {
-  --nt-marginbar-bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
+.nt-canvas:has(.nt-cilicabar-dock:not([hidden])):has(.nt-capsule-dock) {
+  --nt-cilicabar-bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
 }
-.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-glance-footer {
-  bottom: calc(var(--nt-marginbar-bottom) + var(--nt-marginbar-rest) + var(--space-3));
+.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-glance-footer {
+  bottom: calc(var(--nt-cilicabar-bottom) + var(--nt-cilicabar-rest) + var(--space-3));
 }
-.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-home {
-  padding-bottom: calc(var(--space-16) + var(--nt-marginbar-rest) + var(--space-3));
+.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-home {
+  padding-bottom: calc(var(--space-16) + var(--nt-cilicabar-rest) + var(--space-3));
 }
 
 /* ───────── Launch intro (features/shell/intro.ts) ─────────
@@ -4801,14 +4801,14 @@ ul.nt-virtual {
   --spring-gentle-dur: 910ms;
 }
 .nt-window[data-intro="hold"]
-  :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+  :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
   opacity: 0;
   pointer-events: none;
 }
 .nt-window[data-intro="reveal"] .nt-band-canvas {
   animation: nt-intro-down var(--spring-gentle-dur) var(--spring-gentle) 120ms both;
 }
-.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
   animation: nt-intro-up var(--spring-gentle-dur) var(--spring-gentle) 280ms both;
 }
 @keyframes nt-intro-down {
@@ -4826,7 +4826,7 @@ ul.nt-virtual {
 @media (prefers-reduced-motion: reduce) {
   /* No travel: a short crossfade (beats the global 1ms animation cap). */
   .nt-window[data-intro="reveal"]
-    :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-marginbar-dock) {
+    :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
     /* biome-ignore lint/complexity/noImportantStyles: the global reduced-motion cap is !important too. */
     animation: nt-fade-in var(--dur-fast) linear both !important;
   }
@@ -5248,8 +5248,8 @@ ul.nt-virtual {
     transform var(--spring-bouncy-dur) var(--spring-bouncy),
     opacity var(--dur-fast) var(--ease-out);
 }
-.nt-canvas:has(.nt-marginbar-dock:not([hidden])) .nt-swearjar {
-  bottom: calc(var(--nt-marginbar-bottom) + var(--nt-marginbar-rest) + var(--space-3));
+.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-swearjar {
+  bottom: calc(var(--nt-cilicabar-bottom) + var(--nt-cilicabar-rest) + var(--space-3));
 }
 .nt-swearjar-art {
   transform-origin: 50% 100%;

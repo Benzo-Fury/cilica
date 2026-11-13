@@ -7,7 +7,7 @@
 
 use std::collections::VecDeque;
 
-use margin_domain::{AudioChannel, Id};
+use cilica_domain::{AudioChannel, Id};
 
 /// Utterances this far apart in time never count as echo of each other.
 const SLACK_MS: u32 = 1500;
@@ -87,13 +87,13 @@ mod tests {
     #[test]
     fn drops_mic_echo_either_way_round() {
         let mut f = EchoFilter::default();
-        let (s, m) = (margin_domain::new_id(), margin_domain::new_id());
+        let (s, m) = (cilica_domain::new_id(), cilica_domain::new_id());
         assert_eq!(f.on_final(AudioChannel::System, s, 5_000, 9_000, "The launch is set for the third of March."), None);
         assert_eq!(f.on_final(AudioChannel::Mic, m, 5_100, 9_100, "launch is set for the 3rd of March"), Some(m));
 
         // The mic finished first; the system utterance arrives later and takes it back.
         let mut f = EchoFilter::default();
-        let m = margin_domain::new_id();
+        let m = cilica_domain::new_id();
         assert_eq!(f.on_final(AudioChannel::Mic, m, 1_000, 4_000, "Marketing needs the final copy by Friday."), None);
         assert_eq!(f.on_final(AudioChannel::System, s, 900, 3_900, "Marketing needs the final copy by Friday."), Some(m));
     }
@@ -101,12 +101,12 @@ mod tests {
     #[test]
     fn keeps_real_replies() {
         let mut f = EchoFilter::default();
-        let s = margin_domain::new_id();
+        let s = cilica_domain::new_id();
         f.on_final(AudioChannel::System, s, 5_000, 9_000, "Can you send the copy on Friday?");
         // Short agreement, and a reply that shares a few words.
-        assert_eq!(f.on_final(AudioChannel::Mic, margin_domain::new_id(), 9_200, 9_800, "Yes, Friday."), None);
-        assert_eq!(f.on_final(AudioChannel::Mic, margin_domain::new_id(), 9_900, 12_000, "Sure, I will send it first thing Friday morning."), None);
+        assert_eq!(f.on_final(AudioChannel::Mic, cilica_domain::new_id(), 9_200, 9_800, "Yes, Friday."), None);
+        assert_eq!(f.on_final(AudioChannel::Mic, cilica_domain::new_id(), 9_900, 12_000, "Sure, I will send it first thing Friday morning."), None);
         // Same words, but a minute later: not echo.
-        assert_eq!(f.on_final(AudioChannel::Mic, margin_domain::new_id(), 70_000, 74_000, "Can you send the copy on Friday?"), None);
+        assert_eq!(f.on_final(AudioChannel::Mic, cilica_domain::new_id(), 70_000, 74_000, "Can you send the copy on Friday?"), None);
     }
 }

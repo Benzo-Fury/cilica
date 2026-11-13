@@ -1,4 +1,4 @@
-//! Margin's assistant: the only write path for AI.
+//! Cilica's assistant: the only write path for AI.
 //!
 //! - [`tools`]: the registry (names, tiers, schemas); [`runner`]: runs calls with the tier rules
 //!   enforced in code, writes the audit log, makes proposals; [`ops`]: apply and undo.
@@ -7,18 +7,18 @@
 //!   scheduled-task runs in propose-only mode, and the [`MeetingSummarizer`].
 //! - [`store::NoteStore`]: the notes/transcripts seam, with a real and an in-memory implementation.
 //!
-//! Crates never depend on Tauri: everything reaches the UI through `margin_domain::Events`.
+//! Crates never depend on Tauri: everything reaches the UI through `cilica_domain::Events`.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use margin_domain::{
+use cilica_domain::{
     AiAction, AiActionStatus, AiSettings, AppError, AppEvent, AppResult, DataScope, ErrorCode, Events, Id, Message,
     MeetingSummarizer, PromptChip, Proposal, ProposalStatus, ProviderKind, Thread, new_id, now,
 };
-use margin_llm::{CancellationToken, Provider};
-use margin_store::Db;
+use cilica_llm::{CancellationToken, Provider};
+use cilica_store::Db;
 
 mod bridge;
 mod chips;
@@ -46,7 +46,7 @@ pub trait ProviderSource: Send + Sync {
     async fn ai_settings(&self) -> AiSettings;
     /// A provider for the given settings, or an `Unavailable` error saying what to set up.
     fn provider(&self, settings: &AiSettings) -> AppResult<Arc<dyn Provider>>;
-    /// How to launch Margin's MCP server for the Claude Code bridge, when this build supports it.
+    /// How to launch Cilica's MCP server for the Claude Code bridge, when this build supports it.
     fn bridge(&self) -> Option<BridgeConfig> {
         None
     }
@@ -56,7 +56,7 @@ pub trait ProviderSource: Send + Sync {
 pub struct BridgeConfig {
     /// `claude` binary; `None` searches PATH.
     pub binary: Option<PathBuf>,
-    /// Margin's own executable and the arguments that start its MCP server.
+    /// Cilica's own executable and the arguments that start its MCP server.
     pub mcp_command: PathBuf,
     pub mcp_args: Vec<String>,
     /// An empty working folder for the CLI.
@@ -85,7 +85,7 @@ impl ProviderSource for StaticProviders {
         self.settings.lock().unwrap().clone()
     }
     fn provider(&self, _settings: &AiSettings) -> AppResult<Arc<dyn Provider>> {
-        self.provider.clone().ok_or_else(|| AppError::unavailable("Add your Anthropic API key in Settings › Margin to use Margin."))
+        self.provider.clone().ok_or_else(|| AppError::unavailable("Add your Anthropic API key in Settings › Cilica to use Cilica."))
     }
 }
 
@@ -188,7 +188,7 @@ impl Agent {
 
     pub async fn delete_thread(&self, thread_id: Id) -> AppResult<()> {
         if self.inner.busy_threads.lock().unwrap().contains(&thread_id) {
-            return Err(AppError::new(ErrorCode::Conflict, "Margin is still answering in this conversation. Stop it first, then delete it."));
+            return Err(AppError::new(ErrorCode::Conflict, "Cilica is still answering in this conversation. Stop it first, then delete it."));
         }
         self.inner.db.delete_thread(thread_id).await?;
         self.emit_changed(vec![DataScope::Threads], None);
@@ -202,7 +202,7 @@ impl Agent {
         if days == 0 {
             return Ok(0);
         }
-        let cutoff = margin_domain::now() - chrono::Duration::days(i64::from(days));
+        let cutoff = cilica_domain::now() - chrono::Duration::days(i64::from(days));
         let busy: Vec<Id> = self.inner.busy_threads.lock().unwrap().iter().copied().collect();
         let deleted = self.inner.db.delete_threads_idle_since(cutoff, &busy).await?;
         if !deleted.is_empty() {
@@ -374,7 +374,7 @@ impl Agent {
 
     // ── Prompt chips ─────────────────────────────────────────────────────
 
-    pub async fn get_prompt_chips(&self, view: &margin_domain::ViewContext) -> AppResult<Vec<PromptChip>> {
+    pub async fn get_prompt_chips(&self, view: &cilica_domain::ViewContext) -> AppResult<Vec<PromptChip>> {
         chips::prompt_chips(self, view).await
     }
 

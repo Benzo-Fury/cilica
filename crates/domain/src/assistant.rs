@@ -280,7 +280,7 @@ pub trait MeetingSummarizer: Send + Sync {
     async fn summarize_meeting(&self, note_id: Id) -> AppResult<()>;
 }
 
-/// A local model Margin can pull into Ollama (Settings › Margin › Local model).
+/// A local model Cilica can pull into Ollama (Settings › Cilica › Local model).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct LocalLlmModel {
     /// Ollama tag, e.g. `qwen3:8b`.

@@ -114,7 +114,7 @@ impl Heard {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::SttEngine;
+    use cilica_domain::SttEngine;
 
     use super::*;
     use crate::{StreamOptions, TranscriptStream, Utterance};

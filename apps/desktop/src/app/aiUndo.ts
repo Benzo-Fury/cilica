@@ -1,5 +1,5 @@
 /**
- * ⌘Z outside the editor undoes the last thing Margin did. The backend raises one Undo toast per
+ * ⌘Z outside the editor undoes the last thing Cilica did. The backend raises one Undo toast per
  * assistant turn (`undo_turn`); accepting a proposal raises one for its action. While that toast
  * is on screen ⌘Z presses its button; after it has gone, ⌘Z still reaches the same undo here.
  */

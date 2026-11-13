@@ -4,7 +4,7 @@
 //! pinned to a commit and verified by size and SHA-256. Downloads resume from a `.part` file,
 //! report progress through `AppEvent::ModelDownload` and can be cancelled. The small companion
 //! models (Silero VAD; pyannote segmentation and the CAM++ speaker embedding used by
-//! `margin-diarize`) are fetched with the first speech model, inside the same progress bar.
+//! `cilica-diarize`) are fetched with the first speech model, inside the same progress bar.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use margin_domain::{AppEvent, Events, HardwareProfile, ModelDownloadProgress, SttModel};
+use cilica_domain::{AppEvent, Events, HardwareProfile, ModelDownloadProgress, SttModel};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
@@ -48,7 +48,7 @@ macro_rules! hf {
     };
 }
 
-/// The speech models Margin offers, smallest first.
+/// The speech models Cilica offers, smallest first.
 pub const SPEECH_MODELS: [SpeechModel; 3] = [
     SpeechModel {
         id: "base",
@@ -149,7 +149,7 @@ pub struct ModelManager {
 impl ModelManager {
     pub fn new(dir: PathBuf, events: Events) -> Arc<Self> {
         let client = reqwest::Client::builder()
-            .user_agent(concat!("Margin/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("Cilica/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(20))
             .build()
             .unwrap_or_default();
@@ -448,11 +448,11 @@ impl Progress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::{NullSink, RecordingSink};
+    use cilica_domain::{NullSink, RecordingSink};
 
     #[test]
     fn default_model_is_in_catalogue() {
-        let id = margin_domain::TranscriptionSettings::default().model_id;
+        let id = cilica_domain::TranscriptionSettings::default().model_id;
         let m = speech_model(&id).expect("default model id must exist");
         assert!(m.recommended);
         assert_eq!(SPEECH_MODELS.iter().filter(|m| m.recommended).count(), 1);
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn recommendation_follows_hardware() {
-        let mgr = ModelManager::new(std::env::temp_dir().join("margin-models-none"), Arc::new(NullSink));
+        let mgr = ModelManager::new(std::env::temp_dir().join("cilica-models-none"), Arc::new(NullSink));
         let marked = |m: &ModelManager| m.list().into_iter().filter(|x| x.recommended).map(|x| x.id).collect::<Vec<_>>();
         assert_eq!(marked(&mgr), vec!["large-v3-turbo-q5_0".to_string()]);
         mgr.set_hardware(crate::recommend::profile(2, 4, false));
@@ -469,7 +469,7 @@ mod tests {
 
     #[test]
     fn list_and_paths_reflect_disk() {
-        let dir = std::env::temp_dir().join(format!("margin-models-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cilica-models-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mgr = ModelManager::new(dir.clone(), Arc::new(NullSink));
         assert!(mgr.list().iter().all(|m| !m.downloaded));
@@ -524,7 +524,7 @@ mod tests {
         let sha = hex(&Sha256::digest(&body));
         let url: &'static str = Box::leak(serve(body.clone()).await.into_boxed_str());
         let sha: &'static str = Box::leak(sha.into_boxed_str());
-        let dir = std::env::temp_dir().join(format!("margin-dl-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cilica-dl-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         // A previous attempt left the first 100 kB.
         std::fs::write(dir.join("m.bin.part"), &body[..100_000]).unwrap();

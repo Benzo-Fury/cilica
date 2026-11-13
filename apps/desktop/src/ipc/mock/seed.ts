@@ -135,7 +135,7 @@ Where people drop off in the current five-step setup, from last month's funnel.
 
 1. Email verification is the biggest leak. Most people never come back to the email.
 2. People who grant the microphone *and* record within 10 minutes stay for a month.
-3. The permissions copy reads like a warning. It should say what Margin does with the audio.
+3. The permissions copy reads like a warning. It should say what Cilica does with the audio.
 
 What would make someone record a second meeting in the first week?
 
@@ -199,7 +199,7 @@ const RELEASE_BODY = `# Release checklist 0.4
 
 \`\`\`bash
 bun run build
-xcrun notarytool submit Margin.dmg --wait
+xcrun notarytool submit Cilica.dmg --wait
 \`\`\`
 
 Ship it once notarisation comes back clean.
@@ -850,7 +850,7 @@ function seedVersions(state: MockState, now: number): NoteVersion[] {
       ),
     );
   }
-  // Margin wrote most of the book notes: the version before its write held only the heading.
+  // Cilica wrote most of the book notes: the version before its write held only the heading.
   const book = state.notes.get("note_mom_test");
   if (book) {
     out.push({

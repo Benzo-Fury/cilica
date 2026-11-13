@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use margin_domain::{DetectedLocation, ImportInput, UnsupportedItem};
-use margin_store::sqlx::{self, Row, SqlitePool, sqlite::SqliteConnectOptions};
+use cilica_domain::{DetectedLocation, ImportInput, UnsupportedItem};
+use cilica_store::sqlx::{self, Row, SqlitePool, sqlite::SqliteConnectOptions};
 use serde_json::Value;
 
 use super::{Cx, Detect, Provider, Scan, app_installed, display_path, scan_paste, scan_paths};
@@ -34,7 +34,7 @@ fn pick<'a>(found: &'a [DetectedLocation], path: Option<&str>) -> Result<&'a Det
         Some(p) => found.iter().find(|l| l.path == p),
         None => found.first(),
     }
-    .ok_or_else(|| ImportError::not_found("Margin could not find that data on this computer any more. Check that the app is still installed."))
+    .ok_or_else(|| ImportError::not_found("Cilica could not find that data on this computer any more. Check that the app is still installed."))
 }
 
 // ── Obsidian ─────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ fn count_vault(paths: &KnownPaths, dir: &Path) -> DetectedLocation {
             unsupported.push(UnsupportedItem { kind: kind.into(), count, reason: reason.into() });
         }
     };
-    add("Canvases", canvases, "Margin has no canvas view, so canvas boards are left out. The notes on them are imported on their own.");
+    add("Canvases", canvases, "Cilica has no canvas view, so canvas boards are left out. The notes on them are imported on their own.");
     add("Bases", bases, "Obsidian Bases are database views. The notes they list are imported on their own.");
     add("Excalidraw drawings", drawings, "Drawings made with the Excalidraw plugin are left out.");
     add("Other files", other, "PDFs, recordings and other files that are not notes are left out.");
@@ -150,11 +150,11 @@ struct DbCopy {
 
 impl DbCopy {
     async fn open(db: &Path) -> Result<DbCopy, ImportError> {
-        let dir = std::env::temp_dir().join(format!("margin-import-{}", margin_domain::new_id()));
-        std::fs::create_dir_all(&dir).map_err(|_| ImportError::internal("Margin could not make a temporary folder to read from. Check free disk space."))?;
+        let dir = std::env::temp_dir().join(format!("cilica-import-{}", cilica_domain::new_id()));
+        std::fs::create_dir_all(&dir).map_err(|_| ImportError::internal("Cilica could not make a temporary folder to read from. Check free disk space."))?;
         let name = db.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "app.db".into());
         let target = dir.join(&name);
-        std::fs::copy(db, &target).map_err(|_| ImportError::permission("Margin could not read the other app's data. Quit that app and try again."))?;
+        std::fs::copy(db, &target).map_err(|_| ImportError::permission("Cilica could not read the other app's data. Quit that app and try again."))?;
         for suffix in ["-wal", "-shm"] {
             let side = db.with_file_name(format!("{name}{suffix}"));
             if side.exists() {
@@ -188,7 +188,7 @@ fn first_existing(candidates: impl IntoIterator<Item = PathBuf>) -> Option<PathB
     candidates.into_iter().find(|p| p.is_file())
 }
 
-fn opt_str(r: &margin_store::sqlx::sqlite::SqliteRow, col: &str) -> Option<String> {
+fn opt_str(r: &cilica_store::sqlx::sqlite::SqliteRow, col: &str) -> Option<String> {
     r.try_get::<Option<String>, _>(col).ok().flatten().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
@@ -215,7 +215,7 @@ const ANARLOG_SCHEMA: [(&str, &[&str]); 3] = [
 async fn anarlog_check(db: &DbCopy) -> Result<(), ImportError> {
     for (table, cols) in ANARLOG_SCHEMA {
         if !db.has_columns(table, cols).await {
-            return Err(ImportError::invalid("This version of Anarlog stores notes in a way Margin does not know yet. In Anarlog, export your meetings as Markdown and import that folder."));
+            return Err(ImportError::invalid("This version of Anarlog stores notes in a way Cilica does not know yet. In Anarlog, export your meetings as Markdown and import that folder."));
         }
     }
     Ok(())
@@ -238,7 +238,7 @@ impl Provider for Anarlog {
         let Some(path) = anarlog_db(paths) else { return Detect { app_installed: installed, ..Default::default() } };
         let Ok(db) = DbCopy::open(&path).await else { return Detect { app_installed: true, ..Default::default() } };
         if anarlog_check(&db).await.is_err() {
-            return Detect { app_installed: true, note: Some("Margin found Anarlog's data, but this version stores it in a way Margin does not know yet. Export your meetings as Markdown from Anarlog and import that folder.".into()), ..Default::default() };
+            return Detect { app_installed: true, note: Some("Cilica found Anarlog's data, but this version stores it in a way Cilica does not know yet. Export your meetings as Markdown from Anarlog and import that folder.".into()), ..Default::default() };
         }
         let sessions = db.count("SELECT count(*) FROM sessions WHERE deleted_at IS NULL").await;
         let transcripts = db.count("SELECT count(DISTINCT session_id) FROM transcripts WHERE deleted_at IS NULL AND json_array_length(words_json) > 0").await;
@@ -251,7 +251,7 @@ impl Provider for Anarlog {
                 meetings: sessions,
                 transcripts,
                 attachments: 0,
-                unsupported: vec![UnsupportedItem { kind: "Recordings".into(), count: sessions, reason: "Audio stays in Anarlog. Margin imports the notes, summaries and transcripts.".into() }]
+                unsupported: vec![UnsupportedItem { kind: "Recordings".into(), count: sessions, reason: "Audio stays in Anarlog. Cilica imports the notes, summaries and transcripts.".into() }]
                     .into_iter()
                     .filter(|u| u.count > 0)
                     .collect(),
@@ -279,7 +279,7 @@ impl Provider for Anarlog {
 }
 
 async fn read_anarlog(db: &DbCopy) -> Result<Vec<ImportedNote>, ImportError> {
-    let fail = |_| ImportError::invalid("Margin could not read Anarlog's meetings. Export them as Markdown from Anarlog and import that folder.");
+    let fail = |_| ImportError::invalid("Cilica could not read Anarlog's meetings. Export them as Markdown from Anarlog and import that folder.");
     let sessions = sqlx::query("SELECT id, title, created_at, updated_at, started_at, ended_at, folder_path FROM sessions WHERE deleted_at IS NULL ORDER BY created_at")
         .fetch_all(&db.pool)
         .await
@@ -469,7 +469,7 @@ impl Provider for Meetily {
         let Some(path) = meetily_db(paths) else { return Detect { app_installed: installed, ..Default::default() } };
         let Ok(db) = DbCopy::open(&path).await else { return Detect { app_installed: true, ..Default::default() } };
         if !db.has_columns("meetings", &["id", "title", "created_at"]).await {
-            return Detect { app_installed: true, note: Some("Margin found Meetily's data but could not read this version of it.".into()), ..Default::default() };
+            return Detect { app_installed: true, note: Some("Cilica found Meetily's data but could not read this version of it.".into()), ..Default::default() };
         }
         Detect {
             app_installed: true,
@@ -493,7 +493,7 @@ impl Provider for Meetily {
         let found = self.detect(cx.paths).await.locations;
         let location = pick(&found, if let ImportInput::Local { path } = input { path.as_deref() } else { None })?;
         let db = DbCopy::open(Path::new(&location.path)).await?;
-        let fail = |_| ImportError::invalid("Margin could not read Meetily's meetings. Export them from Meetily and import the files instead.");
+        let fail = |_| ImportError::invalid("Cilica could not read Meetily's meetings. Export them from Meetily and import the files instead.");
         let meetings = sqlx::query("SELECT * FROM meetings ORDER BY created_at").fetch_all(&db.pool).await.map_err(fail)?;
         let has_speaker = db.has_columns("transcripts", &["speaker"]).await;
         let has_times = db.has_columns("transcripts", &["audio_start_time", "audio_end_time"]).await;
@@ -620,7 +620,7 @@ impl Provider for AppleNotes {
         let installed = paths.applications.iter().any(|d| d.join("Notes.app").exists()) || Path::new("/System/Applications/Notes.app").exists();
         Detect {
             app_installed: installed,
-            note: installed.then(|| "Apple Notes keeps its notes where only it can read them. When you check, macOS asks whether Margin may read Notes; choose OK.".into()),
+            note: installed.then(|| "Apple Notes keeps its notes where only it can read them. When you check, macOS asks whether Cilica may read Notes; choose OK.".into()),
             ..Default::default()
         }
     }
@@ -638,14 +638,14 @@ impl Provider for AppleNotes {
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
             return Err(if err.contains("-1743") || err.to_lowercase().contains("not authorized") || err.contains("-1744") {
-                ImportError::permission("macOS did not let Margin read Apple Notes. Open System Settings › Privacy & Security › Automation, turn on Notes under Margin, then try again.")
+                ImportError::permission("macOS did not let Cilica read Apple Notes. Open System Settings › Privacy & Security › Automation, turn on Notes under Cilica, then try again.")
             } else {
                 ImportError::upstream("Apple Notes did not answer. Open Notes once, wait for it to finish syncing, then try again.")
             });
         }
         let json = parse_notes_json(&output.stdout).map_err(|e| {
             tracing::warn!(error = %e, bytes = output.stdout.len(), "could not parse Apple Notes output");
-            ImportError::upstream("Apple Notes answered in a way Margin did not understand. Try again.")
+            ImportError::upstream("Apple Notes answered in a way Cilica did not understand. Try again.")
         })?;
         Ok(read_apple_notes(&json))
     }

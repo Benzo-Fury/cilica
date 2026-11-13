@@ -1,4 +1,4 @@
-//! Shared types for Margin. This crate is the contract between the Rust crates and, through
+//! Shared types for Cilica. This crate is the contract between the Rust crates and, through
 //! tauri-specta, the TypeScript UI. It depends on nothing app-specific (no tauri, no sqlx).
 //!
 //! Rules:

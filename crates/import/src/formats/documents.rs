@@ -90,7 +90,7 @@ fn docx_paragraph_text(p: &Node) -> String {
 
 // ── Evernote ───────────────────────────────────────────────────────────────
 
-/// What an ENEX export held that Margin could not carry.
+/// What an ENEX export held that Cilica could not carry.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct EnexSkipped {
     pub files: u32,
@@ -129,7 +129,7 @@ pub fn read_enex(xml_text: &str, notebook: &str) -> (Vec<ImportedNote>, EnexSkip
             title,
             created_at: created,
             updated_at: updated,
-            notes_md: Some(html_to_markdown(&html).replace("MARGINTODODONE ", "- [x] ").replace("MARGINTODOOPEN ", "- [ ] ")),
+            notes_md: Some(html_to_markdown(&html).replace("CILICATODODONE ", "- [x] ").replace("CILICATODOOPEN ", "- [ ] ")),
             folder: vec![notebook.to_string()],
             tags,
             properties: source_url.map(|u| vec![("Source".to_string(), u)]).unwrap_or_default(),
@@ -165,7 +165,7 @@ fn enml_to_html(enml: &str, media: &HashMap<String, (Vec<u8>, String, Option<Str
         }
     });
     // Placeholders survive the HTML conversion (which would escape "[x]"); see `read_enex`.
-    let html = TODO.replace_all(&html, |c: &Captures| if c[1].contains("checked=\"true\"") { "MARGINTODODONE " } else { "MARGINTODOOPEN " }.to_string());
+    let html = TODO.replace_all(&html, |c: &Captures| if c[1].contains("checked=\"true\"") { "CILICATODODONE " } else { "CILICATODOOPEN " }.to_string());
     let html = CRYPT.replace_all(&html, |_: &Captures| {
         skipped.encrypted += 1;
         "<p><em>Encrypted text not imported</em></p>".to_string()

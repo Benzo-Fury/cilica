@@ -2,7 +2,7 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample};
-use margin_domain::AudioDevice;
+use cilica_domain::AudioDevice;
 
 use crate::source::CallbackSink;
 use crate::{AudioError, AudioResult, CaptureSource, RawStream, SourceKind};

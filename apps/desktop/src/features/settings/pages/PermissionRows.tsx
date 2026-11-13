@@ -1,4 +1,4 @@
-/** The three OS permissions Margin uses, as PermissionRows (Settings › Recording and onboarding). */
+/** The three OS permissions Cilica uses, as PermissionRows (Settings › Recording and onboarding). */
 import { AppWindow, Mic, Volume2 } from "lucide-react";
 import type { PermissionKind, Permissions } from "@/ipc/types";
 import { PermissionRow } from "@/ui";

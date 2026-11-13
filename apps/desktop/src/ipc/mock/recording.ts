@@ -6,7 +6,7 @@
  *
  * A recording started for a detected meeting plays the script once; then the meeting app
  * "releases the mic" and `auto_stop_at` counts down 10 s before it stops on its own (Keep recording
- * cancels it). `simulate` drives detection by hand from the console (`__marginMock.simulate`).
+ * cancels it). `simulate` drives detection by hand from the console (`__cilicaMock.simulate`).
  * Permissions: the microphone and system audio are granted on request; Accessibility needs a trip
  * to System Settings, which "grants" it a moment after Open Settings.
  */
@@ -361,7 +361,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       if (state.recording.phase !== "idle") {
         throw appError(
           "conflict",
-          "Margin is already recording. Stop the current recording first.",
+          "Cilica is already recording. Stop the current recording first.",
         );
       }
       const now = Date.now();

@@ -67,7 +67,7 @@ export function RecordingPage() {
   return (
     <SettingsPage
       title="Recording"
-      description="No bot joins the call. Margin records your microphone and the call audio on this device."
+      description="No bot joins the call. Cilica records your microphone and the call audio on this device."
     >
       <SettingsGroup title="Meetings">
         <SettingsRow
@@ -174,7 +174,7 @@ export function RecordingPage() {
       </SettingsGroup>
       <SettingsGroup
         title="Permissions"
-        footer="Margin asks the system for each one. You can change them later in System Settings."
+        footer="Cilica asks the system for each one. You can change them later in System Settings."
       >
         <div className="nt-settings-perms">
           <PermissionRows permissions={permissions} />

@@ -1,5 +1,5 @@
 [package]
-name = "margin-diarize"
+name = "cilica-diarize"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ publish.workspace = true
 
 [dependencies]
 ndarray = "0.17.2"
-margin-domain = { path = "../domain" }
-margin-onnx = { path = "../onnx" }
+cilica-domain = { path = "../domain" }
+cilica-onnx = { path = "../onnx" }
 ort = "2.0.0-rc.15"
 rustfft = "6.4.1"
 serde = "1.0.229"

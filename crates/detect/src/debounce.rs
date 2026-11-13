@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use margin_domain::MeetingDetected;
+use cilica_domain::MeetingDetected;
 
 use crate::{DetectEvent, Identified};
 

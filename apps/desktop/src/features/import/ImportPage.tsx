@@ -1,5 +1,5 @@
 /**
- * Settings › Import: pick an app from a searchable list with icons; Margin says what it found on
+ * Settings › Import: pick an app from a searchable list with icons; Cilica says what it found on
  * this computer and exactly what to do, takes whatever that way needs (a folder, a file, a key or
  * pasted text), previews and imports in the background. The done toast can undo an import; no
  * history is kept. Any app can be imported from any number of times: items that are already notes
@@ -68,7 +68,7 @@ export function ImportPage() {
   return (
     <SettingsPage
       title="Import"
-      description="Bring notes, meetings and transcripts from other apps into Margin. Files and apps on this computer are read here; Margin only contacts another app's servers when you give it that app's API key."
+      description="Bring notes, meetings and transcripts from other apps into Cilica. Files and apps on this computer are read here; Cilica only contacts another app's servers when you give it that app's API key."
     >
       <SettingsGroup title="Import from">
         <div className="nt-import-picker">
@@ -149,7 +149,7 @@ function ProgressRow({ progress }: { progress: ImportProgress }) {
             {done && run
               ? runSummary(run)
               : progress.phase === "waiting"
-                ? `${progress.current ?? "Waiting"}. Margin carries on by itself.`
+                ? `${progress.current ?? "Waiting"}. Cilica carries on by itself.`
                 : progress.total > 0
                   ? `${progress.done} of ${progress.total}${progress.current ? ` · ${progress.current}` : ""}`
                   : "Getting ready…"}

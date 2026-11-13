@@ -1,4 +1,4 @@
-/** Minimise / maximise / close for Margin's own caption buttons (Windows and Linux). */
+/** Minimise / maximise / close for Cilica's own caption buttons (Windows and Linux). */
 import { useMemo } from "react";
 import { isTauri } from "@/ipc/client";
 

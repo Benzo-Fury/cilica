@@ -3,8 +3,8 @@
 //! Swears said in meetings need no command: the store reads them from transcript segments each time
 //! the jar is counted, so they are counted whether or not the window is open.
 
-use margin_domain::chrono::Local;
-use margin_domain::*;
+use cilica_domain::chrono::Local;
+use cilica_domain::*;
 use tauri::State;
 
 use crate::core::Core;
@@ -15,7 +15,7 @@ use crate::core::Core;
 #[specta::specta]
 pub async fn get_swear_jar(core: State<'_, Core>) -> AppResult<SwearJar> {
     let prefs = core.db.get_settings().await?.swear_jar;
-    Ok(core.db.swear_jar(margin_store::week_start(Local::now()), &prefs).await?)
+    Ok(core.db.swear_jar(cilica_store::week_start(Local::now()), &prefs).await?)
 }
 
 /// Every word the jar listens for, so the note editor can spot one as it is typed.

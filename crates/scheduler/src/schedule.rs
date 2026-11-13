@@ -3,7 +3,7 @@
 //! time that happens twice (fall back) uses the first.
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
-use margin_domain::TaskSchedule;
+use cilica_domain::TaskSchedule;
 
 /// `date` at `hour:minute` in `tz`, as UTC.
 pub fn local_time<Tz: TimeZone>(tz: &Tz, date: NaiveDate, hour: u8, minute: u8) -> DateTime<Utc> {

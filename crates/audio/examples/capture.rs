@@ -1,7 +1,7 @@
 //! Record the microphone and system audio for a few seconds, print levels, write files.
 //!
 //! ```sh
-//! cargo run -p margin-audio --example capture -- --seconds 5 [--out target/capture] [--no-system] [--ask]
+//! cargo run -p cilica-audio --example capture -- --seconds 5 [--out target/capture] [--no-system] [--ask]
 //! ```
 //!
 //! Writes `<out>/capture.wav` (stereo: mic left, system right) and `<out>/capture.ogg`.
@@ -12,7 +12,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use margin_audio::{CaptureConfig, CaptureEvent, CaptureSession, MicSource, SourceKind, SystemSource, permissions};
+use cilica_audio::{CaptureConfig, CaptureEvent, CaptureSession, MicSource, SourceKind, SystemSource, permissions};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -25,12 +25,12 @@ fn main() {
     if args.iter().any(|a| a == "--ask") {
         // Shows the macOS prompts (for the app that launched this: your terminal) and waits.
         println!("asking for the microphone (answer the prompt)…");
-        println!("microphone: {:?}", permissions::request(margin_domain::PermissionKind::Microphone));
+        println!("microphone: {:?}", permissions::request(cilica_domain::PermissionKind::Microphone));
         if with_system {
-            println!("system audio: {:?}", permissions::request(margin_domain::PermissionKind::SystemAudio));
+            println!("system audio: {:?}", permissions::request(cilica_domain::PermissionKind::SystemAudio));
         }
     }
-    match margin_audio::list_input_devices() {
+    match cilica_audio::list_input_devices() {
         Ok(devices) => {
             for d in devices {
                 println!("input: {}{} [{}]", d.name, if d.is_default { " (default)" } else { "" }, d.id);
@@ -97,7 +97,7 @@ fn main() {
     );
     println!("wav: {}", wav.display());
     // macOS hands out silence, not an error, when a permission is missing: say so.
-    if let Ok(ch) = margin_audio::read_wav_16k(&wav) {
+    if let Ok(ch) = cilica_audio::read_wav_16k(&wav) {
         for (name, c) in ["mic", "system"].iter().zip(&ch) {
             let peak = c.iter().fold(0.0f32, |a, v| a.max(v.abs()));
             let rms = (c.iter().map(|v| v * v).sum::<f32>() / c.len().max(1) as f32).sqrt();
@@ -106,7 +106,7 @@ fn main() {
         }
     }
     let ogg = out.join("capture.ogg");
-    match margin_audio::encode_ogg_opus(&wav, &ogg) {
+    match cilica_audio::encode_ogg_opus(&wav, &ogg) {
         Ok(ms) => println!("ogg: {} ({ms} ms, {} bytes)", ogg.display(), std::fs::metadata(&ogg).map(|m| m.len()).unwrap_or(0)),
         Err(e) => println!("ogg encoding failed: {e}"),
     }

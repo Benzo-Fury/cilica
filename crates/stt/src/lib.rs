@@ -1,4 +1,4 @@
-//! Speech-to-text for Margin.
+//! Speech-to-text for Cilica.
 //!
 //! - [`Transcriber`] is the one engine trait. [`WhisperLocal`] (whisper.cpp through whisper-rs,
 //!   Metal on macOS) is the default and keeps audio on the machine; cloud engines (Soniox,
@@ -23,7 +23,7 @@ pub use error::{SttError, SttResult};
 pub use models::{ModelFile, ModelManager, ModelPaths};
 pub use whisper_local::{WhisperLocal, WhisperOptions};
 
-use margin_domain::{AudioChannel, SttEngine};
+use cilica_domain::{AudioChannel, SttEngine};
 
 /// Audio enters every engine at this rate, mono.
 pub const SAMPLE_RATE: u32 = 16_000;

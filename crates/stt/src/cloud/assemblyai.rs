@@ -101,7 +101,7 @@ impl Protocol for AssemblyAi {
     }
 
     fn on_text(&mut self, text: &str, offset_ms: u32, out: &Emitter) -> SttResult<bool> {
-        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("AssemblyAI sent a reply Margin could not read.".into()))?;
+        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("AssemblyAI sent a reply Cilica could not read.".into()))?;
         match reply.kind.as_str() {
             "Begin" => {
                 // Turn numbers restart on each connection.

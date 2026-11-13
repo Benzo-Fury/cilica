@@ -1,4 +1,4 @@
-# Margin build spec
+# Cilica build spec
 
 > v0.2, 11 Nov 2026. Source of truth for behaviour. The design system (docs/design-system/) is the source of truth for look and motion; where the two disagree on visuals (for example toast position), the design system wins.
 
@@ -47,14 +47,14 @@ A local-first desktop notes app with an AI assistant and a meeting summariser. T
 
 Setup is its own small window (560 × 700, fixed size), not a dialog in the app. The main window stays hidden until setup finishes or is closed. Over background art (a pixel ridgeline drawn in code, dawn in light and night in dark), one column:
 
-1. **Welcome**: one line on what Margin is (a notes app with an AI assistant and a meeting summariser) and four features from the README in that order (notes, the assistant, meeting summaries, import), then Set up Margin. Once you start, the welcome steps aside so each step title is the only heading.
-2. **Let Margin hear your meetings**: microphone, system audio and Accessibility (optional) as buttons that turn into confirmations, plus Record when a meeting starts (Ask me first or Start on its own). Only the microphone is needed to go on.
+1. **Welcome**: one line on what Cilica is (a notes app with an AI assistant and a meeting summariser) and four features from the README in that order (notes, the assistant, meeting summaries, import), then Set up Cilica. Once you start, the welcome steps aside so each step title is the only heading.
+2. **Let Cilica hear your meetings**: microphone, system audio and Accessibility (optional) as buttons that turn into confirmations, plus Record when a meeting starts (Ask me first or Start on its own). Only the microphone is needed to go on.
 3. **Transcribe on this Mac**: Mostly English or Several languages picks the recommended Whisper model; the download continues in a pill at the bottom of the window and after setup.
-4. **Connect Margin to a model**: Anthropic key, Ollama, an OpenAI-compatible server (address, model, key) or Claude Code (with the terms warning). Keys are checked before they are kept.
+4. **Connect Cilica to a model**: Anthropic key, Ollama, an OpenAI-compatible server (address, model, key) or Claude Code (with the terms warning). Keys are checked before they are kept.
 5. **Bring your notes**: apps found on this computer with their counts; picked ones import in the background.
-6. **Make it yours**: theme and note typeface. Its button, Open Margin, finishes setup. There is no ending page.
+6. **Make it yours**: theme and note typeface. Its button, Open Cilica, finishes setup. There is no ending page.
 
-Finished steps collapse to one line with a check (grey when skipped) and reopen when clicked. Every step can be skipped. Finishing or closing the window marks setup done, writes a welcome note with the three main shortcuts (first run only) and opens the main window on it. A quiet ambient pad is available from the speaker button and starts muted. Settings › General › Run setup again opens the window over Margin.
+Finished steps collapse to one line with a check (grey when skipped) and reopen when clicked. Every step can be skipped. Finishing or closing the window marks setup done, writes a welcome note with the three main shortcuts (first run only) and opens the main window on it. A quiet ambient pad is available from the speaker button and starts muted. Settings › General › Run setup again opens the window over Cilica.
 
 ## Layout
 
@@ -66,7 +66,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 - **Categories**: drag notes in or out (dnd-kit, animated drop), drag to reorder categories, click the header to collapse. Uncategorised notes sit at the top under “Notes”.
 - **Bottom**: Graph (`⌘G`), Scheduled tasks (name, next run, status dot), Saved people, AI activity, Trash, Settings, and a Listening row that toggles auto-detect and shows a live mic level during recording.
 
-- **Selecting notes**: `⌘`-click adds or removes a note (one is enough to highlight it), Shift-click selects everything between (across categories, skipping folded ones), `⌘A` selects every note shown, Shift+↑/↓ grows the selection. A plain click opens a note and clears the selection, as does Esc or clicking anywhere outside the note rows; the open note is never selected by itself. `⌘⌫` trashes the selection instead of the open note. Right-clicking one of several selected notes opens a menu for all of them: move to a category (as one block, order kept), ask Margin about them (a draft linking each note), or move to Trash (one Undo brings them all back). Dragging a selected note carries the whole selection. Trash selects the same way, to restore or delete several at once (delete asks first).
+- **Selecting notes**: `⌘`-click adds or removes a note (one is enough to highlight it), Shift-click selects everything between (across categories, skipping folded ones), `⌘A` selects every note shown, Shift+↑/↓ grows the selection. A plain click opens a note and clears the selection, as does Esc or clicking anywhere outside the note rows; the open note is never selected by itself. `⌘⌫` trashes the selection instead of the open note. Right-clicking one of several selected notes opens a menu for all of them: move to a category (as one block, order kept), ask Cilica about them (a draft linking each note), or move to Trash (one Undo brings them all back). Dragging a selected note carries the whole selection. Trash selects the same way, to restore or delete several at once (delete asks first).
 - Collapses fully with `⌘\`.
 
 ### Note view
@@ -89,7 +89,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 ## Links and the graph
 
-Notes link with Obsidian's Markdown, so an imported vault keeps its links and Margin's notes open cleanly in Obsidian.
+Notes link with Obsidian's Markdown, so an imported vault keeps its links and Cilica's notes open cleanly in Obsidian.
 
 - **Syntax**: `[[Title]]`, `[[Title|shown text]]`, `[[Title#Heading]]`, `[[Title#^block]]`, `[[folder/Title]]`, `![[Title]]` (embed, shown as a card with the note's first line), `[text](Title.md)` and `#tags` (nested `#area/topic`; not all digits; after a space or at line start). Links in code, `%%comments%%` and links to attachments are ignored.
 - **Resolving**: the newest note with that title (case-insensitive), else a Saved person with that name, else a note not created yet (dashed). Clicking one opens it, opens Saved people, or creates the note in the current note's category.
@@ -107,14 +107,14 @@ Notes link with Obsidian's Markdown, so an imported vault keeps its links and Ma
 - **Live transcript.** VAD splits speech into utterances (a 700 ms pause ends one; past 6 s a 250 ms breath does; 12 s at most); each decode is primed with the stream's recent text; mic and call audio each have their own decoder state. The engine streams partial then final segments to the UI as events. Mic segments are labelled **You**; system segments are labelled **Others** until diarization assigns Person 1, 2….
 
 - **End.** Manual Stop, or the meeting app releases the mic for 15 s. A toast offers “Keep recording” for 10 s.
-- **Finalize.** Full diarization pass, matching against Saved people voices (named when Margin is sure, suggested when it is less sure; it learns only from confirmations). Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.
+- **Finalize.** Full diarization pass, matching against Saved people voices (named when Cilica is sure, suggested when it is less sure; it learns only from confirmations). Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.
 
 ### Speakers and Saved people
 
 - Each Person 1…n is a cluster of speaker embeddings for that meeting. Naming one offers “Save as person”, which stores the name and the speaker's voice as a first sample.
 - **You** is a Saved person that is always there (it cannot be deleted or merged away). Your mic speaker is linked to it, and your voice is learnt the same way as anyone's.
-- **Learning.** Picking a Saved person for a speaker (or confirming Margin's guess, or answering Yes to a suggestion) adds that speaker's voice as one of the person's samples. Picking someone else, or unlinking, takes that sample back out, so a correction untrains the wrong person. Margin's own guesses teach nothing.
-- **Recognising** (Settings › Transcription › Recognise saved voices, on by default). Live, with a service that labels speakers: once a labelled speaker has said about 3 s (then 8 s and 15 s), Margin makes a voiceprint on this computer (CAM++) and compares it with each Saved person's samples; at or above 0.72 cosine similarity it names them (one speaker per person; You only on the mic). After the meeting the same happens for every speaker the check found, and the mic voice closest to your saved voice is You (whoever talked most until Margin knows your voice). Between 0.6 and 0.72 it only asks: “Is Person 2 Sam?”.
+- **Learning.** Picking a Saved person for a speaker (or confirming Cilica's guess, or answering Yes to a suggestion) adds that speaker's voice as one of the person's samples. Picking someone else, or unlinking, takes that sample back out, so a correction untrains the wrong person. Cilica's own guesses teach nothing.
+- **Recognising** (Settings › Transcription › Recognise saved voices, on by default). Live, with a service that labels speakers: once a labelled speaker has said about 3 s (then 8 s and 15 s), Cilica makes a voiceprint on this computer (CAM++) and compares it with each Saved person's samples; at or above 0.72 cosine similarity it names them (one speaker per person; You only on the mic). After the meeting the same happens for every speaker the check found, and the mic voice closest to your saved voice is You (whoever talked most until Cilica knows your voice). Between 0.6 and 0.72 it only asks: “Is Person 2 Sam?”.
 - Saved people page: name, voice sample count, meetings they appeared in, rename/recolour/merge/forget voice/delete. Forget voice drops a person's samples and keeps them and their meetings.
 - In-person meetings (one mic, many speakers): diarize the mic channel as well.
 

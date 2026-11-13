@@ -9,8 +9,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use margin_domain::Timestamp;
-use margin_domain::chrono::{DateTime, Utc};
+use cilica_domain::Timestamp;
+use cilica_domain::chrono::{DateTime, Utc};
 use regex::Regex;
 use serde_json::Value;
 
@@ -322,7 +322,7 @@ pub fn collect(tree: &Tree, id_prefix: &str) -> Collected {
             }
             "vtt" | "srt" | "sbv" => match tree.read_text(rel).and_then(|t| parse_cues(&t)) {
                 Some(t) => out.notes.push(transcript_note(tree, rel, &id, t)),
-                None => out.warnings.push(format!("{name} has no transcript Margin could read.")),
+                None => out.warnings.push(format!("{name} has no transcript Cilica could read.")),
             },
             "docx" => match tree.read(rel).and_then(|b| docx_to_markdown(&b)) {
                 Some(md) => read_markdown_file(tree, rel, &id, &md, Layout::Plain, &mut out, &mut used_images),
@@ -346,11 +346,11 @@ pub fn collect(tree: &Tree, id_prefix: &str) -> Collected {
                         n.external_id = format!("{id_prefix}{}", n.external_id);
                     }
                     if notes.is_empty() {
-                        out.warnings.push(format!("{name} has no notes Margin could read."));
+                        out.warnings.push(format!("{name} has no notes Cilica could read."));
                     }
                     out.notes.extend(notes);
                     out.skip_n("Attachments", skipped.files, "PDFs, audio and other files attached to notes are left out. Images come along inside the note.");
-                    out.skip_n("Encrypted text", skipped.encrypted, "Text you encrypted in Evernote stays encrypted there; Margin cannot read it.");
+                    out.skip_n("Encrypted text", skipped.encrypted, "Text you encrypted in Evernote stays encrypted there; Cilica cannot read it.");
                     out.skip_n("Large images", skipped.too_big, "Images over 2 MB are left out; a line in the note marks where each one was.");
                 }
             }
@@ -372,7 +372,7 @@ pub fn collect(tree: &Tree, id_prefix: &str) -> Collected {
                 Some(inner) => out.merge(collect(&inner, &format!("{id}/"))),
                 None => out.warnings.push(format!("{name} could not be opened.")),
             },
-            "canvas" => out.skip("Canvases", "Margin has no canvas view, so canvas boards are left out. The notes on them are imported on their own."),
+            "canvas" => out.skip("Canvases", "Cilica has no canvas view, so canvas boards are left out. The notes on them are imported on their own."),
             "base" => out.skip("Bases", "Obsidian Bases are database views. The notes they list are imported on their own."),
             "edn" | "css" | "js" | "ds_store" | "ini" | "plist" => {}
             _ if image_mime(name).is_some() => {}
@@ -437,7 +437,7 @@ fn read_markdown_file(tree: &Tree, rel: &str, id: &str, text: &str, layout: Layo
         body = BLOCK_REF.replace_all(&body, "(block reference)").to_string();
     }
     let dataview = body.matches("```dataview").count() as u32;
-    out.skip_n("Dataview queries", dataview, "Dataview queries are kept as code blocks. Margin does not run them.");
+    out.skip_n("Dataview queries", dataview, "Dataview queries are kept as code blocks. Cilica does not run them.");
     let (rewritten, report) = markdown::rewrite(&body, &mut |target: &str| {
         let found = tree.resolve(rel, target)?;
         let mime = image_mime(&found)?;
@@ -487,7 +487,7 @@ fn read_markdown_file(tree: &Tree, rel: &str, id: &str, text: &str, layout: Layo
 fn logseq_title(stem: &str) -> String {
     let decoded = markdown::percent_decode(stem).replace("___", "/");
     match parse_date(&decoded) {
-        Some(d) if DAILY.is_match(&decoded) => d.with_timezone(&margin_domain::chrono::Local).format("%-d %b %Y").to_string(),
+        Some(d) if DAILY.is_match(&decoded) => d.with_timezone(&cilica_domain::chrono::Local).format("%-d %b %Y").to_string(),
         _ => decoded,
     }
 }
@@ -581,7 +581,7 @@ fn read_csv(rel: &str, id: &str, text: &str, tabs: bool, out: &mut Collected) {
     let attendees_col = find(&["attendees", "participants", "people"]);
     let tags_col = find(&["tags", "labels", "folder"]);
     if title_col.is_none() && summary_col.is_none() && notes_col.is_none() && transcript_col.is_none() {
-        out.warnings.push(format!("{} does not look like notes: Margin found no title, notes or transcript column.", rel.rsplit('/').next().unwrap_or(rel)));
+        out.warnings.push(format!("{} does not look like notes: Cilica found no title, notes or transcript column.", rel.rsplit('/').next().unwrap_or(rel)));
         return;
     }
     let used = [title_col, date_col, end_col, summary_col, notes_col, transcript_col, attendees_col, tags_col];
@@ -750,7 +750,7 @@ mod tests {
         assert_eq!(acme.tags, vec!["client"]);
         assert!(acme.created_at.is_some());
         let daily = got.notes.iter().find(|n| n.title == "2026-11-12").unwrap();
-        assert_eq!(daily.created_at.unwrap().with_timezone(&margin_domain::chrono::Local).format("%Y-%m-%d").to_string(), "2026-11-12");
+        assert_eq!(daily.created_at.unwrap().with_timezone(&cilica_domain::chrono::Local).format("%Y-%m-%d").to_string(), "2026-11-12");
         for kind in ["Canvases", "Bases", "Excalidraw drawings", "Dataview queries", "Other files", "Unlinked images"] {
             assert_eq!(got.unsupported.get(kind).map(|u| u.0), Some(1), "{kind}: {:?}", got.unsupported);
         }

@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use margin_domain::chrono::{DateTime, Datelike, Duration, NaiveTime, TimeZone};
-use margin_domain::{
+use cilica_domain::chrono::{DateTime, Datelike, Duration, NaiveTime, TimeZone};
+use cilica_domain::{
     AudioChannel, Id, SwearCount, SwearJar, SwearJarSettings, SwearPerson, SwearWeek, Swears, Timestamp, new_id,
 };
 use sqlx::Row;
@@ -259,8 +259,8 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::chrono::{FixedOffset, Utc};
-    use margin_domain::{NoteKind, Segment, now};
+    use cilica_domain::chrono::{FixedOffset, Utc};
+    use cilica_domain::{NoteKind, Segment, now};
 
     use crate::NewNote;
 

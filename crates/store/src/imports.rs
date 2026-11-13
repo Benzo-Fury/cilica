@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use margin_domain::{AudioChannel, Category, Id, NoteKind, Timestamp, new_id, now};
+use cilica_domain::{AudioChannel, Category, Id, NoteKind, Timestamp, new_id, now};
 
 use crate::notes::{index_text, kind_to_sql, markdown_to_plain, single_line, snippet_from_markdown, top_position};
 use crate::{Db, StoreError, StoreResult, codec};
@@ -187,8 +187,8 @@ async fn insert_version(tx: &mut sqlx::Transaction<'static, sqlx::Sqlite>, note_
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::chrono::TimeZone;
-    use margin_domain::chrono::Utc;
+    use cilica_domain::chrono::TimeZone;
+    use cilica_domain::chrono::Utc;
 
     use super::*;
 

@@ -1,6 +1,6 @@
 # Motion
 
-Margin's motion is springy and physical, and always quick. Everything that moves animates; nothing makes you wait for it. Springs carry position, size and scale. Short tweens carry colour and opacity.
+Cilica's motion is springy and physical, and always quick. Everything that moves animates; nothing makes you wait for it. Springs carry position, size and scale. Short tweens carry colour and opacity.
 
 ## Springs
 

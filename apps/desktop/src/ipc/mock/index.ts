@@ -28,7 +28,7 @@ export interface MockBackend {
   emit(event: BackendEvent): void;
   /** Stop every pending timer (recording, streaming turns, task runs, downloads). */
   dispose(): void;
-  /** Dev helpers: `__marginMock.simulate.meetingDetected("Zoom")`, `.meetingEnded()`. */
+  /** Dev helpers: `__cilicaMock.simulate.meetingDetected("Zoom")`, `.meetingEnded()`. */
   simulate: { meetingDetected(appName?: string): void; meetingEnded(): void };
 }
 

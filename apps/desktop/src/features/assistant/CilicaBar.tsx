@@ -1,5 +1,5 @@
 /**
- * Margin as a floating bar at the bottom of the page (switched with the buttons in Margin's
+ * Cilica as a floating bar at the bottom of the page (switched with the buttons in Cilica's
  * header). At rest it is a pill; ⌘J or a click stretches the same shape into the composer, and the first message
  * grows it upward with the conversation, up to a cap, after which the thread scrolls. Esc, the chevron or a click on the page collapses it.
  *
@@ -53,7 +53,7 @@ function useSize<T extends HTMLElement>() {
   return [ref, size] as const;
 }
 
-export function MarginBar() {
+export function CilicaBar() {
   const open = usePanels((s) => s.assistantOpen);
   const setOpen = usePanels((s) => s.setAssistantOpen);
   const view = useRouter((s) => s.view.name);
@@ -86,8 +86,8 @@ export function MarginBar() {
   const label = hasThread
     ? "Back to your conversation"
     : view === "note"
-      ? "Ask Margin about this note"
-      : "Ask Margin about your notes";
+      ? "Ask Cilica about this note"
+      : "Ask Cilica about your notes";
 
   const target = openSize(room, content.height);
   // The content lays out at its natural height up to the cap; past it the thread scrolls.
@@ -95,10 +95,10 @@ export function MarginBar() {
   const size = open ? target : REST;
 
   return (
-    <div className="nt-marginbar-dock" ref={dockRef} hidden={hidden}>
+    <div className="nt-cilicabar-dock" ref={dockRef} hidden={hidden}>
       <motion.div
         ref={barRef}
-        className="nt-marginbar"
+        className="nt-cilicabar"
         data-open={open || undefined}
         initial={false}
         animate={{ width: size.width, height: size.height }}
@@ -107,18 +107,18 @@ export function MarginBar() {
       >
         <button
           type="button"
-          className="nt-marginbar-rest"
+          className="nt-cilicabar-rest"
           onClick={() => setOpen(true)}
           aria-keyshortcuts={keys.join("+")}
           aria-hidden={open}
           tabIndex={open ? -1 : 0}
         >
-          <span className="nt-marginbar-label">{label}</span>
+          <span className="nt-cilicabar-label">{label}</span>
           <Kbd keys={keys} />
         </button>
         <div
           ref={contentRef}
-          className="nt-marginbar-open"
+          className="nt-cilicabar-open"
           style={{ width: target.width, maxHeight }}
           inert={!open}
         >

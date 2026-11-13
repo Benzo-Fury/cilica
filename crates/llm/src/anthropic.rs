@@ -538,7 +538,7 @@ mod tests {
         let p = AnthropicProvider::new(key());
         let mut req = ChatRequest::new(
             "claude-sonnet-5-5",
-            "You are Margin.",
+            "You are Cilica.",
             vec![
                 ChatMessage::user("hi"),
                 ChatMessage {
@@ -577,7 +577,7 @@ mod tests {
         let p = AnthropicProvider::new(key()).with_base_url(url).with_retry(RetryPolicy::immediate(4));
         let req = ChatRequest::new("claude-haiku-5-5", "", vec![ChatMessage::user("hello")]);
         let (text, done) = complete(&p, req, CancellationToken::new()).await.unwrap();
-        assert_eq!(text, "Hello from Margin.");
+        assert_eq!(text, "Hello from Cilica.");
         assert_eq!(done.stop_reason, StopReason::EndTurn);
         let seen = seen.lock().unwrap();
         assert_eq!(seen.len(), 4);
@@ -616,7 +616,7 @@ mod tests {
         let (text, _) = complete(&p, ChatRequest::new("claude-sonnet-5-5", "", vec![ChatMessage::user("x")]), CancellationToken::new())
             .await
             .unwrap();
-        assert_eq!(text, "Hello from Margin.");
+        assert_eq!(text, "Hello from Cilica.");
         let seen = seen.lock().unwrap();
         assert!(seen[0].contains("server-side-fallback-2026-07-01"));
         assert!(!seen[1].contains("server-side-fallback"));

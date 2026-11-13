@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use margin_domain::*;
-use margin_scheduler::Scheduler;
+use cilica_domain::*;
+use cilica_scheduler::Scheduler;
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
@@ -21,7 +21,7 @@ pub struct TasksState {
 pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
     let agent = super::assistant::agent(app).ok_or_else(|| AppError::internal("The assistant must be set up before scheduled tasks."))?;
     let handle = app.clone();
-    let is_recording: margin_scheduler::IsRecording = Arc::new(move || super::recording::is_recording(&handle));
+    let is_recording: cilica_scheduler::IsRecording = Arc::new(move || super::recording::is_recording(&handle));
     let scheduler = Scheduler::new(core.db.clone(), agent, core.events.clone(), is_recording);
     app.manage(TasksState { scheduler: scheduler.clone() });
     tauri::async_runtime::spawn(async move {

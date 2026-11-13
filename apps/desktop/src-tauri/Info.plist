@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Margin records your microphone to transcribe your side of a meeting. Audio stays on this Mac.</string>
+  <string>Cilica records your microphone to transcribe your side of a meeting. Audio stays on this Mac.</string>
   <key>NSAudioCaptureUsageDescription</key>
-  <string>Margin records system audio to transcribe the other people in a meeting. Audio stays on this Mac.</string>
+  <string>Cilica records system audio to transcribe the other people in a meeting. Audio stays on this Mac.</string>
 </dict>
 </plist>

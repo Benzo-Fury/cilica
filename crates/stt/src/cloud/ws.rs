@@ -60,7 +60,7 @@ pub(crate) trait Protocol: Send {
 pub(crate) fn client_config(roots: rustls::RootCertStore) -> SttResult<Arc<rustls::ClientConfig>> {
     let config = rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::aws_lc_rs::default_provider()))
         .with_safe_default_protocol_versions()
-        .map_err(|e| SttError::Provider(format!("Margin could not set up a secure connection: {e}")))?
+        .map_err(|e| SttError::Provider(format!("Cilica could not set up a secure connection: {e}")))?
         .with_root_certificates(roots)
         .with_no_client_auth();
     Ok(Arc::new(config))
@@ -78,7 +78,7 @@ pub(crate) fn native_tls() -> SttResult<Arc<rustls::ClientConfig>> {
             let mut roots = rustls::RootCertStore::empty();
             let (added, _) = roots.add_parsable_certificates(loaded.certs);
             if added == 0 {
-                return Err("Margin could not read this computer's trusted certificates, so it cannot reach the transcription service securely.".to_string());
+                return Err("Cilica could not read this computer's trusted certificates, so it cannot reach the transcription service securely.".to_string());
             }
             client_config(roots).map_err(|e| e.to_string())
         })
@@ -251,7 +251,7 @@ fn handshake_error(name: &str, error: WsError) -> SttError {
             403 => super::not_allowed(name),
             402 => SttError::Provider(format!("{name} says the account is out of credit. Top it up, then start recording again.")),
             429 => SttError::Provider(format!("{name} is limiting connections right now. Try again in a minute.")),
-            400 => SttError::Provider(format!("{name} did not accept Margin's settings. Try another language or service.")),
+            400 => SttError::Provider(format!("{name} did not accept Cilica's settings. Try another language or service.")),
             status => SttError::Provider(format!("{name} answered with an error ({status}).")),
         },
         _ => SttError::Network(name.to_string()),

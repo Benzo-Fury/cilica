@@ -51,7 +51,7 @@ export function useEmptySwearJar() {
 
 // ---------- Helpers ---------- //
 
-/** Margin is in front: the window is showing and has focus. */
+/** Cilica is in front: the window is showing and has focus. */
 const inFront = () => document.visibilityState === "visible" && document.hasFocus();
 
 /** Where an element sits on screen, or null when it is scrolled out of sight. */
@@ -84,7 +84,7 @@ function useClink(): () => void {
 
 /**
  * Mounted once, in the canvas. Lights up swears in live transcript lines and sends their coins in;
- * keeps the jar's label in step with the backend; and when you come back to Margin, drops in the
+ * keeps the jar's label in step with the backend; and when you come back to Cilica, drops in the
  * coins said while you were away.
  */
 export function useSwearJarWatcher() {

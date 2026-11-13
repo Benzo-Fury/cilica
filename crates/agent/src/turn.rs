@@ -2,11 +2,11 @@
 //! thread titles, and the turn's Undo toast.
 
 use futures::StreamExt;
-use margin_domain::{
+use cilica_domain::{
     AiActionStatus, AppError, AppEvent, AppResult, AssistantEvent, DataScope, ErrorCode, Id, Message, MessagePart,
     Role, Timestamp, ToastAction, ToastKind, ToastRequest, TurnEnd, ViewContext, new_id, now,
 };
-use margin_llm::{
+use cilica_llm::{
     CancellationToken, ChatMessage, ChatRequest, ChatRole, ContentBlock, Effort, LlmError, Provider, StopReason,
     StreamEvent,
 };
@@ -65,7 +65,7 @@ impl LoopState {
 pub(crate) struct LoopRequest {
     pub model: String,
     pub system: String,
-    pub tools: Vec<margin_llm::ToolSpec>,
+    pub tools: Vec<cilica_llm::ToolSpec>,
     pub max_tokens: u32,
     pub effort: Option<Effort>,
 }
@@ -83,7 +83,7 @@ impl Agent {
         let db = &self.inner.db;
         db.get_thread(thread_id).await?;
         if !self.inner.busy_threads.lock().unwrap().insert(thread_id) {
-            return Err(AppError::new(ErrorCode::Conflict, "Margin is still answering. Wait for it to finish or stop it first."));
+            return Err(AppError::new(ErrorCode::Conflict, "Cilica is still answering. Wait for it to finish or stop it first."));
         }
 
         let turn_id = new_id();
@@ -277,8 +277,8 @@ impl Agent {
                     state.raw.push(ChatMessage { role: ChatRole::User, content: results });
                 }
                 match completion.stop_reason {
-                    StopReason::Refusal => state.push_error("Margin can't help with that request."),
-                    StopReason::MaxTokens => state.push_error("The answer was cut off because it ran long. Ask Margin to continue."),
+                    StopReason::Refusal => state.push_error("Cilica can't help with that request."),
+                    StopReason::MaxTokens => state.push_error("The answer was cut off because it ran long. Ask Cilica to continue."),
                     _ => {}
                 }
                 self.persist(persist, &state).await;
@@ -298,7 +298,7 @@ impl Agent {
             state.raw.push(ChatMessage { role: ChatRole::User, content: results });
             self.persist(persist, &state).await;
         }
-        state.push_error(format!("Margin stopped after {} steps. Ask it to continue if there is more to do.", self.inner.limits.max_steps));
+        state.push_error(format!("Cilica stopped after {} steps. Ask it to continue if there is more to do.", self.inner.limits.max_steps));
         self.persist(persist, &state).await;
         (state, LoopEnd::Completed)
     }
@@ -324,7 +324,7 @@ impl Agent {
         if let Ok(actions) = self.inner.db.list_ai_actions_for_turn(turn_id).await {
             let applied: Vec<_> = actions.iter().filter(|(a, _)| a.status == AiActionStatus::Applied && a.can_undo).collect();
             if !applied.is_empty() {
-                let title = if applied.len() == 1 { applied[0].0.summary.clone() } else { format!("Margin made {} changes", applied.len()) };
+                let title = if applied.len() == 1 { applied[0].0.summary.clone() } else { format!("Cilica made {} changes", applied.len()) };
                 self.inner.events.emit(AppEvent::Toast {
                     toast: ToastRequest {
                         kind: ToastKind::Undo,
@@ -360,7 +360,7 @@ impl Agent {
         );
         req.max_tokens = 2_000;
         req.effort = Some(Effort::Low);
-        match margin_llm::complete(provider.as_ref(), req, CancellationToken::new()).await {
+        match cilica_llm::complete(provider.as_ref(), req, CancellationToken::new()).await {
             Ok((t, _)) => clean_title(&t).unwrap_or(fallback),
             Err(_) => fallback,
         }

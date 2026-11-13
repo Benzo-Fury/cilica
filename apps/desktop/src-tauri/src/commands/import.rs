@@ -1,19 +1,17 @@
 //! Settings › Import: bring notes in from other apps (docs/import.md). The work lives in
-//! `margin-import`; this module wires it to commands, the keychain and the OS's folders.
+//! `cilica-import`; this module wires it to commands, the keychain and the OS's folders.
 //!
-//! API keys for account imports are kept in the OS keychain (service `app.margin.desktop`, account
+//! API keys for account imports are kept in the OS keychain (service `app.cilica.desktop`, account
 //! `import.<provider>`). They go in through `import_save_key` and never come back over IPC.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use margin_domain::*;
-use margin_import::{Importer, KnownPaths, Secrets};
+use cilica_domain::*;
+use cilica_import::{Importer, KnownPaths, Secrets};
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
-
-const KEYCHAIN_SERVICE: &str = "app.margin.desktop";
 
 fn account(provider: &str) -> String {
     format!("import.{provider}")
@@ -24,7 +22,7 @@ struct Keychain;
 
 impl Secrets for Keychain {
     fn key(&self, provider: &str) -> Option<String> {
-        keyring::Entry::new(KEYCHAIN_SERVICE, &account(provider)).ok()?.get_password().ok().filter(|k| !k.trim().is_empty())
+        crate::keychain::read(&account(provider)).ok().flatten().filter(|k| !k.trim().is_empty())
     }
 }
 
@@ -50,7 +48,7 @@ pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
 
 type Svc<'a> = State<'a, Arc<Importer>>;
 
-/// What Margin can find on this computer for one app: its data with counts, whether the app is
+/// What Cilica can find on this computer for one app: its data with counts, whether the app is
 /// installed, and whether an API key is saved.
 #[tauri::command]
 #[specta::specta]
@@ -75,9 +73,8 @@ pub async fn import_save_key(importer: Svc<'_>, provider: String, key: String) -
     }
     let status = importer.check_key(&provider, &key).await;
     if status.ok {
-        keyring::Entry::new(KEYCHAIN_SERVICE, &account(&provider))
-            .and_then(|e| e.set_password(&key))
-            .map_err(|_| AppError::unavailable("Margin could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
+        crate::keychain::write(&account(&provider), &key)
+            .map_err(|_| AppError::unavailable("Cilica could not save the key in your keychain. Check that the keychain is unlocked and try again."))?;
     }
     Ok(status)
 }
@@ -86,9 +83,9 @@ pub async fn import_save_key(importer: Svc<'_>, provider: String, key: String) -
 #[tauri::command]
 #[specta::specta]
 pub async fn import_clear_key(provider: String) -> AppResult<()> {
-    match keyring::Entry::new(KEYCHAIN_SERVICE, &account(&provider)).and_then(|e| e.delete_credential()) {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(_) => Err(AppError::unavailable("Margin could not remove the key from your keychain. Try again.")),
+    match crate::keychain::delete(&account(&provider)) {
+        Ok(()) => Ok(()),
+        Err(_) => Err(AppError::unavailable("Cilica could not remove the key from your keychain. Try again.")),
     }
 }
 

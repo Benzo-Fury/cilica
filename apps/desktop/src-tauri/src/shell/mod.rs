@@ -19,8 +19,8 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use margin_domain::{AppEvent, Events, RecordingPhase, RecordingState, RecordingTrigger, Settings, ThemeMode, ToastKind, ToastRequest};
-use margin_store::Db;
+use cilica_domain::{AppEvent, Events, RecordingPhase, RecordingState, RecordingTrigger, Settings, ThemeMode, ToastKind, ToastRequest};
+use cilica_store::Db;
 use tauri::{AppHandle, Manager, RunEvent, Theme, Window, WindowEvent};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -46,7 +46,7 @@ pub struct Shell {
     pub(crate) hotkey: Mutex<Option<hotkey::Registered>>,
     pub(crate) tray: Mutex<Option<tray::Items>>,
     pub(crate) island_visible: AtomicBool,
-    /// Setup is closing; a second Open Margin or close does nothing until it is done.
+    /// Setup is closing; a second Open Cilica or close does nothing until it is done.
     pub(crate) onboarding_finishing: AtomicBool,
 }
 
@@ -110,7 +110,7 @@ pub fn error_toast(title: impl Into<String>, description: impl Into<String>) -> 
 
 /// Build the shell: theme and material on the main window, the island window, the tray, the
 /// global hotkey, launch at login, and the event listener that keeps them in step.
-pub fn setup(app: &AppHandle, core: &Core) -> margin_domain::AppResult<()> {
+pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
     let settings = tauri::async_runtime::block_on(core.db.get_settings())?;
     app.manage(Shell::new(core.db.clone(), core.events.clone(), settings.clone()));
 
@@ -123,7 +123,7 @@ pub fn setup(app: &AppHandle, core: &Core) -> margin_domain::AppResult<()> {
     if !settings.onboarding_done
         && let Err(error) = onboarding::create(app)
     {
-        tracing::warn!(%error, "could not create the setup window; opening Margin instead");
+        tracing::warn!(%error, "could not create the setup window; opening Cilica instead");
     }
     if let Err(error) = tray::create(app, &settings) {
         tracing::warn!(%error, "could not create the tray icon");
@@ -204,7 +204,7 @@ pub fn save_settings(app: &AppHandle, change: impl FnOnce(&mut Settings) + Send 
         .await;
         match result {
             Ok(settings) => shell.events.emit(AppEvent::SettingsChanged { settings }),
-            Err(error) => shell.toast(error_toast("Settings were not saved", margin_domain::AppError::from(error).message)),
+            Err(error) => shell.toast(error_toast("Settings were not saved", cilica_domain::AppError::from(error).message)),
         }
     });
 }
@@ -236,7 +236,7 @@ fn sync_autostart(app: &AppHandle, enabled: bool) {
     if let Err(error) = result {
         tracing::warn!(%error, enabled, "could not change launch at login");
         app.state::<Shell>().toast(error_toast(
-            if enabled { "Margin could not turn on Open at login" } else { "Margin could not turn off Open at login" },
+            if enabled { "Cilica could not turn on Open at login" } else { "Cilica could not turn off Open at login" },
             "Check Login Items in your system settings and try again.",
         ));
     }
@@ -271,7 +271,7 @@ pub fn is_capturing(app: &AppHandle) -> bool {
 
 /// `Builder::on_window_event` handler.
 pub fn on_window_event(window: &Window, event: &WindowEvent) {
-    // Closing setup early opens Margin with whatever was set up.
+    // Closing setup early opens Cilica with whatever was set up.
     if window.label() == onboarding::LABEL {
         if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
@@ -306,7 +306,7 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
             shell.main_focused.store(*focused, Ordering::Relaxed);
             island::sync(app);
             if *focused {
-                // Picks up a Reduce transparency change made while Margin was in the background.
+                // Picks up a Reduce transparency change made while Cilica was in the background.
                 material::sync(app);
             }
         }
@@ -341,7 +341,7 @@ pub fn request_quit(app: &AppHandle) {
     }
     let app = app.clone();
     app.dialog()
-        .message("Margin is still recording or writing up this meeting. Quitting stops it now; the audio captured so far stays on this computer.")
+        .message("Cilica is still recording or writing up this meeting. Quitting stops it now; the audio captured so far stays on this computer.")
         .title("Stop recording and quit?")
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom("Quit".into(), "Keep recording".into()))

@@ -1,4 +1,4 @@
-/* Toast stack. Top-right, below the titlebar, clear of Margin's composer and the recorder capsule;
+/* Toast stack. Top-right, below the titlebar, clear of Cilica's composer and the recorder capsule;
    top-centre on narrow windows. Motion drives every transform, so nothing here transitions
    transform. */
 .nt-toaster {

@@ -56,7 +56,7 @@ export const usePanels = create<PanelState>()(
       setAssistantWidth: (assistantWidth) => set({ assistantWidth }),
     }),
     {
-      name: "margin.panels",
+      name: "cilica.panels",
       version: 4,
       // v4: open/closed is no longer stored, so every launch starts with both panels closed.
       migrate: (persisted) => {

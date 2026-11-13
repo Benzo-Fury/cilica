@@ -223,7 +223,7 @@ export function SetupPermissions({ children }: { children: ReactNode }) {
 
 export interface SetupPermissionProps {
   icon: LucideIcon;
-  /** The invitation ("Let Margin hear you") and the confirmation ("Margin can hear you"). */
+  /** The invitation ("Let Cilica hear you") and the confirmation ("Cilica can hear you"). */
   title: string;
   grantedTitle: string;
   description: string;

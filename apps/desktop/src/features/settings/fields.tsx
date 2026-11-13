@@ -61,7 +61,7 @@ export function KeyRow({
         ) : hasKey ? (
           "A key is saved in your keychain. Paste a new one to replace it."
         ) : (
-          (description ?? "Stored in your system keychain, never in Margin's files.")
+          (description ?? "Stored in your system keychain, never in Cilica's files.")
         )
       }
       control={

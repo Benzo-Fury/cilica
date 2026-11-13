@@ -21,7 +21,7 @@ describe("app updates", () => {
     const state = useUpdateState.getState();
     expect(state.phase).toBe("ready");
     expect(state.update?.version).toBe("0.2.0");
-    expect(toastStore.getSnapshot().toasts.some((t) => t.title === "Margin 0.2.0 is ready")).toBe(
+    expect(toastStore.getSnapshot().toasts.some((t) => t.title === "Cilica 0.2.0 is ready")).toBe(
       true,
     );
   });

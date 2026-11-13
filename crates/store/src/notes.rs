@@ -13,8 +13,8 @@
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
-use margin_domain::chrono::TimeDelta;
-use margin_domain::{Author, Category, Id, Note, NoteKind, NoteSummary, NoteVersion, SearchHit, SearchSource, Timestamp, new_id, now};
+use cilica_domain::chrono::TimeDelta;
+use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteSummary, NoteVersion, SearchHit, SearchSource, Timestamp, new_id, now};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, Sqlite, SqliteExecutor, Transaction};
 
@@ -321,7 +321,7 @@ impl Db {
     // ── Several notes at once (sidebar and Trash selection) ─────────────
     //
     // Each runs in one transaction, so a failure leaves nothing half done. Ids that no longer exist
-    // (removed by Margin or another window since the selection was made) are skipped, not errors.
+    // (removed by Cilica or another window since the selection was made) are skipped, not errors.
 
     /// Move live notes to Trash. Returns how many were moved; ones already in Trash are not counted.
     pub async fn trash_notes(&self, ids: &[Id]) -> StoreResult<u32> {
@@ -1388,7 +1388,7 @@ fn first_marked_term(raw: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::chrono::Utc;
+    use cilica_domain::chrono::Utc;
 
     use super::*;
 
@@ -1780,9 +1780,9 @@ mod tests {
 
     #[tokio::test]
     async fn purge_removes_old_trash_and_its_recordings() {
-        let dir = std::env::temp_dir().join(format!("margin-store-test-{}", new_id()));
+        let dir = std::env::temp_dir().join(format!("cilica-store-test-{}", new_id()));
         std::fs::create_dir_all(dir.join("recordings")).unwrap();
-        let outside = std::env::temp_dir().join(format!("margin-outside-{}.opus", new_id()));
+        let outside = std::env::temp_dir().join(format!("cilica-outside-{}.opus", new_id()));
         std::fs::write(&outside, b"keep me").unwrap();
         let db = db().await.with_data_dir(&dir);
 
@@ -1819,9 +1819,9 @@ mod tests {
 
     #[test]
     fn recording_paths_stay_inside_the_data_dir() {
-        let root = Path::new("/data/margin");
+        let root = Path::new("/data/cilica");
         assert_eq!(resolve_inside(root, "recordings/a.opus"), Some(root.join("recordings/a.opus")));
-        assert_eq!(resolve_inside(root, "/data/margin/recordings/a.opus"), Some(root.join("recordings/a.opus")));
+        assert_eq!(resolve_inside(root, "/data/cilica/recordings/a.opus"), Some(root.join("recordings/a.opus")));
         assert_eq!(resolve_inside(root, "../a.opus"), None);
         assert_eq!(resolve_inside(root, "recordings/../../a.opus"), None);
         assert_eq!(resolve_inside(root, "/etc/passwd"), None);

@@ -10,7 +10,7 @@ use specta::Type;
 
 use crate::{Id, Timestamp};
 
-/// What the person gives Margin to import from.
+/// What the person gives Cilica to import from.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImportInput {
@@ -39,17 +39,17 @@ pub struct DetectedLocation {
     pub transcripts: u32,
     /// Attachments (images, PDFs) that come along.
     pub attachments: u32,
-    /// Things found that Margin will not import, such as Obsidian canvases.
+    /// Things found that Cilica will not import, such as Obsidian canvases.
     pub unsupported: Vec<UnsupportedItem>,
 }
 
-/// What Margin found for a provider without being asked to read anything heavy.
+/// What Cilica found for a provider without being asked to read anything heavy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct ImportDetection {
     pub provider: String,
     /// The provider's app is installed on this computer.
     pub app_installed: bool,
-    /// Data Margin can read directly, with counts.
+    /// Data Cilica can read directly, with counts.
     pub locations: Vec<DetectedLocation>,
     /// An API key for this provider is saved in the keychain.
     pub has_key: bool,
@@ -57,7 +57,7 @@ pub struct ImportDetection {
     pub note: Option<String>,
 }
 
-/// Something Margin saw but will not bring across, and why.
+/// Something Cilica saw but will not bring across, and why.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UnsupportedItem {
     /// "Canvases", "Encrypted notes".
@@ -112,7 +112,7 @@ pub struct ImportPreview {
     pub folders: Vec<String>,
     /// Named speakers, most frequent first.
     pub speakers: Vec<SpeakerCount>,
-    /// Items that are already notes in Margin (outside Trash): skipped.
+    /// Items that are already notes in Cilica (outside Trash): skipped.
     pub existing: u32,
     pub unsupported: Vec<UnsupportedItem>,
     /// Problems with single items ("2 files could not be read"), written for people.
@@ -138,7 +138,7 @@ pub enum ImportCategoryMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct ImportOptions {
     pub category_mode: ImportCategoryMode,
-    /// Speaker names that are the person using Margin; their lines show as "You".
+    /// Speaker names that are the person using Cilica; their lines show as "You".
     pub self_names: Vec<String>,
 }
 
@@ -162,7 +162,7 @@ pub struct ImportRun {
     pub origin: String,
     pub status: ImportRunStatus,
     pub imported: u32,
-    /// Already notes in Margin.
+    /// Already notes in Cilica.
     pub skipped: u32,
     pub failed: u32,
     /// Per-item problems, written for people.

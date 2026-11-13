@@ -56,7 +56,7 @@ Crates receive an `Events` handle (`Arc<dyn EventSink>`) and call `events.emit(A
 
 `lib.rs` opens the database (`Core::init`), then calls each `commands::<area>::setup(app, &core)` in order: settings, notes, recording, assistant, tasks. Each area builds its own service there and registers it with `app.manage(...)`; commands take it as `State<'_, YourService>` alongside `State<'_, Core>`. The main window starts hidden; the UI calls `showMainWindow` after first paint.
 
-Every window loads the same bundle; `main.tsx` picks the root from `?window=`: the main app, `island` (the Dynamic Island) or `onboarding` (first-run setup). On a first launch (`onboarding_done` false) `shell::setup` also builds the setup window (`shell/onboarding.rs`), and `showMainWindow` leaves the main window hidden while it is open. `finish_onboarding` (Open Margin, or closing the window) marks setup done, writes the welcome note (`Db::create_welcome_note`), emits `open_note`, closes setup and shows the main window. `open_onboarding` reopens setup from Settings.
+Every window loads the same bundle; `main.tsx` picks the root from `?window=`: the main app, `island` (the Dynamic Island) or `onboarding` (first-run setup). On a first launch (`onboarding_done` false) `shell::setup` also builds the setup window (`shell/onboarding.rs`), and `showMainWindow` leaves the main window hidden while it is open. `finish_onboarding` (Open Cilica, or closing the window) marks setup done, writes the welcome note (`Db::create_welcome_note`), emits `open_note`, closes setup and shows the main window. `open_onboarding` reopens setup from Settings.
 
 ## Cross-area seams
 

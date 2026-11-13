@@ -1,12 +1,12 @@
 //! Which local speech model suits a computer.
 //!
-//! Measured with Margin's live pipeline on meeting audio: Whisper small and base transcribe about
+//! Measured with Cilica's live pipeline on meeting audio: Whisper small and base transcribe about
 //! as well as Large v3 Turbo live, at a fraction of the cost, while Turbo is clearly better for the
 //! careful pass over the whole recording after the meeting. So strong machines get Turbo (it does
 //! both jobs with one download), middling ones Small, and weak ones Base plus a nudge towards a
 //! cloud service.
 
-use margin_domain::HardwareProfile;
+use cilica_domain::HardwareProfile;
 
 /// Id of the model to recommend.
 pub fn recommended_model(cores: u32, ram_gb: u32, apple_silicon: bool) -> &'static str {

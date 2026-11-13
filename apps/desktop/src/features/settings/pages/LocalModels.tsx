@@ -1,5 +1,5 @@
 /**
- * Settings › Margin › Local model, shown when Ollama is the provider: set up Ollama, then download,
+ * Settings › Cilica › Local model, shown when Ollama is the provider: set up Ollama, then download,
  * cancel, delete and choose a model, like Settings › Transcription does for speech models.
  */
 import { Check, CircleAlert, Download, Trash2, X } from "lucide-react";
@@ -70,9 +70,9 @@ export function LocalModelsGroup({ activeModel }: { activeModel: string }) {
                 "Downloading Ollama. You pick a model next."
               )
             ) : status?.installed ? (
-              "Ollama is installed but not running. Margin can start it."
+              "Ollama is installed but not running. Cilica can start it."
             ) : (
-              "Margin downloads and starts Ollama. You pick a model next."
+              "Cilica downloads and starts Ollama. You pick a model next."
             )
           }
           control={

@@ -1,5 +1,5 @@
 [package]
-name = "margin-audio"
+name = "cilica-audio"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ publish.workspace = true
 default = ["opus"]
 # Ogg Opus encoding of finished recordings (libopus built with cmake). Without it recordings are
 # kept as WAV. Turn it off to type-check other targets from macOS:
-# `cargo check -p margin-audio --target x86_64-pc-windows-msvc --no-default-features`.
+# `cargo check -p cilica-audio --target x86_64-pc-windows-msvc --no-default-features`.
 opus = ["dep:opus", "dep:ogg"]
 
 [dependencies]
@@ -17,7 +17,7 @@ aec3 = "0.4.0"
 cpal = "0.18.2"
 crossbeam-channel = "0.5.17"
 hound = "3.5.1"
-margin-domain = { path = "../domain" }
+cilica-domain = { path = "../domain" }
 ogg = { version = "0.9.2", optional = true }
 opus = { version = "0.4.0", optional = true }
 ringbuf = "0.6.0"

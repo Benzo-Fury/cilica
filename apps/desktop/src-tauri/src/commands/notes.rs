@@ -9,8 +9,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use margin_domain::*;
-use margin_store::NewNote;
+use cilica_domain::*;
+use cilica_store::NewNote;
 use tauri::{AppHandle, State};
 
 use crate::core::Core;
@@ -293,7 +293,7 @@ pub async fn export_note_markdown(core: State<'_, Core>, note_id: Id, path: Stri
         path.set_extension("md");
     }
     tokio::fs::write(&path, note_markdown(&note)).await.map_err(|e| {
-        AppError::internal(format!("Margin could not save {}: {e}. Check that the folder exists and you can write to it.", path.display()))
+        AppError::internal(format!("Cilica could not save {}: {e}. Check that the folder exists and you can write to it.", path.display()))
     })
 }
 

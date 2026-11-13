@@ -53,7 +53,7 @@ export function AppearancePage() {
   if (!settings) return null;
   const a = settings.appearance;
   return (
-    <SettingsPage title="Appearance" description="How Margin looks on this device.">
+    <SettingsPage title="Appearance" description="How Cilica looks on this device.">
       <SettingsGroup>
         <SettingsRow
           label="Theme"
@@ -100,7 +100,7 @@ export function AppearancePage() {
       </SettingsGroup>
       <SettingsGroup
         title="Home"
-        footer="Verbal tics, Overheard, Talk share, Pace, Longest silence, Overtime, Slowest decision and Monologue count your meetings from the last week. The rest read your written notes and Margin's edits. Until a kept face has something to show, Home shows another one; the doodle shows only when nothing else can."
+        footer="Verbal tics, Overheard, Talk share, Pace, Longest silence, Overtime, Slowest decision and Monologue count your meetings from the last week. The rest read your written notes and Cilica's edits. Until a kept face has something to show, Home shows another one; the doodle shows only when nothing else can."
       >
         <SettingsRow
           label="When no note is open"

@@ -1,6 +1,6 @@
 //! Chat turns through the experimental Claude Code bridge.
 //!
-//! The CLI runs its own tool loop and calls Margin's MCP server (a second Margin process on the same
+//! The CLI runs its own tool loop and calls Cilica's MCP server (a second Cilica process on the same
 //! database), which applies the same tiers and writes the audit rows. This side streams the text,
 //! remembers the CLI session for `--resume`, and after each tool result reads the turn's new audit
 //! rows and proposals from the database to emit the same Tool / Proposal events as a normal turn.
@@ -8,9 +8,9 @@
 use std::collections::HashMap;
 
 use futures::StreamExt;
-use margin_domain::{AiSettings, AppEvent, AssistantEvent, DataScope, Id, MessagePart, TurnEnd};
-use margin_llm::claude_code::{self, BridgeEvent, ClaudeCodeRequest};
-use margin_llm::{CancellationToken, ChatMessage, LlmError};
+use cilica_domain::{AiSettings, AppEvent, AssistantEvent, DataScope, Id, MessagePart, TurnEnd};
+use cilica_llm::claude_code::{self, BridgeEvent, ClaudeCodeRequest};
+use cilica_llm::{CancellationToken, ChatMessage, LlmError};
 
 use crate::prompt::SYSTEM_PROMPT;
 use crate::turn::{AssistantMessage, LoopState};
@@ -51,7 +51,7 @@ impl Agent {
         let emit = |event: AssistantEvent| self.inner.events.emit(AppEvent::Assistant { event });
         let mut stream = claude_code::run(request, cancel.clone());
         let mut text = String::new();
-        let mut seen: HashMap<Id, margin_domain::AiActionStatus> = HashMap::new();
+        let mut seen: HashMap<Id, cilica_domain::AiActionStatus> = HashMap::new();
         let mut end = TurnEnd::Completed;
         while let Some(event) = stream.next().await {
             match event {
@@ -103,7 +103,7 @@ impl Agent {
     }
 
     /// Emit Tool / Proposal events for audit rows the MCP process wrote for this turn.
-    async fn sync_bridge_actions(&self, message: &AssistantMessage, state: &mut LoopState, seen: &mut HashMap<Id, margin_domain::AiActionStatus>) {
+    async fn sync_bridge_actions(&self, message: &AssistantMessage, state: &mut LoopState, seen: &mut HashMap<Id, cilica_domain::AiActionStatus>) {
         let Ok(actions) = self.inner.db.list_ai_actions_for_turn(message.turn_id).await else { return };
         let mut changed = false;
         for (action, _) in actions {

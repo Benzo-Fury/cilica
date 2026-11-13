@@ -71,7 +71,7 @@ function startFailed(error: unknown) {
       });
       return;
     case "permission_denied":
-      toast.error("Margin cannot hear the microphone", {
+      toast.error("Cilica cannot hear the microphone", {
         description: appError.message,
         action: {
           label: "Open Settings",
@@ -153,7 +153,7 @@ export function useKeepRecording() {
   return useCallback(async () => {
     try {
       queryClient.setQueryData(qk.recording, await api.keepRecording());
-      toast("Still recording", { description: "Margin keeps recording until you stop it." });
+      toast("Still recording", { description: "Cilica keeps recording until you stop it." });
     } catch (error) {
       toast.error("Recording will still stop", { description: errorMessage(error) });
     }

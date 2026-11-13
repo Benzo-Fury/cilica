@@ -147,7 +147,7 @@ impl Protocol for Soniox {
     }
 
     fn on_text(&mut self, text: &str, offset_ms: u32, out: &Emitter) -> SttResult<bool> {
-        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("Soniox sent a reply Margin could not read.".into()))?;
+        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("Soniox sent a reply Cilica could not read.".into()))?;
         if let Some(code) = reply.error_code {
             if code == 403 || reply.error_type.as_deref() == Some("permission_denied") {
                 return Err(SttError::NotAllowed(NOT_REALTIME.into()));

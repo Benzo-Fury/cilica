@@ -1,4 +1,4 @@
-# margin-scheduler
+# cilica-scheduler
 
 Scheduled tasks: CRUD, the default Notes review (every 3 days at 09:00, seeded on first launch), and the runner.
 
@@ -7,4 +7,4 @@ Scheduled tasks: CRUD, the default Notes review (every 3 days at 09:00, seeded o
 - Never runs while recording (`is_recording` closure from the shell); a run in progress is cancelled when a recording starts. One run at a time; `run_now` runs in the background; `cancel_current`.
 - Runs use the agent in propose-only mode; finishing emits `TaskRunFinished`, `DataChanged` and a toast with `OpenTaskRun`.
 
-Must not depend on tauri. Test with `cargo test -p margin-scheduler` (chrono-tz zones for DST cases, MockProvider for runs).
+Must not depend on tauri. Test with `cargo test -p cilica-scheduler` (chrono-tz zones for DST cases, MockProvider for runs).

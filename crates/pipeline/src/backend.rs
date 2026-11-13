@@ -4,11 +4,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use margin_audio::{CaptureSource, MicSource, SystemSource, permissions};
-use margin_diarize::Diarizer;
-use margin_domain::{AppError, AppResult, PermissionKind, PermissionStatus, Settings, SttEngine};
-use margin_stt::cloud::{self, CloudConfig, CloudTranscriber};
-use margin_stt::{ModelManager, Transcriber, WhisperLocal, WhisperOptions};
+use cilica_audio::{CaptureSource, MicSource, SystemSource, permissions};
+use cilica_diarize::Diarizer;
+use cilica_domain::{AppError, AppResult, PermissionKind, PermissionStatus, Settings, SttEngine};
+use cilica_stt::cloud::{self, CloudConfig, CloudTranscriber};
+use cilica_stt::{ModelManager, Transcriber, WhisperLocal, WhisperOptions};
 
 /// Audio sources and permissions.
 pub trait AudioBackend: Send + Sync {

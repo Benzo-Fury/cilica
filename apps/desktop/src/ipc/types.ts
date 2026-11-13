@@ -95,7 +95,7 @@ export type {
   ImportSample,
   IslandInfo,
   LocalLlmModel,
-  MarginPlacement,
+  CilicaPlacement,
   Mention,
   NoteFont,
   NoteKind,

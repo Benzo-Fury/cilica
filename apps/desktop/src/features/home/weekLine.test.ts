@@ -7,7 +7,7 @@ describe("week line cache", () => {
   it("keeps a line for its own day only", () => {
     const today = dayKey(new Date(2026, 10, 12, 9));
     localStorage.setItem(
-      "margin.weekLine",
+      "cilica.weekLine",
       JSON.stringify({ day: today, line: "Seven meetings." }),
     );
     expect(readWeekLine(today)).toBe("Seven meetings.");
@@ -15,7 +15,7 @@ describe("week line cache", () => {
   });
 
   it("ignores anything unreadable", () => {
-    localStorage.setItem("margin.weekLine", "not json");
+    localStorage.setItem("cilica.weekLine", "not json");
     expect(readWeekLine(dayKey())).toBeNull();
   });
 

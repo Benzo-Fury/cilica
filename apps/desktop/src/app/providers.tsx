@@ -11,7 +11,7 @@ import { ThemeController } from "./theme/ThemeController";
 const queryClient = createQueryClient();
 if (import.meta.env.DEV && typeof window !== "undefined") {
   // Dev aid: inspect the cache from the console.
-  (window as unknown as { __marginQuery?: QueryClient }).__marginQuery = queryClient;
+  (window as unknown as { __cilicaQuery?: QueryClient }).__cilicaQuery = queryClient;
 }
 
 /** Global wiring that renders nothing: backend events, keybinds, theme. */

@@ -63,7 +63,7 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
 
   const summary =
     skipped && !ok(mic)
-      ? "Skipped. Margin asks for the microphone when you first record"
+      ? "Skipped. Cilica asks for the microphone when you first record"
       : `${sysOn ? "Microphone and call audio on" : "Microphone on"} · ${
           !detect
             ? "you start recordings yourself"
@@ -76,13 +76,13 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
     <SetupStep
       id="permissions"
       status={status}
-      title="Let Margin hear your meetings"
+      title="Let Cilica hear your meetings"
       summary={summary}
       skipped={skipped && !ok(mic)}
       onReopen={onReopen}
       skipLabel="Not now"
       onSkip={() => onNext(!ok(mic))}
-      description={`Margin hears your microphone and the call audio, then turns them into text on ${THIS_DEVICE}.`}
+      description={`Cilica hears your microphone and the call audio, then turns them into text on ${THIS_DEVICE}.`}
       actions={
         <>
           <Button variant="primary" disabled={!ok(mic)} onClick={() => onNext(false)}>
@@ -95,8 +95,8 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
       <SetupPermissions>
         <SetupPermission
           icon={Mic}
-          title="Let Margin hear you"
-          grantedTitle="Margin can hear you"
+          title="Let Cilica hear you"
+          grantedTitle="Cilica can hear you"
           description={
             mic === "denied"
               ? "Microphone is off in System Settings. Turn it on there."
@@ -110,8 +110,8 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
         />
         <SetupPermission
           icon={Volume2}
-          title="Let Margin hear the call"
-          grantedTitle="Margin can hear the call"
+          title="Let Cilica hear the call"
+          grantedTitle="Cilica can hear the call"
           description="System audio. Hears the others on Zoom, Meet or Teams. No bot joins."
           grantedDescription={
             ok(sys) ? "System audio is on" : "Your Mac confirms this the first time you record"
@@ -124,8 +124,8 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
         {ax !== "not_needed" && (
           <SetupPermission
             icon={AppWindow}
-            title="Let Margin spot meetings in your browser"
-            grantedTitle="Margin can spot browser meetings"
+            title="Let Cilica spot meetings in your browser"
+            grantedTitle="Cilica can spot browser meetings"
             description="Accessibility. Reads window titles to find Meet and Teams."
             grantedDescription="Accessibility is on"
             granted={ok(ax)}
@@ -142,8 +142,8 @@ export function PermissionsStep({ status, skipped, onNext, onReopen }: StepProps
             title="Record when a meeting starts"
             text={
               others > 0
-                ? `Margin notices Zoom, Teams, Meet and ${others} other call apps.`
-                : "Margin notices Zoom, Teams and Meet."
+                ? `Cilica notices Zoom, Teams, Meet and ${others} other call apps.`
+                : "Cilica notices Zoom, Teams and Meet."
             }
           />
           <Switch

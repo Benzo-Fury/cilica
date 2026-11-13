@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use margin_domain::SttEngine;
+use cilica_domain::SttEngine;
 
 use crate::vad::{EnergyVad, SileroVad, Vad};
 use crate::{StreamOptions, SttError, SttResult, Transcriber, TranscriptStream};
@@ -183,7 +183,7 @@ pub(crate) fn scrub(error: SttError, key: &str) -> SttError {
 
 pub(crate) fn http_client(timeout: Duration) -> reqwest::Client {
     reqwest::Client::builder()
-        .user_agent(concat!("Margin/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("Cilica/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(15))
         .timeout(timeout)
         .build()

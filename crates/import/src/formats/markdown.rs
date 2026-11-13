@@ -1,10 +1,10 @@
 //! Markdown documents: YAML frontmatter, Obsidian syntax (wikilinks, embeds, callouts), and
-//! images carried inline so they show in Margin's editor.
+//! images carried inline so they show in Cilica's editor.
 
 use std::sync::LazyLock;
 
 use base64::Engine;
-use margin_domain::Timestamp;
+use cilica_domain::Timestamp;
 use regex::{Captures, Regex};
 use yaml_rust2::{Yaml, YamlLoader};
 
@@ -103,7 +103,7 @@ pub struct Embed {
     pub mime: &'static str,
 }
 
-/// What rewriting found that Margin cannot carry.
+/// What rewriting found that Cilica cannot carry.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Rewrite {
     pub images: u32,
@@ -128,7 +128,7 @@ static MD_IMAGE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"!\[([^\]]*)\]\
 static CALLOUT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^(>\s*)\[!(\w+)\][+-]?\s*(.*)$").unwrap());
 static HIGHLIGHT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"==([^=\n]+)==").unwrap());
 
-/// Rewrite Obsidian and relative-path Markdown for Margin. Wiki links are kept. `resolve` finds an attachment by the
+/// Rewrite Obsidian and relative-path Markdown for Cilica. Wiki links are kept. `resolve` finds an attachment by the
 /// name or relative path written in the note; it returns `None` when the file is missing.
 pub fn rewrite(body: &str, resolve: &mut dyn FnMut(&str) -> Option<Embed>) -> (String, Rewrite) {
     let mut found = Rewrite::default();
@@ -155,7 +155,7 @@ pub fn rewrite(body: &str, resolve: &mut dyn FnMut(&str) -> Option<Embed>) -> (S
             inline(&decoded, Some(&c[1]).filter(|a| !a.is_empty()), resolve, &mut found)
         }
     });
-    // [[Note]] links stay as written: Margin reads the same syntax for links and the graph.
+    // [[Note]] links stay as written: Cilica reads the same syntax for links and the graph.
     // > [!warning] Title → > **Warning: Title**
     let body = CALLOUT.replace_all(&body, |c: &Captures| {
         let kind = capitalise(&c[2]);

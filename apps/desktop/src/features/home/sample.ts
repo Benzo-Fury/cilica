@@ -112,14 +112,14 @@ export const SAMPLE_GLANCE: HomeGlance = {
   bare_note: { note_id: "sample", title: "Big idea", created_at: "2026-10-02T10:00:00Z" },
   mid_sentence: 11,
   spelling: { word: "definitely", wrong: "definately", count: 14 },
-  ghostwriter: { margin_pct: 41, words: 12_400 },
+  ghostwriter: { cilica_pct: 41, words: 12_400 },
   swear_jar: sampleJar(23, 17),
   undos: {
     count: 12,
     latest: {
       note_id: null,
       summary: "Rewrote your intro",
-      margin_text: "This quarter, we will strategically prioritise onboarding synergies.",
+      cilica_text: "This quarter, we will strategically prioritise onboarding synergies.",
       your_text: "We're fixing onboarding first.",
     },
   },

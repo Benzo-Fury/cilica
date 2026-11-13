@@ -90,12 +90,12 @@ impl LinkStream {
         let (tx, rx) = mpsc::channel();
         let emitter = Emitter { tx: tx.clone() };
         let thread = std::thread::Builder::new()
-            .name(format!("margin-stt-{name}"))
+            .name(format!("cilica-stt-{name}"))
             .spawn(move || {
                 let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
                     Ok(r) => r,
                     Err(e) => {
-                        let _ = tx.send(Msg::Failed(SttError::Provider(format!("Margin could not start transcription: {e}"))));
+                        let _ = tx.send(Msg::Failed(SttError::Provider(format!("Cilica could not start transcription: {e}"))));
                         let _ = tx.send(Msg::Done);
                         return;
                     }
@@ -117,7 +117,7 @@ impl LinkStream {
                 }
                 let _ = tx.send(Msg::Done);
             })
-            .map_err(|e| SttError::Provider(format!("Margin could not start transcription: {e}")))?;
+            .map_err(|e| SttError::Provider(format!("Cilica could not start transcription: {e}")))?;
         Ok(Self { audio, rx, start: None, next: 0, failure: None, failed: false, done: false, thread: Some(thread) })
     }
 

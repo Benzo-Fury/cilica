@@ -1,5 +1,5 @@
 /**
- * Settings › Margin: which model provider answers, its API key (stored in the keychain, never shown
+ * Settings › Cilica: which model provider answers, its API key (stored in the keychain, never shown
  * again), base URL and models, whether edits apply without asking, and the experimental Claude
  * Code bridge behind an opt-in with the policy warning (spec › AI providers and auth).
  */
@@ -28,7 +28,7 @@ import { useSettings, useUpdateSettings } from "../hooks";
 import { useClaudeCode, useProviderKey } from "../system";
 import { LocalModelsGroup } from "./LocalModels";
 
-/** Settings › Margin › Delete conversations after. 0 keeps them. */
+/** Settings › Cilica › Delete conversations after. 0 keeps them. */
 const CONVERSATION_RETENTION = [
   { value: "1", label: "1 day" },
   { value: "7", label: "7 days" },
@@ -60,7 +60,7 @@ const URL_HINT: Partial<Record<ProviderKind, string>> = {
   ollama: "http://localhost:11434",
 };
 
-export function MarginPage() {
+export function CilicaPage() {
   const { data: settings } = useSettings();
   const { patch } = useUpdateSettings();
   const { data: status, isFetching, error: statusError } = useProviderStatus();
@@ -110,7 +110,7 @@ export function MarginPage() {
           }
           description={
             statusError
-              ? "Margin could not check this provider. Try again in a moment."
+              ? "Cilica could not check this provider. Try again in a moment."
               : status && !status.ready
                 ? status.problem
                 : undefined
@@ -122,7 +122,7 @@ export function MarginPage() {
         {NEEDS_URL.has(ai.provider) && (ai.provider !== "ollama" || ai.base_url) && (
           <TextSetting
             label="Base URL"
-            description="Where Margin sends requests for this provider."
+            description="Where Cilica sends requests for this provider."
             value={ai.base_url ?? ""}
             placeholder={URL_HINT[ai.provider] ?? ""}
             onSave={(v) => patch("ai", { base_url: v.trim() || null })}
@@ -160,7 +160,7 @@ export function MarginPage() {
         <SettingsRow
           id="auto-apply"
           label="Apply edits without asking"
-          description="Margin's edits to a note apply at once instead of waiting for your review on a diff card."
+          description="Cilica's edits to a note apply at once instead of waiting for your review on a diff card."
           control={
             <Switch
               aria-labelledby="auto-apply"
@@ -173,7 +173,7 @@ export function MarginPage() {
       <SettingsGroup title="Conversations">
         <SettingsRow
           label="Delete conversations after"
-          description="Counted from the last message. Changes Margin made to your notes stay, and stay in Margin activity."
+          description="Counted from the last message. Changes Cilica made to your notes stay, and stay in Cilica activity."
           control={
             <SelectMenu<RetentionValue>
               label="Delete conversations after"
@@ -245,7 +245,7 @@ function ClaudeCodeRow({ onTurnOff }: { onTurnOff: () => void }) {
             ? "Claude Code is not installed. Install it and sign in, then check again."
             : !cc.signed_in
               ? `Found claude ${cc.version ?? ""}, but it is not signed in. Run claude in a terminal and sign in.`
-              : `Found claude ${cc.version ?? ""}, signed in. Margin never reads or stores its credentials.`
+              : `Found claude ${cc.version ?? ""}, signed in. Cilica never reads or stores its credentials.`
       }
       control={
         <span className="nt-key-control">
@@ -280,12 +280,12 @@ function ClaudeCodeDialog({
   return (
     <DialogRoot open={open} onOpenChange={onOpenChange}>
       <DialogSurface className="nt-dialog-wide">
-        <DialogTitle>Use Claude Code for Margin?</DialogTitle>
+        <DialogTitle>Use Claude Code for Cilica?</DialogTitle>
         <DialogDescription asChild>
           <div className="nt-confirm-body">
             <p>
-              Margin will run your installed <code>claude</code> command to answer, limited to
-              Margin's own tools: no shell and no file edits. Margin never reads or stores your
+              Cilica will run your installed <code>claude</code> command to answer, limited to
+              Cilica's own tools: no shell and no file edits. Cilica never reads or stores your
               Claude credentials.
             </p>
             <p className="nt-policy">
@@ -293,7 +293,7 @@ function ClaudeCodeDialog({
               <span>
                 Anthropic's consumer terms say Free, Pro and Max subscriptions may only be used in
                 Claude Code and claude.ai, and subscription access was cut off for third-party tools
-                in April 2026. Running it from Margin may breach those terms and put your account at
+                in April 2026. Running it from Cilica may breach those terms and put your account at
                 risk. Check Anthropic's current terms first. An API key is the supported way.
               </span>
             </p>

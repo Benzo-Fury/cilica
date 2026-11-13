@@ -490,15 +490,15 @@ export function makeExcerpt(text: string, terms: string[]): string {
 
 /** The welcome note the shell writes when setup finishes (crates/store/src/welcome.rs). */
 const WELCOME_BODY = [
-  "Margin is a notes app with an AI assistant and a meeting summariser. This note covers the basics. Delete it whenever you like.",
+  "Cilica is a notes app with an AI assistant and a meeting summariser. This note covers the basics. Delete it whenever you like.",
   "## Write",
   "Notes are plain Markdown. Type `#` for a heading, `-` for a list and `[[` to link to another note. Shortcuts can be changed in Settings › Keybinds.",
-  "## Ask Margin",
+  "## Ask Cilica",
   "Press **⌘J** to open the assistant. Ask it to sort notes into categories, summarise a meeting or tidy up this note. Every change can be undone.",
   "## Record a meeting",
-  "Press **⌘⇧R** from anywhere, or click Record in the sidebar. Margin hears your microphone and the call, transcribes it on this computer, and writes a summary with decisions and action items when you stop.",
+  "Press **⌘⇧R** from anywhere, or click Record in the sidebar. Cilica hears your microphone and the call, transcribes it on this computer, and writes a summary with decisions and action items when you stop.",
   "## Find anything",
-  "Press **⌘K** to search every note and transcript, or to ask Margin a question about them.",
+  "Press **⌘K** to search every note and transcript, or to ask Cilica a question about them.",
 ].join("\n\n");
 
 export function settingsCommands({ state, emit }: MockContext) {
@@ -523,10 +523,10 @@ export function settingsCommands({ state, emit }: MockContext) {
         has_window_material: false,
         data_dir:
           os === "macos"
-            ? "/Users/you/Library/Application Support/app.margin.desktop"
+            ? "/Users/you/Library/Application Support/app.cilica.desktop"
             : os === "windows"
-              ? "C:\\Users\\you\\AppData\\Roaming\\app.margin.desktop"
-              : "/home/you/.local/share/app.margin.desktop",
+              ? "C:\\Users\\you\\AppData\\Roaming\\app.cilica.desktop"
+              : "/home/you/.local/share/app.cilica.desktop",
       };
     },
 
@@ -546,9 +546,9 @@ export function settingsCommands({ state, emit }: MockContext) {
       const now = iso();
       const note: Note = {
         id: newId("note"),
-        title: "Welcome to Margin",
+        title: "Welcome to Cilica",
         body_md: WELCOME_BODY,
-        snippet: "Margin is a notes app with an AI assistant and a meeting summariser.",
+        snippet: "Cilica is a notes app with an AI assistant and a meeting summariser.",
         category_id: null,
         kind: "manual",
         meeting_app: null,

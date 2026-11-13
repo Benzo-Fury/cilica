@@ -1,5 +1,5 @@
 /**
- * Version history: every snapshot with its author (You or Margin), a prose diff of what changed
+ * Version history: every snapshot with its author (You or Cilica), a prose diff of what changed
  * since that version, and one-click restore (undoable).
  */
 
@@ -88,7 +88,7 @@ export function HistoryView({
         title="No earlier versions yet"
         tip={<ShortcutTip action="note.history">Open history from any note</ShortcutTip>}
       >
-        Margin keeps a version before every change it makes and every few minutes while you write.
+        Cilica keeps a version before every change it makes and every few minutes while you write.
       </EmptyState>
     );
   }
@@ -115,7 +115,7 @@ export function HistoryView({
               heading={
                 <span className="nt-version-title">
                   <Icon icon={version.author === "ai" ? Sparkles : UserRound} size="sm" />
-                  {version.author === "ai" ? "Margin" : "You"}
+                  {version.author === "ai" ? "Cilica" : "You"}
                 </span>
               }
               meta={`${dayAndTime(version.created_at)} · ${relativeDate(version.created_at)}`}
@@ -140,7 +140,7 @@ export function HistoryView({
                 head={
                   <>
                     <Icon icon={History} size="sm" />
-                    <strong>{selected.author === "ai" ? "Margin" : "You"}</strong>
+                    <strong>{selected.author === "ai" ? "Cilica" : "You"}</strong>
                     <span>{dayAndTime(selected.created_at)}</span>
                     <span className="nt-diff-legend">
                       {unchanged ? "Same as now" : `${added} added · ${removed} removed since`}

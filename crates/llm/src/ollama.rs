@@ -9,14 +9,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::StreamExt;
-use margin_domain::{AppError, AppEvent, AppResult, Events, LocalLlmModel, ModelDownloadProgress};
+use cilica_domain::{AppError, AppEvent, AppResult, Events, LocalLlmModel, ModelDownloadProgress};
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 
 /// The Ollama server root when settings give none.
 pub const OLLAMA_ROOT: &str = "http://localhost:11434";
 
-/// Models Margin offers. All support tool calling, which the assistant needs.
+/// Models Cilica offers. All support tool calling, which the assistant needs.
 const CATALOG: &[(&str, &str, &str, u32, u32, bool)] = &[
     ("qwen3:4b", "Qwen3 4B", "Fast and light. Fine for titles and short summaries.", 2600, 8, false),
     ("qwen3:8b", "Qwen3 8B", "The best balance for most Macs.", 5200, 16, true),
@@ -44,7 +44,7 @@ pub fn root_url(base_url: Option<&str>) -> String {
     base.strip_suffix("/v1").unwrap_or(base).to_string()
 }
 
-/// Ollama on this machine, which Margin may install and start.
+/// Ollama on this machine, which Cilica may install and start.
 pub fn is_local_root(root: &str) -> bool {
     let u = root.to_lowercase();
     u.contains("localhost") || u.contains("127.0.0.1") || u.contains("[::1]")
@@ -132,7 +132,7 @@ impl OllamaManager {
                 out.push(LocalLlmModel {
                     id: tag.clone(),
                     name: tag,
-                    description: "Already in Ollama. It may not support Margin's tools.".into(),
+                    description: "Already in Ollama. It may not support Cilica's tools.".into(),
                     size_mb: 0,
                     min_ram_gb: 0,
                     recommended: false,
@@ -203,7 +203,7 @@ impl OllamaManager {
             .json(&serde_json::json!({ "model": model, "stream": true }))
             .send()
             .await
-            .map_err(|_| "Margin could not reach Ollama.".to_string())?;
+            .map_err(|_| "Cilica could not reach Ollama.".to_string())?;
         if !resp.status().is_success() {
             return Err(format!("Ollama refused the download ({}).", resp.status().as_u16()));
         }
@@ -241,12 +241,12 @@ impl OllamaManager {
             return Err(fail("Ollama did not download."));
         }
         let total = resp.content_length().unwrap_or(0) as f64;
-        let mut file = tokio::fs::File::create(dest).await.map_err(|_| fail("Margin could not save Ollama."))?;
+        let mut file = tokio::fs::File::create(dest).await.map_err(|_| fail("Cilica could not save Ollama."))?;
         let (mut done, mut last) = (0.0, 0.0);
         let mut stream = resp.bytes_stream();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|_| fail("The download of Ollama dropped."))?;
-            tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await.map_err(|_| fail("Margin could not save Ollama."))?;
+            tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await.map_err(|_| fail("Cilica could not save Ollama."))?;
             done += chunk.len() as f64;
             if done - last > 1_000_000.0 {
                 last = done;
@@ -275,7 +275,7 @@ impl OllamaManager {
 }
 
 fn unreachable_err() -> AppError {
-    AppError::unavailable("Margin could not reach Ollama. Set it up in Settings › Margin, then try again.")
+    AppError::unavailable("Cilica could not reach Ollama. Set it up in Settings › Cilica, then try again.")
 }
 
 #[cfg(test)]

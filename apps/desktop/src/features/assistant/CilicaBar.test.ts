@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openSize } from "./MarginBar";
+import { openSize } from "./CilicaBar";
 
 describe("openSize", () => {
   it("hugs its content", () => {

@@ -78,7 +78,7 @@ function BulkMenuItems({ categories }: { categories: readonly Category[] }) {
         ))}
       </ContextMenuSub>
       <ContextMenuItem icon={Sparkles} onSelect={bulk.ask}>
-        Ask Margin about {n}
+        Ask Cilica about {n}
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem

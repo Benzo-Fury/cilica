@@ -22,7 +22,7 @@ export interface Placement {
 
 /**
  * Centre the bar over the selection, `gap` px above it; flip below when there is no room above,
- * and keep it `margin` px inside the viewport.
+ * and keep it `cilica` px inside the viewport.
  */
 export function placeToolbar(
   selection: Box,

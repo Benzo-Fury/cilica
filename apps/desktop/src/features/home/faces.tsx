@@ -283,29 +283,29 @@ function SpellingFace({ fix }: { fix: Data<"spelling"> }) {
 }
 
 function GhostwriterFace({ g }: { g: Data<"ghostwriter"> }) {
-  const you = 100 - g.margin_pct;
+  const you = 100 - g.cilica_pct;
   return (
     <div className="nt-glance">
       <SplitBar
         quiet={{ label: `You ${you}%`, pct: you }}
-        loud={{ label: `Margin ${g.margin_pct}%`, pct: g.margin_pct }}
+        loud={{ label: `Cilica ${g.cilica_pct}%`, pct: g.cilica_pct }}
       />
       <p className="nt-glance-line">
-        Margin wrote <b className="nt-glance-hot">{g.margin_pct}%</b> of your notes
+        Cilica wrote <b className="nt-glance-hot">{g.cilica_pct}%</b> of your notes
       </p>
-      <span className="nt-glance-caption">{ghostwriterQuip(g.margin_pct)}</span>
+      <span className="nt-glance-caption">{ghostwriterQuip(g.cilica_pct)}</span>
     </div>
   );
 }
 
-/** A dig that fits how much of the writing Margin did. */
+/** A dig that fits how much of the writing Cilica did. */
 function ghostwriterQuip(pct: number): string {
   if (pct >= 90) return "At this point you're more of a prompt.";
-  if (pct >= 75) return "You hold the pen. Margin moves your hand.";
+  if (pct >= 75) return "You hold the pen. Cilica moves your hand.";
   if (pct >= 60) return "Bold of you to keep your name on these.";
-  if (pct >= 40) return "You bring the ideas. Margin brings the full stops.";
-  if (pct >= 25) return "Margin mostly fixes the bits you were sure about.";
-  if (pct >= 10) return "You barely let Margin help. It's taking it personally.";
+  if (pct >= 40) return "You bring the ideas. Cilica brings the full stops.";
+  if (pct >= 25) return "Cilica mostly fixes the bits you were sure about.";
+  if (pct >= 10) return "You barely let Cilica help. It's taking it personally.";
   return "Writing it all yourself. Very artisanal. Very slow.";
 }
 
@@ -314,10 +314,10 @@ function UndosFace({ u }: { u: Data<"undos"> }) {
   return (
     <div className="nt-glance">
       {latest && (
-        <UndoneCard summary={latest.summary} struck={latest.margin_text} kept={latest.your_text} />
+        <UndoneCard summary={latest.summary} struck={latest.cilica_text} kept={latest.your_text} />
       )}
       <p className="nt-glance-line">
-        You undid Margin's edits <b className="nt-glance-hot">{u.count} times</b> this week
+        You undid Cilica's edits <b className="nt-glance-hot">{u.count} times</b> this week
       </p>
       <span className="nt-glance-caption">
         That's {numberWord(u.count)} polite ways of saying piss off.

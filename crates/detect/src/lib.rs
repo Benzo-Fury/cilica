@@ -3,7 +3,7 @@
 //! A background thread polls, once a second, which processes are capturing audio
 //! ([`mic_users`], per OS), maps them to display names ([`apps::identify`]), keeps those on the
 //! allow-list, and debounces ([`Debouncer`]): an app must hold the mic for 5 s before
-//! `MeetingDetected`, and release it for 15 s before `MeetingEnded`. Margin itself is never
+//! `MeetingDetected`, and release it for 15 s before `MeetingEnded`. Cilica itself is never
 //! reported. Browsers count only when a meeting window title can be read (macOS, with the
 //! optional Accessibility permission).
 
@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 
 pub use apps::{Identified, identify, matches_allow_list};
 pub use debounce::{DebounceConfig, Debouncer};
-use margin_domain::MeetingDetected;
+use cilica_domain::MeetingDetected;
 
 /// A process that is capturing audio right now.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,7 +58,7 @@ pub fn mic_users(read_window_titles: bool) -> Vec<MicUser> {
         Vec::new()
     };
     let me = std::process::id();
-    users.into_iter().filter(|u| u.pid != me && !apps::is_margin(&u.id)).collect()
+    users.into_iter().filter(|u| u.pid != me && !apps::is_cilica(&u.id)).collect()
 }
 
 /// Whether window titles may be read (macOS Accessibility granted). Never prompts.
@@ -106,7 +106,7 @@ impl MeetingDetector {
         let (wake, wake_rx) = mpsc::channel::<()>();
         let (t_stop, t_allow) = (stop.clone(), allow.clone());
         let handle = std::thread::Builder::new()
-            .name("margin-detect".into())
+            .name("cilica-detect".into())
             .spawn(move || {
                 let mut deb = Debouncer::new(cfg);
                 while !t_stop.load(Ordering::SeqCst) {

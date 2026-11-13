@@ -24,7 +24,7 @@ import { useSettings, useUpdateSettings } from "../hooks";
 const GROUPS: KeybindGroup[] = ["General", "Notes", "View", "Recording", "Editing"];
 
 const SCOPE_HINT: Partial<Record<ActionDef["scope"], string>> = {
-  global: "Works even when Margin is in the background.",
+  global: "Works even when Cilica is in the background.",
   note: "While a note is open.",
   editor: "While typing in a note.",
 };

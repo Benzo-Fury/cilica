@@ -10,7 +10,7 @@ use crate::{Id, Timestamp};
 pub struct HomeGlance {
     /// Your most repeated filler phrase this week, with the favourites of a couple of others.
     pub tics: Option<VerbalTics>,
-    /// Lines Margin lifted from recent meetings, newest meeting first.
+    /// Lines Cilica lifted from recent meetings, newest meeting first.
     pub quotes: Vec<Overheard>,
     /// Who did the talking, across the week's meetings.
     pub talk: Option<TalkShare>,
@@ -36,9 +36,9 @@ pub struct HomeGlance {
     pub mid_sentence: Option<u32>,
     /// The word spellcheck fixed for you most often across saved versions.
     pub spelling: Option<SpellFix>,
-    /// How much of the text in your written notes Margin wrote.
+    /// How much of the text in your written notes Cilica wrote.
     pub ghostwriter: Option<Ghostwriter>,
-    /// Margin edits you undid this week.
+    /// Cilica edits you undid this week.
     pub undos: Option<Undos>,
     /// The swear jar. None when it is switched off.
     pub swear_jar: Option<crate::SwearJar>,
@@ -128,8 +128,8 @@ pub struct SpellFix {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct Ghostwriter {
     /// 0..=100.
-    pub margin_pct: u8,
-    /// Words added across the notes counted, by you and Margin together.
+    pub cilica_pct: u8,
+    /// Words added across the notes counted, by you and Cilica together.
     pub words: u32,
 }
 
@@ -143,10 +143,10 @@ pub struct Undos {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UndoneEdit {
     pub note_id: Option<Id>,
-    /// What Margin said it did: "Rewrote the intro".
+    /// What Cilica said it did: "Rewrote the intro".
     pub summary: String,
-    /// A line Margin wrote that the undo removed.
-    pub margin_text: Option<String>,
+    /// A line Cilica wrote that the undo removed.
+    pub cilica_text: Option<String>,
     /// A line of yours the undo brought back.
     pub your_text: Option<String>,
 }

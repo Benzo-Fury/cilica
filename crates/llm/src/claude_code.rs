@@ -1,13 +1,13 @@
 //! Experimental bridge to the user's installed `claude` CLI (opt-in, behind the settings switch).
 //!
-//! Margin never reads or stores Claude credentials: it only runs the CLI, which uses its own sign-in.
+//! Cilica never reads or stores Claude credentials: it only runs the CLI, which uses its own sign-in.
 //! A turn runs `claude -p --output-format stream-json` with:
 //! - `--tools ""` (no built-in tools at all: no Bash, no file edits, no web),
-//! - `--strict-mcp-config --mcp-config <json>` pointing at Margin's own MCP server (`margin-desktop --mcp`),
-//! - `--allowedTools mcp__margin__<tool> …` so only Margin's tools run, and nothing prompts,
+//! - `--strict-mcp-config --mcp-config <json>` pointing at Cilica's own MCP server (`cilica-desktop --mcp`),
+//! - `--allowedTools mcp__cilica__<tool> …` so only Cilica's tools run, and nothing prompts,
 //! - `--resume <session>` to continue a thread.
 //!
-//! The CLI runs its own tool loop and calls Margin's MCP server, which applies the same tiers and
+//! The CLI runs its own tool loop and calls Cilica's MCP server, which applies the same tiers and
 //! guardrails as the in-app agent. This module parses the stream-json output into [`BridgeEvent`]s.
 
 use std::path::{Path, PathBuf};
@@ -15,7 +15,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 
 use futures::Stream;
-use margin_domain::ClaudeCodeStatus;
+use cilica_domain::ClaudeCodeStatus;
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -23,8 +23,8 @@ use tokio::sync::mpsc;
 
 use crate::{CancellationToken, ChatRequest, LlmError, Usage};
 
-/// The MCP server name Margin registers; tools appear to the CLI as `mcp__margin__<tool>`.
-pub const MCP_SERVER_NAME: &str = "margin";
+/// The MCP server name Cilica registers; tools appear to the CLI as `mcp__cilica__<tool>`.
+pub const MCP_SERVER_NAME: &str = "cilica";
 
 /// Find `claude`: PATH first, then the usual install locations (GUI apps get a short PATH).
 pub fn find_binary() -> Option<PathBuf> {
@@ -81,17 +81,17 @@ pub fn parse_auth_status(exit_ok: bool, out: &str) -> bool {
 pub struct ClaudeCodeRequest {
     pub binary: PathBuf,
     pub prompt: String,
-    /// Appended to Claude Code's system prompt (Margin's voice and data rules).
+    /// Appended to Claude Code's system prompt (Cilica's voice and data rules).
     pub system_append: String,
     /// Claude Code session to continue (`threads.external_id`).
     pub resume: Option<String>,
     pub model: Option<String>,
-    /// The MCP server command: Margin's own binary with `--mcp …`.
+    /// The MCP server command: Cilica's own binary with `--mcp …`.
     pub mcp_command: PathBuf,
     pub mcp_args: Vec<String>,
-    /// Tool names (without the `mcp__margin__` prefix) the CLI may call.
+    /// Tool names (without the `mcp__cilica__` prefix) the CLI may call.
     pub tool_names: Vec<String>,
-    /// Working directory for the CLI (an empty folder in Margin's data dir).
+    /// Working directory for the CLI (an empty folder in Cilica's data dir).
     pub cwd: PathBuf,
 }
 
@@ -123,7 +123,7 @@ pub fn build_args(req: &ClaudeCodeRequest) -> Vec<String> {
         allowed.join(","),
         "--disallowedTools".into(),
         "Bash,Edit,Write,MultiEdit,NotebookEdit,Read,Glob,Grep,WebFetch,WebSearch,Task".into(),
-        // Anything that would prompt is denied; Margin's guardrails decide the rest.
+        // Anything that would prompt is denied; Cilica's guardrails decide the rest.
         "--permission-prompts".into(),
         "none".into(),
         "--append-system-prompt".into(),
@@ -263,7 +263,7 @@ async fn run_inner(
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|_| LlmError::Unavailable("Margin could not start Claude Code. Check that it is installed and try again.".into()))?;
+        .map_err(|_| LlmError::Unavailable("Cilica could not start Claude Code. Check that it is installed and try again.".into()))?;
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(req.prompt.as_bytes()).await;
         drop(stdin);
@@ -372,7 +372,7 @@ impl crate::Provider for ClaudeCodeTextProvider {
                     .stderr(Stdio::null())
                     .kill_on_drop(true)
                     .spawn()
-                    .map_err(|_| LlmError::Unavailable("Margin could not start Claude Code. Check that it is installed and try again.".into()))?;
+                    .map_err(|_| LlmError::Unavailable("Cilica could not start Claude Code. Check that it is installed and try again.".into()))?;
                 if let Some(mut stdin) = child.stdin.take() {
                     let _ = stdin.write_all(prompt.as_bytes()).await;
                 }
@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(events[0], BridgeEvent::Session { id: "5f0c2c1e-1111-4a5b-9a1b-000000000001".into() });
         let text: String = events.iter().filter_map(|e| if let BridgeEvent::TextDelta(t) = e { Some(t.as_str()) } else { None }).collect();
         assert_eq!(text, "Let me search. Found 2 notes about Acme.");
-        assert!(events.iter().any(|e| matches!(e, BridgeEvent::ToolUse { name, .. } if name == "mcp__margin__search_notes")));
+        assert!(events.iter().any(|e| matches!(e, BridgeEvent::ToolUse { name, .. } if name == "mcp__cilica__search_notes")));
         assert!(events.iter().any(|e| matches!(e, BridgeEvent::ToolResult { is_error: false, content, .. } if content.contains("Acme kickoff"))));
         let BridgeEvent::Done { session_id, usage, is_error, .. } = events.last().unwrap() else { panic!() };
         assert_eq!(session_id.as_deref(), Some("5f0c2c1e-1111-4a5b-9a1b-000000000001"));
@@ -451,10 +451,10 @@ mod tests {
         let req = ClaudeCodeRequest {
             binary: "claude".into(),
             prompt: "hi".into(),
-            system_append: "Be Margin.".into(),
+            system_append: "Be Cilica.".into(),
             resume: Some("sess-1".into()),
             model: Some("claude-sonnet-5-5".into()),
-            mcp_command: "/Applications/Margin.app/Contents/MacOS/margin-desktop".into(),
+            mcp_command: "/Applications/Cilica.app/Contents/MacOS/cilica-desktop".into(),
             mcp_args: vec!["--mcp".into()],
             tool_names: vec!["search_notes".into(), "trash_note".into()],
             cwd: "/tmp".into(),
@@ -462,11 +462,11 @@ mod tests {
         let args = build_args(&req);
         let pos = |flag: &str| args.iter().position(|a| a == flag).unwrap();
         assert_eq!(args[pos("--tools") + 1], "");
-        assert_eq!(args[pos("--allowedTools") + 1], "mcp__margin__search_notes,mcp__margin__trash_note");
+        assert_eq!(args[pos("--allowedTools") + 1], "mcp__cilica__search_notes,mcp__cilica__trash_note");
         assert!(args[pos("--disallowedTools") + 1].contains("Bash"));
         assert_eq!(args[pos("--resume") + 1], "sess-1");
         let mcp: Value = serde_json::from_str(&args[pos("--mcp-config") + 1]).unwrap();
-        assert_eq!(mcp["mcpServers"]["margin"]["args"][0], "--mcp");
+        assert_eq!(mcp["mcpServers"]["cilica"]["args"][0], "--mcp");
         assert!(args.contains(&"--strict-mcp-config".to_string()));
     }
 

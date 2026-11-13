@@ -42,7 +42,7 @@ export function tasksCommands({ state, emit }: MockContext) {
 
   const validate = (draft: TaskDraft) => {
     if (!draft.name.trim()) throw appError("invalid", "Give the task a name.");
-    if (!draft.prompt.trim()) throw appError("invalid", "Tell Margin what the task should do.");
+    if (!draft.prompt.trim()) throw appError("invalid", "Tell Cilica what the task should do.");
     if (draft.scope.type === "category" && !state.categories.has(draft.scope.category_id)) {
       throw appError("not_found", "That category no longer exists. Pick another scope.");
     }
@@ -114,7 +114,7 @@ export function tasksCommands({ state, emit }: MockContext) {
       if (state.recording.phase !== "idle") {
         throw appError(
           "unavailable",
-          "Scheduled tasks don't run while Margin is recording. Try again after the meeting.",
+          "Scheduled tasks don't run while Cilica is recording. Try again after the meeting.",
         );
       }
       const run: TaskRun = {

@@ -3032,15 +3032,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
-name = "margin-agent"
+name = "cilica-agent"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
  "futures",
- "margin-domain",
- "margin-llm",
- "margin-store",
+ "cilica-domain",
+ "cilica-llm",
+ "cilica-store",
  "serde",
  "serde_json",
  "similar",
@@ -3052,7 +3052,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-audio"
+name = "cilica-audio"
 version = "0.3.0"
 dependencies = [
  "aec3",
@@ -3060,7 +3060,7 @@ dependencies = [
  "cpal",
  "crossbeam-channel",
  "hound",
- "margin-domain",
+ "cilica-domain",
  "ogg",
  "opus",
  "pipewire",
@@ -3074,25 +3074,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-desktop"
+name = "cilica-desktop"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
  "futures",
  "keyring",
- "margin-agent",
- "margin-audio",
- "margin-detect",
- "margin-diarize",
- "margin-domain",
- "margin-import",
- "margin-llm",
- "margin-mcp",
- "margin-pipeline",
- "margin-scheduler",
- "margin-store",
- "margin-stt",
+ "cilica-agent",
+ "cilica-audio",
+ "cilica-detect",
+ "cilica-diarize",
+ "cilica-domain",
+ "cilica-import",
+ "cilica-llm",
+ "cilica-mcp",
+ "cilica-pipeline",
+ "cilica-scheduler",
+ "cilica-store",
+ "cilica-stt",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -3124,11 +3124,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-detect"
+name = "cilica-detect"
 version = "0.3.0"
 dependencies = [
  "cidre",
- "margin-domain",
+ "cilica-domain",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -3137,12 +3137,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-diarize"
+name = "cilica-diarize"
 version = "0.3.0"
 dependencies = [
  "hound",
- "margin-domain",
- "margin-onnx",
+ "cilica-domain",
+ "cilica-onnx",
  "ndarray",
  "ort",
  "rustfft",
@@ -3152,7 +3152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-domain"
+name = "cilica-domain"
 version = "0.3.0"
 dependencies = [
  "async-trait",
@@ -3165,7 +3165,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-import"
+name = "cilica-import"
 version = "0.3.0"
 dependencies = [
  "async-trait",
@@ -3173,8 +3173,8 @@ dependencies = [
  "csv",
  "futures",
  "htmd",
- "margin-domain",
- "margin-store",
+ "cilica-domain",
+ "cilica-store",
  "md-5",
  "quick-xml",
  "regex",
@@ -3191,14 +3191,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-llm"
+name = "cilica-llm"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "bytes",
  "eventsource-stream",
  "futures",
- "margin-domain",
+ "cilica-domain",
  "reqwest",
  "serde",
  "serde_json",
@@ -3209,12 +3209,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-mcp"
+name = "cilica-mcp"
 version = "0.3.0"
 dependencies = [
- "margin-agent",
- "margin-domain",
- "margin-store",
+ "cilica-agent",
+ "cilica-domain",
+ "cilica-store",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -3223,14 +3223,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-onnx"
+name = "cilica-onnx"
 version = "0.3.0"
 dependencies = [
  "ort",
 ]
 
 [[package]]
-name = "margin-pipeline"
+name = "cilica-pipeline"
 version = "0.3.0"
 dependencies = [
  "async-trait",
@@ -3238,12 +3238,12 @@ dependencies = [
  "crossbeam-channel",
  "futures",
  "hound",
- "margin-audio",
- "margin-detect",
- "margin-diarize",
- "margin-domain",
- "margin-store",
- "margin-stt",
+ "cilica-audio",
+ "cilica-detect",
+ "cilica-diarize",
+ "cilica-domain",
+ "cilica-store",
+ "cilica-stt",
  "serde",
  "serde_json",
  "tempfile",
@@ -3254,17 +3254,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-scheduler"
+name = "cilica-scheduler"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
  "chrono-tz",
  "futures",
- "margin-agent",
- "margin-domain",
- "margin-llm",
- "margin-store",
+ "cilica-agent",
+ "cilica-domain",
+ "cilica-llm",
+ "cilica-store",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -3274,11 +3274,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-store"
+name = "cilica-store"
 version = "0.3.0"
 dependencies = [
  "chrono",
- "margin-domain",
+ "cilica-domain",
  "serde",
  "serde_json",
  "similar",
@@ -3290,15 +3290,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "margin-stt"
+name = "cilica-stt"
 version = "0.3.0"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
  "futures",
  "hound",
- "margin-domain",
- "margin-onnx",
+ "cilica-domain",
+ "cilica-onnx",
  "ort",
  "rcgen",
  "reqwest",

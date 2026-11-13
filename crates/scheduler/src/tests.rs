@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::Duration as ChronoDuration;
-use margin_agent::{Agent, FakeNotes, StaticProviders};
-use margin_domain::{AppEvent, ErrorCode, ProposalKind, RecordingSink, TaskRunStatus, ToastAction, ToastKind, now};
-use margin_llm::mock::{MockProvider, MockResponse};
+use cilica_agent::{Agent, FakeNotes, StaticProviders};
+use cilica_domain::{AppEvent, ErrorCode, ProposalKind, RecordingSink, TaskRunStatus, ToastAction, ToastKind, now};
+use cilica_llm::mock::{MockProvider, MockResponse};
 use serde_json::json;
 
 use super::*;
@@ -166,7 +166,7 @@ async fn failures_are_reported_with_an_error_toast() {
     let e = env().await;
     e.scheduler.init().await.unwrap();
     e.make_due().await;
-    e.mock.push(MockResponse::Error(margin_llm::LlmError::Overloaded { provider: "Anthropic".into() }));
+    e.mock.push(MockResponse::Error(cilica_llm::LlmError::Overloaded { provider: "Anthropic".into() }));
     let run = e.scheduler.tick().await.unwrap().unwrap();
     assert_eq!(run.status, TaskRunStatus::Failed);
     assert_eq!(run.error.as_deref(), Some("Anthropic is overloaded right now. Try again in a minute."));

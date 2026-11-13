@@ -1,6 +1,6 @@
 /**
  * Generate apps/desktop/src-tauri/dmg/background.tiff, the picture behind the macOS disk image
- * window ("Drag Margin into Applications"). It is the setup window's pixel ridgeline in the dark
+ * window ("Drag Cilica into Applications"). It is the setup window's pixel ridgeline in the dark
  * theme, painted by the app's own SceneArt, with the title and arrow set over it by headless
  * Chrome. A 1x and a 2x render are joined into one TIFF so Retina screens get the sharp one.
  *
@@ -90,7 +90,7 @@ class DarkTheme {
 /** Paints the art, sets the type over it and writes the two-resolution TIFF. */
 class DmgBackground {
   /** Scratch folder for the art, the page and the renders; removed when done. */
-  private readonly work = mkdtempSync(join(tmpdir(), "margin-dmg-"));
+  private readonly work = mkdtempSync(join(tmpdir(), "cilica-dmg-"));
 
   constructor(private readonly theme: DarkTheme) {}
 
@@ -180,7 +180,7 @@ svg { position: absolute; left: 270px; top: 136px; color: ${hex(this.theme.ink3)
   background: ${hex(this.theme.ink)}; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
 </style>
 <img src="data:image/png;base64,${art.toString("base64")}" alt="">
-<h1>Drag <em>Margin</em> into Applications</h1>
+<h1>Drag <em>Cilica</em> into Applications</h1>
 ${plates}
 <svg width="120" height="40" viewBox="0 0 120 40" fill="none">
   <path d="M4 26 C 34 8, 80 8, 112 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-dasharray="1 7"/>

@@ -1,7 +1,7 @@
 [package]
-name = "margin-desktop"
+name = "cilica-desktop"
 version.workspace = true
-description = "Margin: a local notes app with an AI assistant and a meeting summariser"
+description = "Cilica: a local notes app with an AI assistant and a meeting summariser"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -12,7 +12,7 @@ publish.workspace = true
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "margin_desktop_lib"
+name = "cilica_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -42,20 +42,20 @@ tauri-plugin-autostart = "2.7.0"
 tauri-plugin-dialog = "2.8.4"
 tauri-plugin-os = "2.4.0"
 tauri-plugin-process = "2.4.0"
-margin-domain = { path = "../../../crates/domain" }
-margin-store = { path = "../../../crates/store" }
-margin-audio = { path = "../../../crates/audio" }
-margin-detect = { path = "../../../crates/detect" }
-margin-stt = { path = "../../../crates/stt" }
-margin-diarize = { path = "../../../crates/diarize" }
-margin-llm = { path = "../../../crates/llm" }
-margin-agent = { path = "../../../crates/agent" }
-margin-scheduler = { path = "../../../crates/scheduler" }
-margin-mcp = { path = "../../../crates/mcp" }
-margin-pipeline = { path = "../../../crates/pipeline" }
+cilica-domain = { path = "../../../crates/domain" }
+cilica-store = { path = "../../../crates/store" }
+cilica-audio = { path = "../../../crates/audio" }
+cilica-detect = { path = "../../../crates/detect" }
+cilica-stt = { path = "../../../crates/stt" }
+cilica-diarize = { path = "../../../crates/diarize" }
+cilica-llm = { path = "../../../crates/llm" }
+cilica-agent = { path = "../../../crates/agent" }
+cilica-scheduler = { path = "../../../crates/scheduler" }
+cilica-mcp = { path = "../../../crates/mcp" }
+cilica-pipeline = { path = "../../../crates/pipeline" }
 async-trait = "0.1.92"
 futures = "0.3.34"
-margin-import = { path = "../../../crates/import" }
+cilica-import = { path = "../../../crates/import" }
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

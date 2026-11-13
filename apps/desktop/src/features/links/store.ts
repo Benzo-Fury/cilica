@@ -17,7 +17,7 @@ export const useGraphOptions = create<GraphOptions>()(
       set: (patch) => set(patch),
     }),
     {
-      name: "margin.graph",
+      name: "cilica.graph",
       partialize: ({ people, tags, missing, colorBy }) => ({ people, tags, missing, colorBy }),
     },
   ),

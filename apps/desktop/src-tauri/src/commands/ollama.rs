@@ -2,14 +2,14 @@
 //! Owner: AI agent.
 //!
 //! Model downloads report through `AppEvent::ModelDownload` with ids `ollama:<tag>`; installing Ollama
-//! itself reports as `ollama:app`. The HTTP side lives in `margin_llm::ollama`; finding, unpacking and
+//! itself reports as `ollama:app`. The HTTP side lives in `cilica_llm::ollama`; finding, unpacking and
 //! launching the Ollama app is platform-specific and stays here.
 
 use std::path::PathBuf;
 use std::time::Duration;
 
-use margin_domain::*;
-use margin_llm::ollama::{self, OllamaManager};
+use cilica_domain::*;
+use cilica_llm::ollama::{self, OllamaManager};
 use tauri::{AppHandle, Manager, State};
 
 use crate::core::Core;
@@ -73,7 +73,7 @@ fn launch(path: &PathBuf) -> AppResult<()> {
             .stderr(std::process::Stdio::null())
             .spawn()
     };
-    spawned.map(|_| ()).map_err(|_| AppError::unavailable("Margin could not start Ollama. Open it yourself, then try again."))
+    spawned.map(|_| ()).map_err(|_| AppError::unavailable("Cilica could not start Ollama. Open it yourself, then try again."))
 }
 
 async fn wait_until_running(manager: &OllamaManager, root: &str) -> bool {
@@ -89,7 +89,7 @@ async fn wait_until_running(manager: &OllamaManager, root: &str) -> bool {
 /// Download Ollama into ~/Applications and unpack it. macOS only; elsewhere people install it themselves.
 #[cfg(target_os = "macos")]
 async fn install(manager: &OllamaManager, data_dir: &std::path::Path) -> AppResult<PathBuf> {
-    let home = std::env::var_os("HOME").ok_or_else(|| AppError::unavailable("Margin could not find your home folder."))?;
+    let home = std::env::var_os("HOME").ok_or_else(|| AppError::unavailable("Cilica could not find your home folder."))?;
     let apps = PathBuf::from(home).join("Applications");
     let _ = std::fs::create_dir_all(&apps);
     let zip = data_dir.join("Ollama-darwin.zip");
@@ -98,7 +98,7 @@ async fn install(manager: &OllamaManager, data_dir: &std::path::Path) -> AppResu
     let _ = std::fs::remove_file(&zip);
     match status {
         Ok(s) if s.success() => Ok(apps.join("Ollama.app")),
-        _ => Err(AppError::unavailable("Margin downloaded Ollama but could not unpack it. Try again.")),
+        _ => Err(AppError::unavailable("Cilica downloaded Ollama but could not unpack it. Try again.")),
     }
 }
 
@@ -113,7 +113,7 @@ async fn ensure_running(manager: &OllamaManager, core: &Core, root: &str) -> App
         return Ok(());
     }
     if !ollama::is_local_root(root) {
-        return Err(AppError::unavailable(format!("Margin could not reach Ollama at {root}. Start it there, then try again.")));
+        return Err(AppError::unavailable(format!("Cilica could not reach Ollama at {root}. Start it there, then try again.")));
     }
     let path = match find_ollama() {
         Some(p) => p,
@@ -127,7 +127,7 @@ async fn ensure_running(manager: &OllamaManager, core: &Core, root: &str) -> App
     }
 }
 
-/// Point Margin at Ollama and the given model, for both the assistant and quick tasks.
+/// Point Cilica at Ollama and the given model, for both the assistant and quick tasks.
 async fn use_model(core: &Core, model: &str) -> AppResult<()> {
     let mut settings = core.db.get_settings().await?;
     settings.ai.provider = ProviderKind::Ollama;
@@ -149,7 +149,7 @@ pub async fn get_ollama_status(core: State<'_, Core>, state: State<'_, OllamaSta
     Ok(OllamaStatus { installed: version.is_some() || find_ollama().is_some(), running: version.is_some(), version })
 }
 
-/// The models Margin offers, marked with what Ollama already has.
+/// The models Cilica offers, marked with what Ollama already has.
 #[tauri::command]
 #[specta::specta]
 pub async fn list_local_models(core: State<'_, Core>, state: State<'_, OllamaState>) -> AppResult<Vec<LocalLlmModel>> {

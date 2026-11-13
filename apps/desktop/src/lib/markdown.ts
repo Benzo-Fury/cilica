@@ -200,7 +200,7 @@ export type Inline =
   | { type: "em"; children: Inline[] }
   | { type: "code"; text: string }
   | { type: "link"; text: string; href: string }
-  /** Margin cites notes as ("Title", 12:34). */
+  /** Cilica cites notes as ("Title", 12:34). */
   | { type: "cite"; title: string; time: string | null };
 
 const INLINE =

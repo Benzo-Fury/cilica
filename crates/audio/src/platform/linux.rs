@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
-use margin_domain::{PermissionKind, PermissionStatus};
+use cilica_domain::{PermissionKind, PermissionStatus};
 use pipewire as pw;
 use pw::spa;
 use pw::spa::pod::Pod;
@@ -52,11 +52,11 @@ fn run(sink: CallbackSink, quit_rx: pw::channel::Receiver<()>, ready: mpsc::Send
             *pw::keys::MEDIA_TYPE => "Audio",
             *pw::keys::MEDIA_CATEGORY => "Capture",
             *pw::keys::MEDIA_ROLE => "Communication",
-            *pw::keys::APP_NAME => "Margin",
+            *pw::keys::APP_NAME => "Cilica",
         };
         // Capture the monitor of the default sink instead of a source.
         props.insert("stream.capture.sink", "true");
-        let stream = pw::stream::StreamBox::new(&core, "margin-system-audio", props)?;
+        let stream = pw::stream::StreamBox::new(&core, "cilica-system-audio", props)?;
 
         let _listener = stream
             .add_local_listener_with_user_data(sink)
@@ -127,7 +127,7 @@ impl CaptureSource for SystemSource {
         let (quit_tx, quit_rx) = pw::channel::channel::<()>();
         let (tx, rx) = mpsc::channel();
         let handle = std::thread::Builder::new()
-            .name("margin-pipewire".into())
+            .name("cilica-pipewire".into())
             .spawn(move || run(sink, quit_rx, tx))
             .map_err(AudioError::Io)?;
         let guard = PipewireRun { quit: Some(quit_tx), stopped: Arc::new(AtomicBool::new(false)), handle: Some(handle) };

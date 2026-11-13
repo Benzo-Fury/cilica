@@ -2,7 +2,7 @@
 //! Tactiq, Read, Fireflies, Grain, MacWhisper, Jamie and many more.
 //!
 //! Each parser returns turns with a speaker when the text names one. Consecutive lines from the
-//! same speaker are merged so the transcript reads like Margin's own.
+//! same speaker are merged so the transcript reads like Cilica's own.
 
 use std::sync::LazyLock;
 
@@ -126,7 +126,7 @@ fn push(turns: &mut Vec<Turn>, name: &str, start: Option<u32>, text: String) {
     turns.push(Turn { speaker, start_ms: start, end_ms: None, text });
 }
 
-/// Map how an app names a speaker to Margin's speakers.
+/// Map how an app names a speaker to Cilica's speakers.
 pub fn speaker_ref(name: &str) -> SpeakerRef {
     let n = name.trim().trim_matches('*').trim();
     match n.to_ascii_lowercase().as_str() {

@@ -1,6 +1,6 @@
 /**
  * The assistant's input (Composer doc): one row holding an optional leading control, a field that
- * grows to 8 lines and the round Send, which stays on the field's last line. While Margin works,
+ * grows to 8 lines and the round Send, which stays on the field's last line. While Cilica works,
  * Send becomes Stop (the panel's glow under the box shows the work).
  * ↩ sends, ⇧↩ adds a line, Esc stops.
  */
@@ -95,7 +95,7 @@ export function Composer({
         value={value}
         disabled={disabled}
         placeholder={placeholder}
-        aria-label="Message Margin"
+        aria-label="Message Cilica"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
       />

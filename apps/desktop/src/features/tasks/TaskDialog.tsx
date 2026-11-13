@@ -107,9 +107,9 @@ function TaskFormBody({ task, onDone }: { task: Task | null; onDone: () => void 
           />
         </FormField>
         <FormField
-          label="What Margin does"
+          label="What Cilica does"
           htmlFor={`${id}-prompt`}
-          hint={errors.prompt ?? "Margin only suggests changes; you approve them in the report."}
+          hint={errors.prompt ?? "Cilica only suggests changes; you approve them in the report."}
         >
           <TextArea
             id={`${id}-prompt`}

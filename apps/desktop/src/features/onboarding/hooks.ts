@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { api, errorMessage } from "@/ipc/client";
 import { toast } from "@/lib/toast";
 
-/** Settings › General › Run setup again: opens the setup window over Margin. */
+/** Settings › General › Run setup again: opens the setup window over Cilica. */
 export function useOpenSetup() {
   return useMutation({
     mutationFn: () => api.openOnboarding(),

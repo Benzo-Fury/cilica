@@ -33,7 +33,7 @@ pub(crate) struct Target {
 
 impl Target {
     pub fn from_config(config: &CloudConfig) -> SttResult<Self> {
-        let openai = config.engine == margin_domain::SttEngine::OpenAi;
+        let openai = config.engine == cilica_domain::SttEngine::OpenAi;
         let base_url = match (&config.base_url, openai) {
             (Some(url), _) if !url.trim().is_empty() => url.trim().trim_end_matches('/').to_string(),
             (_, true) => OPENAI_BASE.to_string(),
@@ -162,7 +162,7 @@ async fn transcribe(client: &reqwest::Client, target: &Target, key: &str, sample
         match response {
             Err(_) => last = SttError::Network(target.name.clone()),
             Ok(r) if r.status().is_success() => {
-                let body: Transcription = r.json().await.map_err(|_| SttError::Provider(format!("{} sent a reply Margin could not read.", target.name)))?;
+                let body: Transcription = r.json().await.map_err(|_| SttError::Provider(format!("{} sent a reply Cilica could not read.", target.name)))?;
                 return Ok(body.text);
             }
             Ok(r) => {

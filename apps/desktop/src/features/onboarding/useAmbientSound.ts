@@ -1,6 +1,6 @@
 /**
  * A quiet ambient pad for the setup window, made with Web Audio (no file to ship). It starts
- * muted: Margin plays nothing unasked (docs/design-system/sound-and-haptics.md). The speaker
+ * muted: Cilica plays nothing unasked (docs/design-system/sound-and-haptics.md). The speaker
  * button in the title band turns it on; it fades out when setup closes.
  */
 import { useCallback, useEffect, useRef, useState } from "react";

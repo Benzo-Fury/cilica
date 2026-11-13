@@ -1,12 +1,12 @@
 //! The macOS app menu. Same as Tauri's default except:
-//! - Quit is Margin's own item, so Cmd+Q can ask before stopping a recording.
+//! - Quit is Cilica's own item, so Cmd+Q can ask before stopping a recording.
 //! - Edit has no Undo/Redo items, so Cmd+Z and Cmd+Shift+Z reach the webview, where the keybind
 //!   registry handles them (including undoing whole AI turns).
 
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Wry};
 
-pub const QUIT_ID: &str = "margin.app.quit";
+pub const QUIT_ID: &str = "cilica.app.quit";
 
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let info = app.package_info();
@@ -17,15 +17,15 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         info.name.clone(),
         true,
         &[
-            &PredefinedMenuItem::about(app, Some("About Margin"), Some(about))?,
+            &PredefinedMenuItem::about(app, Some("About Cilica"), Some(about))?,
             &separator()?,
             &PredefinedMenuItem::services(app, None)?,
             &separator()?,
-            &PredefinedMenuItem::hide(app, Some("Hide Margin"))?,
+            &PredefinedMenuItem::hide(app, Some("Hide Cilica"))?,
             &PredefinedMenuItem::hide_others(app, None)?,
             &PredefinedMenuItem::show_all(app, None)?,
             &separator()?,
-            &MenuItem::with_id(app, QUIT_ID, "Quit Margin", true, Some("CmdOrCtrl+Q"))?,
+            &MenuItem::with_id(app, QUIT_ID, "Quit Cilica", true, Some("CmdOrCtrl+Q"))?,
         ],
     )?;
     let edit = Submenu::with_items(

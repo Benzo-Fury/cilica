@@ -40,7 +40,7 @@ const FOUND: Record<string, Omit<ImportDetection, "has_key" | "provider">> = {
             kind: "Canvases",
             count: 2,
             reason:
-              "Margin has no canvas view, so canvas boards are left out. The notes on them are imported on their own.",
+              "Cilica has no canvas view, so canvas boards are left out. The notes on them are imported on their own.",
           },
         ],
       },
@@ -61,7 +61,7 @@ const FOUND: Record<string, Omit<ImportDetection, "has_key" | "provider">> = {
           {
             kind: "Recordings",
             count: 4,
-            reason: "Audio stays in Anarlog. Margin imports the notes, summaries and transcripts.",
+            reason: "Audio stays in Anarlog. Cilica imports the notes, summaries and transcripts.",
           },
         ],
       },
@@ -70,12 +70,12 @@ const FOUND: Record<string, Omit<ImportDetection, "has_key" | "provider">> = {
   granola: {
     app_installed: true,
     locations: [],
-    note: "Granola encrypts the notes it keeps on this Mac, so Margin reads them through your API key or a CSV export instead.",
+    note: "Granola encrypts the notes it keeps on this Mac, so Cilica reads them through your API key or a CSV export instead.",
   },
   apple_notes: {
     app_installed: true,
     locations: [],
-    note: "Apple Notes keeps its notes where only it can read them. When you check, macOS asks whether Margin may read Notes; choose OK.",
+    note: "Apple Notes keeps its notes where only it can read them. When you check, macOS asks whether Cilica may read Notes; choose OK.",
   },
 };
 
@@ -244,7 +244,7 @@ export function importsCommands(ctx: MockContext) {
           provider === "obsidian" ? (FOUND.obsidian?.locations[0]?.unsupported ?? []) : [],
         warnings:
           input.type === "paths" && input.paths.some((p) => p.endsWith(".pdf"))
-            ? ["export.pdf is not a format Margin reads. Export it again as .txt or .docx."]
+            ? ["export.pdf is not a format Cilica reads. Export it again as .txt or .docx."]
             : [],
         samples: [...titles]
           .reverse()

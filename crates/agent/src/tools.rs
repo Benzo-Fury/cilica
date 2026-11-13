@@ -1,8 +1,8 @@
 //! The tool registry: names, tiers, JSON schemas and descriptions, exactly as the spec's tool table.
 //! Tiers here are the *base* tier; the runner can only raise a call's tier (never lower it).
 
-use margin_domain::ToolTier;
-use margin_llm::ToolSpec;
+use cilica_domain::ToolTier;
+use cilica_llm::ToolSpec;
 use serde_json::{Value, json};
 
 /// One tool.

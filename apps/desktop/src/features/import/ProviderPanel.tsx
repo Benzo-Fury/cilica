@@ -1,5 +1,5 @@
 /**
- * One app in Settings › Import: what Margin found on this computer, each way to bring notes across
+ * One app in Settings › Import: what Cilica found on this computer, each way to bring notes across
  * with its steps, the inputs that way needs, and what comes across or stays behind.
  */
 import {
@@ -180,7 +180,7 @@ function LocalSection({
     return (
       <div className="nt-import-none">
         <span>
-          Margin did not find {provider.name} data on this computer. Use one of the ways below
+          Cilica did not find {provider.name} data on this computer. Use one of the ways below
           instead.
         </span>
         <Button size="sm" variant="ghost" icon={RefreshCw} onClick={onRefresh}>
@@ -194,8 +194,8 @@ function LocalSection({
       <div className="nt-import-found-title">
         <Icon icon={Check} size="sm" />
         {locations.length === 1
-          ? `Margin found ${provider.name} on this computer`
-          : `Margin found ${locations.length} places on this computer`}
+          ? `Cilica found ${provider.name} on this computer`
+          : `Cilica found ${locations.length} places on this computer`}
       </div>
       <ul className="nt-import-locations">
         {locations.map((location) => (
@@ -325,7 +325,7 @@ function FilesRoute({
       <DropZone
         active={over}
         title={route.folder ? "Drop files, a folder or a zip here" : "Drop the files here"}
-        hint={<span>Margin reads {route.accept.map((e) => `.${e}`).join(", ")}</span>}
+        hint={<span>Cilica reads {route.accept.map((e) => `.${e}`).join(", ")}</span>}
       >
         <Button
           size="sm"
@@ -463,7 +463,7 @@ function KeyRoute({
             Check my {provider.name} meetings
           </Button>
           <span className="nt-faint">
-            Margin lists what's there first. Nothing is imported until you confirm.
+            Cilica lists what's there first. Nothing is imported until you confirm.
           </span>
         </div>
       )}
@@ -551,7 +551,7 @@ function WhatComesAcross({
   );
 }
 
-/** Static notes from the catalogue, with counts where Margin found that kind of thing. */
+/** Static notes from the catalogue, with counts where Cilica found that kind of thing. */
 function mergeLeftOut(
   fixed: { kind: string; reason: string }[],
   found: UnsupportedItem[],

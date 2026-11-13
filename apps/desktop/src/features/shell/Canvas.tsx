@@ -8,8 +8,8 @@ import type { ReactNode } from "react";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { useRouter, type View } from "@/app/router";
 import { ActivityView } from "@/features/activity/ActivityView";
-import { MarginBar } from "@/features/assistant/MarginBar";
-import { useMarginPlacement } from "@/features/assistant/placement";
+import { CilicaBar } from "@/features/assistant/CilicaBar";
+import { useCilicaPlacement } from "@/features/assistant/placement";
 import { HomeView } from "@/features/home/HomeView";
 import { GraphView } from "@/features/links/GraphView";
 import { NoteView } from "@/features/note/NoteView";
@@ -52,7 +52,7 @@ export function Canvas() {
   const view = useRouter((s) => s.view);
   const reduced = useReducedMotion();
   const fromLeft = view.name === "note";
-  const floatingBar = useMarginPlacement() === "floating_bar";
+  const floatingBar = useCilicaPlacement() === "floating_bar";
   const launching = useIntroHolding();
   return (
     <>
@@ -87,7 +87,7 @@ export function Canvas() {
       </AnimatePresence>
       <RecorderCapsule />
       <SwearJarLayer />
-      {floatingBar && <MarginBar />}
+      {floatingBar && <CilicaBar />}
     </>
   );
 }

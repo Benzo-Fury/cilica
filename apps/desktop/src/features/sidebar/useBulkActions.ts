@@ -1,9 +1,9 @@
 /**
  * What can be done to the notes selected in the sidebar: move them, move them to Trash, or ask
- * Margin about them. Shared by the row context menu, ⌘⌫ and drag and drop.
+ * Cilica about them. Shared by the row context menu, ⌘⌫ and drag and drop.
  */
 import { useCallback, useMemo } from "react";
-import { askMargin } from "@/features/assistant/store";
+import { askCilica } from "@/features/assistant/store";
 import {
   groupNotes,
   useCategories,
@@ -66,7 +66,7 @@ export function useBulkActions() {
       titles.length === 1
         ? titles[0]
         : `${titles.slice(0, -1).join(", ")} and ${titles[titles.length - 1]}`;
-    askMargin(`About ${list}: `);
+    askCilica(`About ${list}: `);
   }, [ordered, notes]);
 
   /** The one category every selected note is in (null: all in Notes), or undefined if mixed. */

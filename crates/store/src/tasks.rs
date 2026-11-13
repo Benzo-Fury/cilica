@@ -1,6 +1,6 @@
 //! tasks, task_runs. Owner: AI agent.
 
-use margin_domain::{Id, Task, TaskDraft, TaskRun, TaskRunStatus, Timestamp};
+use cilica_domain::{Id, Task, TaskDraft, TaskRun, TaskRunStatus, Timestamp};
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 
@@ -43,7 +43,7 @@ impl Db {
     }
 
     pub async fn insert_task(&self, draft: &TaskDraft, is_default: bool, next_run_at: Option<Timestamp>) -> StoreResult<Task> {
-        let id = margin_domain::new_id();
+        let id = cilica_domain::new_id();
         sqlx::query(
             "INSERT INTO tasks (id, name, prompt, scope_json, schedule_json, next_run_at, enabled, is_default, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -56,7 +56,7 @@ impl Db {
         .bind(next_run_at.map(ts))
         .bind(i64::from(draft.enabled))
         .bind(i64::from(is_default))
-        .bind(ts(margin_domain::now()))
+        .bind(ts(cilica_domain::now()))
         .execute(self.pool())
         .await?;
         self.get_task(id).await
@@ -138,7 +138,7 @@ impl Db {
             .bind(enum_str(&status))
             .bind(summary)
             .bind(error)
-            .bind(ts(margin_domain::now()))
+            .bind(ts(cilica_domain::now()))
             .bind(id.to_string())
             .execute(self.pool())
             .await?;
@@ -174,8 +174,8 @@ impl Db {
     /// Runs still marked running from a previous launch become failed. Returns how many.
     pub async fn fail_interrupted_task_runs(&self) -> StoreResult<u32> {
         let done = sqlx::query("UPDATE task_runs SET status = 'failed', error = ?, finished_at = ? WHERE status = 'running'")
-            .bind("Margin quit before this run finished.")
-            .bind(ts(margin_domain::now()))
+            .bind("Cilica quit before this run finished.")
+            .bind(ts(cilica_domain::now()))
             .execute(self.pool())
             .await?;
         Ok(u32::try_from(done.rows_affected()).unwrap_or(u32::MAX))
@@ -184,7 +184,7 @@ impl Db {
 
 #[cfg(test)]
 mod tests {
-    use margin_domain::{NoteRef, Proposal, ProposalKind, ProposalSource, ProposalStatus, TaskSchedule, TaskScope, ToolTier, new_id, now};
+    use cilica_domain::{NoteRef, Proposal, ProposalKind, ProposalSource, ProposalStatus, TaskSchedule, TaskScope, ToolTier, new_id, now};
 
     use super::*;
 

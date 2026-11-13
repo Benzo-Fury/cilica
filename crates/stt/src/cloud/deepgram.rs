@@ -169,7 +169,7 @@ impl Protocol for Deepgram {
     }
 
     fn on_text(&mut self, text: &str, offset_ms: u32, out: &Emitter) -> SttResult<bool> {
-        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("Deepgram sent a reply Margin could not read.".into()))?;
+        let reply: Reply = serde_json::from_str(text).map_err(|_| SttError::Provider("Deepgram sent a reply Cilica could not read.".into()))?;
         match reply.kind.as_str() {
             "Results" => {
                 let (transcript, words) = reply.channel.and_then(|c| c.alternatives.into_iter().next()).map(|a| (a.transcript, a.words)).unwrap_or_default();

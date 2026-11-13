@@ -1,13 +1,13 @@
-//! The welcome note Margin opens on after first-run setup. It carries what the old setup dialog's
+//! The welcome note Cilica opens on after first-run setup. It carries what the old setup dialog's
 //! last page did: the three shortcuts that get you most of the way. No tables of its own.
 
-use margin_domain::Note;
+use cilica_domain::Note;
 
 use crate::notes::NewNote;
 use crate::{Db, StoreResult};
 
 /// Title of the note written when setup finishes.
-pub const WELCOME_TITLE: &str = "Welcome to Margin";
+pub const WELCOME_TITLE: &str = "Welcome to Cilica";
 
 /// Shortcut glyphs differ by platform; the store never asks which one it runs on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,15 +36,15 @@ pub fn welcome_body(style: ShortcutStyle) -> String {
     let search = style.chord(false, "K");
     let ask = style.chord(false, "J");
     format!(
-        "Margin is a notes app with an AI assistant and a meeting summariser. This note covers the basics. Delete it whenever you like.\n\n\
+        "Cilica is a notes app with an AI assistant and a meeting summariser. This note covers the basics. Delete it whenever you like.\n\n\
          ## Write\n\n\
          Notes are plain Markdown. Type `#` for a heading, `-` for a list and `[[` to link to another note. Shortcuts can be changed in Settings › Keybinds.\n\n\
-         ## Ask Margin\n\n\
+         ## Ask Cilica\n\n\
          Press **{ask}** to open the assistant. Ask it to sort notes into categories, summarise a meeting or tidy up this note. Every change can be undone.\n\n\
          ## Record a meeting\n\n\
-         Press **{record}** from anywhere, or click Record in the sidebar. Margin hears your microphone and the call, transcribes it on this computer, and writes a summary with decisions and action items when you stop.\n\n\
+         Press **{record}** from anywhere, or click Record in the sidebar. Cilica hears your microphone and the call, transcribes it on this computer, and writes a summary with decisions and action items when you stop.\n\n\
          ## Find anything\n\n\
-         Press **{search}** to search every note and transcript, or to ask Margin a question about them.\n"
+         Press **{search}** to search every note and transcript, or to ask Cilica a question about them.\n"
     )
 }
 

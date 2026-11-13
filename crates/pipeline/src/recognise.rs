@@ -3,17 +3,17 @@
 //!
 //! The capture audio of each channel is kept for the last 90 seconds ([`VoiceTap`]). When the
 //! cloud service labels a new speaker, the audio of their finished lines is gathered; after 3,
-//! 8 and 15 seconds of it, Margin turns it into a voiceprint (on this computer, with the same
+//! 8 and 15 seconds of it, Cilica turns it into a voiceprint (on this computer, with the same
 //! CAM++ model as the check after the meeting) and compares it with the Saved people. A close
 //! enough match names the speaker. It is only a guess: nothing is learnt from it until the
-//! person confirms or corrects the name ([`margin_store::Db::link_speaker`]).
+//! person confirms or corrects the name ([`cilica_store::Db::link_speaker`]).
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use margin_diarize::{Diarizer, RECOGNISE_THRESHOLD};
-use margin_domain::{AppEvent, AudioChannel, DataScope, Events, Id};
-use margin_store::Db;
+use cilica_diarize::{Diarizer, RECOGNISE_THRESHOLD};
+use cilica_domain::{AppEvent, AudioChannel, DataScope, Events, Id};
+use cilica_store::Db;
 use tokio::sync::mpsc;
 
 use crate::backend::SpeechBackend;
@@ -173,7 +173,7 @@ async fn load(speech: &Arc<dyn SpeechBackend>) -> Option<Arc<Mutex<Diarizer>>> {
 
 /// Keep the speaker's voiceprint (a later confirmation teaches with it) and name them if they
 /// sound like a Saved person no one else in this meeting is. "You" can only be on the mic.
-async fn recognise(db: &Db, note_id: Id, speaker_id: Id, channel: AudioChannel, embedding: &[f32]) -> margin_store::StoreResult<bool> {
+async fn recognise(db: &Db, note_id: Id, speaker_id: Id, channel: AudioChannel, embedding: &[f32]) -> cilica_store::StoreResult<bool> {
     db.set_speaker_embedding(speaker_id, Some(embedding)).await?;
     let me = db.ensure_self_person().await?.id;
     let mut exclude: HashSet<Id> = db.list_speakers(note_id).await?.into_iter().filter(|s| s.id != speaker_id).filter_map(|s| s.person_id).collect();
@@ -209,11 +209,11 @@ mod tests {
     }
 
     async fn meeting(db: &Db) -> Id {
-        db.create_note(margin_store::NewNote { title: "Call".into(), kind: margin_domain::NoteKind::Meeting, ..Default::default() }).await.unwrap().id
+        db.create_note(cilica_store::NewNote { title: "Call".into(), kind: cilica_domain::NoteKind::Meeting, ..Default::default() }).await.unwrap().id
     }
 
     async fn speaker(db: &Db, note: Id, label: &str) -> Id {
-        db.create_speaker(note, margin_store::NewSpeaker { label: label.into(), color_index: 3, is_self: false, embedding: None }).await.unwrap().id
+        db.create_speaker(note, cilica_store::NewSpeaker { label: label.into(), color_index: 3, is_self: false, embedding: None }).await.unwrap().id
     }
 
     #[tokio::test]
@@ -242,7 +242,7 @@ mod tests {
         let me = db.ensure_self_person().await.unwrap();
         let note = meeting(&db).await;
         let (you, _) = db.ensure_channel_speakers(note).await.unwrap();
-        let s = db.create_speaker(note, margin_store::NewSpeaker { label: "x".into(), color_index: 1, is_self: false, embedding: Some(vec![0.0, 1.0]) }).await.unwrap();
+        let s = db.create_speaker(note, cilica_store::NewSpeaker { label: "x".into(), color_index: 1, is_self: false, embedding: Some(vec![0.0, 1.0]) }).await.unwrap();
         db.link_speaker(s.id, Some(me.id)).await.unwrap();
         let on_call = speaker(&db, note, "Person 1").await;
         assert!(!recognise(&db, note, on_call, AudioChannel::System, &[0.0, 1.0]).await.unwrap());

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/images/import-apps.svg, the README's grid of apps Margin imports from.
+"""Generate docs/images/import-apps.svg, the README's grid of apps Cilica imports from.
 Reads the catalogue in apps/desktop/src/features/import/providers.ts and the icons in its logos/
 folder, and embeds each icon so the image loads nothing from elsewhere.
 Run: bun run import-apps   (import-apps.svg is generated; never edit it by hand)"""
@@ -59,8 +59,8 @@ for group, heading in GROUPS:
 height = y + PAD - 18
 
 names = ", ".join(name for _, name, g in entries if g != "other")
-svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="Apps Margin imports from">
-<title>Apps Margin imports from: {html.escape(names)}</title>
+svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" viewBox="0 0 {WIDTH} {height}" role="img" aria-label="Apps Cilica imports from">
+<title>Apps Cilica imports from: {html.escape(names)}</title>
 <style>
 .h{{font:600 12px/1 {FONT};letter-spacing:.06em;fill:#8f8a84}}
 .n{{font:500 12.5px/1 {FONT};fill:#e9e5df;text-anchor:middle}}

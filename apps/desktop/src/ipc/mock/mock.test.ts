@@ -241,7 +241,7 @@ describe("settings", () => {
       theme: "dark",
       transparency: true,
       note_font: "sans",
-      margin_placement: "side_panel",
+      cilica_placement: "side_panel",
       home_face: "random",
     });
     expect(next.recording.auto_detect).toBe(true);

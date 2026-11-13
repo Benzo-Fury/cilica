@@ -1,6 +1,6 @@
 /**
  * Step 5, the last: theme and note typeface. A theme change repaints this window and its art at
- * once. Its button opens Margin; there is no separate ending page.
+ * once. Its button opens Cilica; there is no separate ending page.
  */
 import { ArrowRight } from "lucide-react";
 import { useSettings, useUpdateSettings } from "@/features/settings/hooks";
@@ -50,7 +50,7 @@ export function LookStep({
       description="Pick a theme and the typeface your notes are written in. Both change later in Settings › Appearance."
       actions={
         <Button variant="primary" size="lg" loading={finishing} onClick={onFinish}>
-          Open Margin
+          Open Cilica
           <Icon icon={ArrowRight} size="sm" motion="arrow" />
         </Button>
       }

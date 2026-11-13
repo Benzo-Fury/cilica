@@ -1,7 +1,7 @@
 /**
  * The swear jar, worked out the way `crates/store/src/swears.rs` does: swears said in meetings are
  * read from transcripts each time, swears typed into notes are kept as coins, and the jar empties
- * on Monday at local midnight (or by hand). The word list is a copy of `margin_domain::Swears`.
+ * on Monday at local midnight (or by hand). The word list is a copy of `cilica_domain::Swears`.
  */
 import type { SwearJar, SwearJarSettings, SwearPerson, SwearWord } from "@/ipc/types";
 import { SwearMatcher } from "@/lib/swears";

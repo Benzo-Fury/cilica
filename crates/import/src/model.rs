@@ -1,6 +1,6 @@
-//! The one shape every provider produces, and how it becomes a Margin note.
+//! The one shape every provider produces, and how it becomes a Cilica note.
 
-use margin_domain::Timestamp;
+use cilica_domain::Timestamp;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -29,7 +29,7 @@ pub struct ImportedNote {
     /// Folder path in the source, outermost first.
     pub folder: Vec<String>,
     pub tags: Vec<String>,
-    /// `key: value` properties the source kept that Margin has no field for.
+    /// `key: value` properties the source kept that Cilica has no field for.
     pub properties: Vec<(String, String)>,
     /// Images carried inline.
     pub attachments: u32,
@@ -54,7 +54,7 @@ pub struct Turn {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum SpeakerRef {
-    /// The person using Margin (a mic channel, "me", or a name they picked).
+    /// The person using Cilica (a mic channel, "me", or a name they picked).
     Me,
     /// Everyone else, unnamed (a system channel).
     Them,
@@ -92,8 +92,8 @@ impl ImportedNote {
         self.started_at.or(self.created_at).or(self.updated_at)
     }
 
-    /// The note body Margin stores: the summary first, then the person's own notes, then action
-    /// items and anything else the source kept, as Margin lays out its own meeting notes.
+    /// The note body Cilica stores: the summary first, then the person's own notes, then action
+    /// items and anything else the source kept, as Cilica lays out its own meeting notes.
     pub fn body_md(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         let summary = self.summary_md.as_deref().map(str::trim).filter(|s| !s.is_empty());

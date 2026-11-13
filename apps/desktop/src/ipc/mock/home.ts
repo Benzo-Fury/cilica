@@ -227,7 +227,7 @@ function lengthOf(n: {
   return null;
 }
 
-/** Margin's actions undone this week, with the latest body edit's lines from each side. */
+/** Cilica's actions undone this week, with the latest body edit's lines from each side. */
 function undosSince(state: MockContext["state"], since: number): Glance["undos"] {
   const undone = state.aiActions
     .filter((a) => a.status === "undone" && Date.parse(a.created_at) >= since)
@@ -241,7 +241,7 @@ function undosSince(state: MockContext["state"], since: number): Glance["undos"]
       ? {
           note_id: body?.note_id ?? null,
           summary: latest.summary,
-          margin_text: body ? firstNewLine(body.after_md, body.before_md) : null,
+          cilica_text: body ? firstNewLine(body.after_md, body.before_md) : null,
           your_text: body ? firstNewLine(body.before_md, body.after_md) : null,
         }
       : null,

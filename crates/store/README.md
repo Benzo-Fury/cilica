@@ -1,6 +1,6 @@
-# margin-store
+# cilica-store
 
-SQLite storage for Margin (sqlx, migrations in `migrations/`, FTS5 search). The only crate that talks SQL.
+SQLite storage for Cilica (sqlx, migrations in `migrations/`, FTS5 search). The only crate that talks SQL.
 
 ## Public API
 
@@ -27,8 +27,8 @@ SQLite storage for Margin (sqlx, migrations in `migrations/`, FTS5 search). The 
 
 ## Must not depend on
 
-`tauri` or any other app crate except `margin-domain`.
+`tauri` or any other app crate except `cilica-domain`.
 
 ## Tests
 
-`cargo test -p margin-store`: everything runs against `Db::open_in_memory()`.
+`cargo test -p cilica-store`: everything runs against `Db::open_in_memory()`.

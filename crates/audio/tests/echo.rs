@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use margin_audio::{EchoCanceller, FRAME_SAMPLES, read_wav_16k};
+use cilica_audio::{EchoCanceller, FRAME_SAMPLES, read_wav_16k};
 
 fn fixture(name: &str) -> Vec<f32> {
     read_wav_16k(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name)).unwrap().remove(0)

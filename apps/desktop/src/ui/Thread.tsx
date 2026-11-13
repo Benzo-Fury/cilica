@@ -1,5 +1,5 @@
 /**
- * Assistant thread pieces (AssistantThread doc): your turns as `fill-press` bubbles, Margin's as
+ * Assistant thread pieces (AssistantThread doc): your turns as `fill-press` bubbles, Cilica's as
  * plain text, tool steps as single `ink-3` lines that expand, and the shimmering working label.
  */
 import type { LucideIcon } from "lucide-react";

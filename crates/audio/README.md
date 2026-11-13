@@ -1,13 +1,13 @@
-# margin-audio
+# cilica-audio
 
-Audio capture for Margin: the microphone and the system output, each delivered as 16 kHz mono `f32`
+Audio capture for Cilica: the microphone and the system output, each delivered as 16 kHz mono `f32`
 on one shared timeline, echo-cancelled, metered and written to disk as it arrives. The only crate
-(with `margin-detect`) allowed platform `cfg`.
+(with `cilica-detect`) allowed platform `cfg`.
 
 ## Public API
 
 - `CaptureSource` (trait): `open() -> RawStream`. Implementations: `MicSource` (cpal, every OS),
-  `SystemSource` (macOS: Core Audio process tap excluding Margin's own process, in a private
+  `SystemSource` (macOS: Core Audio process tap excluding Cilica's own process, in a private
   aggregate device, via cidre; Windows: WASAPI loopback of the default render device; Linux:
   PipeWire monitor of the default sink), `ClipSource` (plays a clip in real time, for tests).
 - `CaptureSession::start(CaptureConfig, Sender<CaptureEvent>)`, `.stop() -> CaptureSummary`.
@@ -27,19 +27,19 @@ on one shared timeline, echo-cancelled, metered and written to disk as it arrive
 
 ## Must not depend on
 
-`tauri`, `margin-store`, or any app crate except `margin-domain`. Capture callbacks never allocate or
+`tauri`, `cilica-store`, or any app crate except `cilica-domain`. Capture callbacks never allocate or
 take a lock (a lock-free ring per source; the error message mutex is `try_lock` on the rare
 failure path).
 
 ## Tests
 
-- `cargo test -p margin-audio`: resampling, WAV round trip and crash recovery, Opus round trip,
+- `cargo test -p cilica-audio`: resampling, WAV round trip and crash recovery, Opus round trip,
   level meter, AEC on synthetic and on speech fixtures (`tests/echo.rs`, files in
   `tests/fixtures`, made with `say` + `afconvert`), and a full capture session from fake
   sources at 48 and 44.1 kHz with a mic unplugged mid-way.
-- Live: `cargo run -p margin-audio --example capture -- --seconds 5 [--out target/capture]
+- Live: `cargo run -p cilica-audio --example capture -- --seconds 5 [--out target/capture]
   [--no-system]` records the real mic and system audio, prints levels and writes WAV + Ogg. On
   macOS the first run asks for Microphone and System Audio Recording for the app that launched
   it (your terminal).
-- Windows and Linux: type-checked only (`cargo check -p margin-audio --target
+- Windows and Linux: type-checked only (`cargo check -p cilica-audio --target
   x86_64-pc-windows-msvc --no-default-features`); never run.

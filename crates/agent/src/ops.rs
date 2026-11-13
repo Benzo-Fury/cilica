@@ -3,10 +3,10 @@
 
 use std::collections::BTreeSet;
 
-use margin_domain::{
+use cilica_domain::{
     AppError, AppResult, Author, DataScope, ErrorCode, Id, NoteRef, ProposalKind, TaskDraft, ToolTier,
 };
-use margin_store::{Db, NewNote};
+use cilica_store::{Db, NewNote};
 use serde::{Deserialize, Serialize};
 
 use crate::patch;
@@ -310,7 +310,7 @@ pub async fn apply(notes: &dyn NoteStore, db: &Db, op: &WriteOp, action_id: Id) 
             }
             let new_body = patch::rebase(before_md, after_md, &current.body_md).ok_or_else(|| {
                 conflict(format!(
-                    "{} changed since Margin suggested this edit, and the two changes overlap. Ask Margin again.",
+                    "{} changed since Cilica suggested this edit, and the two changes overlap. Ask Cilica again.",
                     note.title_or_untitled()
                 ))
             })?;
@@ -385,14 +385,14 @@ pub async fn undo(notes: &dyn NoteStore, db: &Db, op: &UndoOp, action_id: Id) ->
             notes.rename_speaker(*speaker_id, label).await?;
         }
         UndoOp::DeleteCreatedTask { task_id } => match db.delete_task(*task_id).await {
-            Ok(()) | Err(margin_store::StoreError::NotFound(_)) => {}
+            Ok(()) | Err(cilica_store::StoreError::NotFound(_)) => {}
             Err(e) => return Err(e.into()),
         },
         UndoOp::RestoreBody { note_id, before_md, after_md } => {
             let current = notes.get_note(*note_id).await?;
             if current.body_md != *after_md {
                 return Err(conflict(
-                    "This note changed after Margin's edit, so Undo would overwrite your changes. Restore an earlier version from History instead.",
+                    "This note changed after Cilica's edit, so Undo would overwrite your changes. Restore an earlier version from History instead.",
                 ));
             }
             // Keep the AI-written state in history, then put the old body back as the user.

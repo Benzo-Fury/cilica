@@ -11,7 +11,7 @@ import { ALL_SETTINGS_PAGES, DATA_PAGES, SETTINGS_PAGES, settingsPage } from "./
 
 /** Pages that used to sit in the sidebar and are reached from here now. */
 const MORE = [
-  { name: "activity", label: "Margin activity", icon: Activity },
+  { name: "activity", label: "Cilica activity", icon: Activity },
   { name: "trash", label: "Trash", icon: Trash2 },
 ] as const;
 

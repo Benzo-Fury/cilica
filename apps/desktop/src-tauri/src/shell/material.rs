@@ -68,11 +68,11 @@ fn sync_on_main_thread(app: &AppHandle) {
     tracing::info!(material = ?state.applied, enabled, "window material");
 }
 
-fn is_dark(window: &WebviewWindow, mode: margin_domain::ThemeMode) -> bool {
+fn is_dark(window: &WebviewWindow, mode: cilica_domain::ThemeMode) -> bool {
     match mode {
-        margin_domain::ThemeMode::Light => false,
-        margin_domain::ThemeMode::Dark => true,
-        margin_domain::ThemeMode::System => matches!(window.theme(), Ok(Theme::Dark)),
+        cilica_domain::ThemeMode::Light => false,
+        cilica_domain::ThemeMode::Dark => true,
+        cilica_domain::ThemeMode::System => matches!(window.theme(), Ok(Theme::Dark)),
     }
 }
 

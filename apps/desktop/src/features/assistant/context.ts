@@ -1,6 +1,6 @@
 /**
  * The assistant's view context (spec › "Context, without being told"): what is open, which
- * panel, the selected text, the category, the search query and whether Margin is recording.
+ * panel, the selected text, the category, the search query and whether Cilica is recording.
  * Built from app state on every turn and shown as the context line ("Viewing: Acme kickoff ·
  * Transcript").
  */
@@ -40,7 +40,7 @@ const VIEW_LABELS: Partial<Record<View["name"], string>> = {
   trash: "Trash",
   people: "Saved people",
   tasks: "Scheduled tasks",
-  activity: "Margin activity",
+  activity: "Cilica activity",
   settings: "Settings",
 };
 

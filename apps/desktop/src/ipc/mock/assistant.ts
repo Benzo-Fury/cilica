@@ -147,14 +147,14 @@ export function assistantCommands({ state, emit }: MockContext) {
           kind,
           has_key: hasKey,
           ready: hasKey,
-          problem: hasKey ? null : "Add an Anthropic API key in Settings › Margin.",
+          problem: hasKey ? null : "Add an Anthropic API key in Settings › Cilica.",
         };
       case "openai_compat":
         return {
           kind,
           has_key: hasKey,
           ready: hasKey,
-          problem: hasKey ? null : "Add a base URL and an API key in Settings › Margin.",
+          problem: hasKey ? null : "Add a base URL and an API key in Settings › Cilica.",
         };
       case "ollama": {
         const hasModel = ollama.models.some(
@@ -587,7 +587,7 @@ export function assistantCommands({ state, emit }: MockContext) {
               title:
                 undoable.length === 1 && first?.type === "tool"
                   ? first.action.summary
-                  : `Margin made ${undoable.length} changes`,
+                  : `Cilica made ${undoable.length} changes`,
               description: null,
               action_label: "Undo",
               action: { type: "undo_turn", turn_id: turnId },
@@ -688,7 +688,7 @@ export function assistantCommands({ state, emit }: MockContext) {
           if (note.body_md.trim() !== kind.before_md.trim()) {
             throw appError(
               "conflict",
-              "This note changed after Margin suggested the edit. Ask Margin again for a fresh suggestion.",
+              "This note changed after Cilica suggested the edit. Ask Cilica again for a fresh suggestion.",
             );
           }
           writeBody(state, note, finalMd ?? kind.after_md, actionId);

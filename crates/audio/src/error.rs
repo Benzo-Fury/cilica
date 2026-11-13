@@ -1,4 +1,4 @@
-use margin_domain::{AppError, ErrorCode};
+use cilica_domain::{AppError, ErrorCode};
 
 /// What can go wrong while capturing. Messages are written for people.
 #[derive(Debug, thiserror::Error)]
@@ -7,9 +7,9 @@ pub enum AudioError {
     NoInputDevice,
     #[error("The microphone \"{0}\" is not available. Plug it back in or pick another input in Settings › Recording.")]
     DeviceNotFound(String),
-    #[error("Margin is not allowed to use the microphone. Allow it in System Settings › Privacy & Security › Microphone, then try again.")]
+    #[error("Cilica is not allowed to use the microphone. Allow it in System Settings › Privacy & Security › Microphone, then try again.")]
     MicPermissionDenied,
-    #[error("Margin is not allowed to record system audio. Allow it in System Settings › Privacy & Security › Screen & System Audio Recording, then try again.")]
+    #[error("Cilica is not allowed to record system audio. Allow it in System Settings › Privacy & Security › Screen & System Audio Recording, then try again.")]
     SystemPermissionDenied,
     #[error("System audio capture is not supported here: {0}")]
     SystemUnsupported(String),

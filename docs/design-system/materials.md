@@ -1,6 +1,6 @@
 # Materials
 
-Margin uses two materials. Content never sits on glass, and glass never sits on glass.
+Cilica uses two materials. Content never sits on glass, and glass never sits on glass.
 
 ## 1. The sheet (opaque shell)
 

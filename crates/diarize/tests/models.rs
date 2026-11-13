@@ -4,16 +4,16 @@
 //! mkdir -p target/test-models && cd target/test-models
 //! curl -L -o pyannote-segmentation-3.0.onnx https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main/model.onnx
 //! curl -L -o campplus-voxceleb.onnx https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx
-//! cd ../.. && cargo test -p margin-diarize -- --ignored --nocapture
+//! cd ../.. && cargo test -p cilica-diarize -- --ignored --nocapture
 //! ```
 
 use std::path::PathBuf;
 use std::time::Instant;
 
-use margin_diarize::{Diarizer, KnownVoice, SUGGEST_THRESHOLD, assign_segments, cosine, suggest_people};
+use cilica_diarize::{Diarizer, KnownVoice, SUGGEST_THRESHOLD, assign_segments, cosine, suggest_people};
 
 fn models() -> Option<Diarizer> {
-    let dir = std::env::var_os("MARGIN_TEST_MODELS")
+    let dir = std::env::var_os("CILICA_TEST_MODELS")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/test-models"));
     let (seg, emb) = (dir.join("pyannote-segmentation-3.0.onnx"), dir.join("campplus-voxceleb.onnx"));
@@ -41,7 +41,7 @@ fn separates_two_voices() {
     let result = d.diarize(&audio).unwrap();
     println!("diarized {:.1} s in {:?}: {} speakers, turns {:?}", audio.len() as f32 / 16000.0, started.elapsed(), result.speakers.len(), result.turns);
     assert_eq!(result.speakers.len(), 2, "two speakers");
-    let segs: Vec<_> = TURNS.iter().map(|(s, e, _)| (margin_domain::new_id(), *s, *e)).collect();
+    let segs: Vec<_> = TURNS.iter().map(|(s, e, _)| (cilica_domain::new_id(), *s, *e)).collect();
     let got = assign_segments(&result.turns, &segs);
     assert_eq!(got.len(), 4);
     let sp: Vec<usize> = got.iter().map(|g| g.1).collect();
@@ -74,12 +74,12 @@ fn voiceprint_similarity_and_suggestions() {
 
     // A voiceprint from turn 1 (voice A) is suggested for the speaker holding voice A.
     let result = d.diarize(&audio).unwrap();
-    let a = margin_domain::new_id();
+    let a = cilica_domain::new_id();
     let known = vec![KnownVoice { person_id: a, embedding: e[0].clone() }];
     let sugg = suggest_people(&result.speakers, &known, SUGGEST_THRESHOLD);
     println!("suggestions: {sugg:?}");
     assert_eq!(sugg.len(), 1);
-    let segs = vec![(margin_domain::new_id(), TURNS[2].0, TURNS[2].1)];
+    let segs = vec![(cilica_domain::new_id(), TURNS[2].0, TURNS[2].1)];
     let who = assign_segments(&result.turns, &segs)[0].1;
     assert_eq!(sugg[0].0, who, "suggested speaker is the one who speaks in voice A");
 }

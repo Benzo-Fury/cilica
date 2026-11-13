@@ -140,7 +140,7 @@ export function SwearJarPage() {
         <SettingsRow
           id="jar-transcripts"
           label="Meeting transcripts"
-          description="Everyone who speaks, as their words are transcribed. Counted even while Margin is in the background."
+          description="Everyone who speaks, as their words are transcribed. Counted even while Cilica is in the background."
           control={
             <Switch
               aria-labelledby="jar-transcripts"
@@ -153,7 +153,7 @@ export function SwearJarPage() {
         <SettingsRow
           id="jar-notes"
           label="Notes you write"
-          description="Counted when you finish the word. Pasted text and Margin's writing don't count, and deleting a word doesn't get the coin back."
+          description="Counted when you finish the word. Pasted text and Cilica's writing don't count, and deleting a word doesn't get the coin back."
           control={
             <Switch
               aria-labelledby="jar-notes"

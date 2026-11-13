@@ -1,4 +1,4 @@
-# Builds, signs and uploads Margin for every platform when a GitHub release is published.
+# Builds, signs and uploads Cilica for every platform when a GitHub release is published.
 #
 # Publish a release with a tag like `v0.2.0`. The tag must match the version in the root Cargo.toml
 # (`[workspace.package]`), which is the one place to bump. Each platform builds on its own runner and attaches its installers,
@@ -93,7 +93,7 @@ jobs:
             echo "::error::Tag $TAG does not match the version in Cargo.toml ($CARGO_VERSION). Bump [workspace.package] version, push, then re-tag."
             exit 1
           fi
-          echo "Building Margin $VERSION"
+          echo "Building Cilica $VERSION"
 
       - name: Write the App Store Connect key for notarization
         if: runner.os == 'macOS'

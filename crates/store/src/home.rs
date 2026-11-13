@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use margin_domain::{
+use cilica_domain::{
     AiActionStatus, AudioChannel, HomeGlance, Id, MeetingDecisions, Monologue, Overheard, Overtime, Pace, Quote, Segment, Silence, SlowDecision, SwearJar,
     TalkShare, TalkSlice, TicCount, Timestamp, UndoneEdit, Undos, VerbalTics, now,
 };
@@ -416,7 +416,7 @@ impl Db {
         if !prefs.enabled {
             return Ok(None);
         }
-        let start = crate::week_start(margin_domain::chrono::Local::now());
+        let start = crate::week_start(cilica_domain::chrono::Local::now());
         Ok(Some(self.swear_jar(start, &prefs).await?))
     }
 
@@ -441,7 +441,7 @@ impl Db {
         Ok(out)
     }
 
-    /// Margin's actions undone since `since`, with the latest note edit's before and after lines.
+    /// Cilica's actions undone since `since`, with the latest note edit's before and after lines.
     async fn undos(&self, since: Timestamp) -> StoreResult<Option<Undos>> {
         let rows = sqlx::query("SELECT summary, undo_json FROM ai_actions WHERE status = ? AND created_at >= ? ORDER BY created_at DESC")
             .bind(enum_str(&AiActionStatus::Undone))
@@ -452,14 +452,14 @@ impl Db {
         if count < MIN_UNDOS {
             return Ok(None);
         }
-        // The newest undone body edit shows best: Margin's line struck out, yours back.
+        // The newest undone body edit shows best: Cilica's line struck out, yours back.
         let mut latest = None;
         for row in &rows {
             let summary: String = row.try_get("summary")?;
             let undo: Option<serde_json::Value> = row.try_get::<Option<String>, _>("undo_json")?.and_then(|j| serde_json::from_str(&j).ok());
             let edit = undo.filter(|u| u.get("op").and_then(|o| o.as_str()) == Some("restore_body"));
             let Some(u) = edit else {
-                latest.get_or_insert(UndoneEdit { note_id: None, summary, margin_text: None, your_text: None });
+                latest.get_or_insert(UndoneEdit { note_id: None, summary, cilica_text: None, your_text: None });
                 continue;
             };
             let text = |k: &str| u.get(k).and_then(|v| v.as_str()).unwrap_or_default().to_string();
@@ -467,7 +467,7 @@ impl Db {
             latest = Some(UndoneEdit {
                 note_id: u.get("note_id").and_then(|v| v.as_str()).and_then(|s| parse_id(s).ok()),
                 summary,
-                margin_text: first_new_line(&after, &before),
+                cilica_text: first_new_line(&after, &before),
                 your_text: first_new_line(&before, &after),
             });
             break;
@@ -571,7 +571,7 @@ impl Talk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use margin_domain::{NoteKind, new_id};
+    use cilica_domain::{NoteKind, new_id};
 
     use crate::NewNote;
 
@@ -626,8 +626,8 @@ mod tests {
 
     #[test]
     fn overtime_against_the_usual_length() {
-        let base = now() - margin_domain::chrono::TimeDelta::days(30);
-        let day = |d: i64| base + margin_domain::chrono::TimeDelta::days(d);
+        let base = now() - cilica_domain::chrono::TimeDelta::days(30);
+        let day = |d: i64| base + cilica_domain::chrono::TimeDelta::days(d);
         let mins = |m: u32| m * 60_000;
         let sam = |d: i64, m: u32| (new_id(), "1:1 with Sam".to_string(), day(d), mins(m));
         let history = vec![sam(0, 30), sam(7, 31), sam(14, 41), sam(21, 32), sam(29, 47), (new_id(), "Standup".into(), day(29), mins(15))];
@@ -660,13 +660,13 @@ mod tests {
         }
         db.set_note_quotes(note.id, &[Quote { at_ms: 3500, text: "Priya says pricing.".into() }]).await.unwrap();
 
-        let g = db.home_glance(now() - margin_domain::chrono::TimeDelta::days(7)).await.unwrap();
+        let g = db.home_glance(now() - cilica_domain::chrono::TimeDelta::days(7)).await.unwrap();
         assert_eq!(g.quotes.len(), 1);
         assert_eq!(g.quotes[0].speaker.as_deref(), Some("Priya"));
         assert_eq!(g.quotes[0].note_title, "Q3 planning sync");
 
         // Nothing from before the window.
-        let later = db.home_glance(now() + margin_domain::chrono::TimeDelta::days(1)).await.unwrap();
+        let later = db.home_glance(now() + cilica_domain::chrono::TimeDelta::days(1)).await.unwrap();
         assert!(later.quotes.is_empty() && later.talk.is_none());
     }
 
@@ -690,7 +690,7 @@ mod tests {
             db.upsert_segment(s).await.unwrap();
         }
 
-        let g = db.home_glance(now() - margin_domain::chrono::TimeDelta::days(7)).await.unwrap();
+        let g = db.home_glance(now() - cilica_domain::chrono::TimeDelta::days(7)).await.unwrap();
         let talk = g.talk.unwrap();
         assert_eq!((talk.total_ms, talk.meetings), (102_000, 1));
         assert!(talk.slices[0].is_self && talk.slices[0].ms == 72_000);

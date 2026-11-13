@@ -1,6 +1,6 @@
 //! Microphone, system-audio and accessibility permissions, per OS.
 
-use margin_domain::{PermissionKind, PermissionStatus, Permissions};
+use cilica_domain::{PermissionKind, PermissionStatus, Permissions};
 
 use crate::{AudioError, AudioResult, platform};
 

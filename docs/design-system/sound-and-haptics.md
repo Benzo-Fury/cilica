@@ -1,12 +1,12 @@
 # Sound and haptics
 
-Margin follows what people already expect from meeting and recording tools: an audible cue when recording starts and stops (Zoom, Teams and Meet announce recording; Loom counts in), and a soft chime when notes are ready (Anarlog plays a choosable completion sound). Everything else is silent.
+Cilica follows what people already expect from meeting and recording tools: an audible cue when recording starts and stops (Zoom, Teams and Meet announce recording; Loom counts in), and a soft chime when notes are ready (Anarlog plays a choosable completion sound). Everything else is silent.
 
 ## Sounds
 
 | Moment | Default | Character |
 | --- | --- | --- |
-| Recording started | On | Two rising soft tones, 250ms. Confirms capture actually began, even if Margin is behind Zoom. |
+| Recording started | On | Two rising soft tones, 250ms. Confirms capture actually began, even if Cilica is behind Zoom. |
 | Recording stopped | On | The same two tones, falling. |
 | Notes ready | On | One warm chime, 400ms. Choosable in Settings › Sounds (Chime, Bloom, Ready, Glass), or off. |
 | Undo, task done, copy | Off | Optional soft ticks under "Interface sounds". |

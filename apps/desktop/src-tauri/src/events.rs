@@ -1,4 +1,4 @@
-//! Bridges `margin_domain::AppEvent` to the webview as one typed tauri-specta event, and fans each
+//! Bridges `cilica_domain::AppEvent` to the webview as one typed tauri-specta event, and fans each
 //! event out to in-process listeners in the shell (tray label, quit guard, Dynamic Island).
 //!
 //! Crates keep calling `core.events.emit(...)` as before; listeners are added with
@@ -6,7 +6,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use margin_domain::{AppEvent, EventSink};
+use cilica_domain::{AppEvent, EventSink};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 use tauri_specta::Event;

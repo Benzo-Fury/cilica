@@ -6,7 +6,7 @@ const titles: Record<string, string> = { n1: "Q3 planning sync" };
 const titleOf = (id: string) => titles[id];
 
 describe("workingLine", () => {
-  it("names what Margin is touching", () => {
+  it("names what Cilica is touching", () => {
     expect(workingLine({ tool: "get_note", args_json: '{"note_id":"n1"}' }, titleOf)).toBe(
       "Reading “Q3 planning sync”",
     );

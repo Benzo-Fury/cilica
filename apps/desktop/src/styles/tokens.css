@@ -38,7 +38,7 @@
   --home-accent-text: #a54c00;
   --home-accent-soft: #ffedd7;
   --on-home-accent: #2e1a0c;
-  --margin-glow: #2563ff;
+  --cilica-glow: #2563ff;
   --speaker-1: #437eb9;
   --speaker-1-soft: #daecff;
   --speaker-2: #298b81;
@@ -99,7 +99,7 @@
   --home-accent-text: #faaf5f;
   --home-accent-soft: #40250d;
   --on-home-accent: #291507;
-  --margin-glow: #3b7bff;
+  --cilica-glow: #3b7bff;
   --speaker-1: #77ace4;
   --speaker-1-soft: #213243;
   --speaker-2: #68b9ae;
@@ -161,7 +161,7 @@
     --home-accent-text: #faaf5f;
     --home-accent-soft: #40250d;
     --on-home-accent: #291507;
-    --margin-glow: #3b7bff;
+    --cilica-glow: #3b7bff;
     --speaker-1: #77ace4;
     --speaker-1-soft: #213243;
     --speaker-2: #68b9ae;

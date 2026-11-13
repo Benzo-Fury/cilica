@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use margin_audio::{CaptureSource, ClipSource, SourceKind, WavWriter, read_wav_16k};
-use margin_domain::*;
-use margin_store::Db;
-use margin_stt::vad::{EnergyVad, Segmenter, SegmenterConfig};
-use margin_stt::{StreamOptions, SttEvent, SttResult, Transcriber, TranscriptStream, Utterance};
+use cilica_audio::{CaptureSource, ClipSource, SourceKind, WavWriter, read_wav_16k};
+use cilica_domain::*;
+use cilica_store::Db;
+use cilica_stt::vad::{EnergyVad, Segmenter, SegmenterConfig};
+use cilica_stt::{StreamOptions, SttEvent, SttResult, Transcriber, TranscriptStream, Utterance};
 
 use crate::files::{RecordingFiles, Sidecar, Stage};
 use crate::{AudioBackend, DetectEvent, RecordingService, ServiceConfig, SpeechBackend};
@@ -104,7 +104,7 @@ impl ScriptedStream {
             .collect::<Vec<_>>()
             .join(" ")
     }
-    fn finals(&mut self, chunks: Vec<margin_stt::vad::Chunk>) -> Vec<SttEvent> {
+    fn finals(&mut self, chunks: Vec<cilica_stt::vad::Chunk>) -> Vec<SttEvent> {
         chunks
             .into_iter()
             .map(|c| {
@@ -177,7 +177,7 @@ impl Transcriber for FixedRefiner {
         SttEngine::WhisperLocal
     }
     fn open_stream(&self, _options: StreamOptions) -> SttResult<Box<dyn TranscriptStream>> {
-        Err(margin_stt::SttError::EngineUnavailable("live transcription".into()))
+        Err(cilica_stt::SttError::EngineUnavailable("live transcription".into()))
     }
     fn transcribe_recording(&self, samples: &[f32], _language: Option<&str>) -> SttResult<Vec<Utterance>> {
         if samples.iter().all(|s| s.abs() < 1e-4) {
@@ -204,7 +204,7 @@ impl Transcriber for RefusingTranscriber {
 
 impl TranscriptStream for RefusingStream {
     fn push(&mut self, _start: u64, _samples: &[f32]) -> SttResult<Vec<SttEvent>> {
-        Err(margin_stt::SttError::Auth("Soniox".into()))
+        Err(cilica_stt::SttError::Auth("Soniox".into()))
     }
     fn finish(&mut self) -> SttResult<Vec<SttEvent>> {
         Ok(Vec::new())
@@ -434,7 +434,7 @@ async fn mic_only_and_unplugged() {
     assert!(mic.opens() >= 2);
     let (path, duration) = h.db.get_note_audio(note_id).await.unwrap();
     assert!(path.is_some() && duration.unwrap() > 5_000);
-    let ch = margin_audio::decode_ogg_opus(&h.dir.path().join(path.unwrap())).unwrap();
+    let ch = cilica_audio::decode_ogg_opus(&h.dir.path().join(path.unwrap())).unwrap();
     // Opus codes the pair jointly, so a trace of the left channel shows on the right.
     let rms = |x: &[f32]| (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt();
     assert!(rms(&ch[1]) < 0.1 * rms(&ch[0]), "no system audio recorded: {} vs {}", rms(&ch[1]), rms(&ch[0]));
@@ -444,7 +444,7 @@ async fn mic_only_and_unplugged() {
 #[tokio::test]
 async fn missing_model_is_unavailable() {
     let dir = tempfile::tempdir().unwrap();
-    let models = margin_stt::ModelManager::new(dir.path().join("models"), Arc::new(NullSink));
+    let models = cilica_stt::ModelManager::new(dir.path().join("models"), Arc::new(NullSink));
     let db = Db::open_in_memory().await.unwrap();
     let svc = RecordingService::new(
         db.clone(),
@@ -570,7 +570,7 @@ async fn second_recording_appends_to_the_note() {
     h.wait_idle(Duration::from_secs(20)).await;
     let (path, total) = h.db.get_note_audio(note_id).await.unwrap();
     assert!(total.unwrap().abs_diff(first + 2_000) < 400, "{first} + 2000 vs {total:?}");
-    let ch = margin_audio::decode_ogg_opus(&h.dir.path().join(path.unwrap())).unwrap();
+    let ch = cilica_audio::decode_ogg_opus(&h.dir.path().join(path.unwrap())).unwrap();
     assert!((ch[0].len() as i64 - total.unwrap() as i64 * 16).abs() < 1_000);
     assert_eq!(h.db.list_notes().await.unwrap().len(), 1);
 }
@@ -580,7 +580,7 @@ async fn second_recording_appends_to_the_note() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn interrupted_recording_is_finished_at_launch() {
     let h = harness(FakeAudio::meeting(1.0), FakeSpeech::scripted()).await;
-    let note = h.db.create_note(margin_store::NewNote { title: "Standup".into(), kind: NoteKind::Meeting, ..Default::default() }).await.unwrap();
+    let note = h.db.create_note(cilica_store::NewNote { title: "Standup".into(), kind: NoteKind::Meeting, ..Default::default() }).await.unwrap();
     let files = RecordingFiles::new(h.dir.path(), note.id);
     let sidecar = Sidecar { note_id: note.id, started_at: now(), offset_ms: 0, previous_audio: None, stage: Stage::Recording };
     files.write_sidecar(&sidecar).unwrap();
@@ -620,7 +620,7 @@ async fn finish_with_refiner_on(engine: SttEngine, refined: &'static str, live: 
     let mut settings = h.db.get_settings().await.unwrap();
     settings.transcription.engine = engine;
     h.db.set_settings(&settings).await.unwrap();
-    let note = h.db.create_note(margin_store::NewNote { title: "Call".into(), kind: NoteKind::Meeting, ..Default::default() }).await.unwrap();
+    let note = h.db.create_note(cilica_store::NewNote { title: "Call".into(), kind: NoteKind::Meeting, ..Default::default() }).await.unwrap();
     let files = RecordingFiles::new(h.dir.path(), note.id);
     files.write_sidecar(&Sidecar { note_id: note.id, started_at: now(), offset_ms: 0, previous_audio: None, stage: Stage::Captured }).unwrap();
     // Twelve seconds of call audio (the fixture opens quietly), mic silent.
@@ -685,7 +685,7 @@ fn corrupt_header(path: &Path) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn retention_removes_old_audio_but_keeps_the_transcript() {
     let h = harness(FakeAudio::meeting(1.0), FakeSpeech::scripted()).await;
-    let note = h.db.create_note(margin_store::NewNote { title: "Old call".into(), ..Default::default() }).await.unwrap();
+    let note = h.db.create_note(cilica_store::NewNote { title: "Old call".into(), ..Default::default() }).await.unwrap();
     let rel = format!("recordings/{}.ogg", note.id);
     let path = h.dir.path().join(&rel);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -737,7 +737,7 @@ async fn detection_asks_first_or_starts() {
 // ── With the real models (ignored) ─────────────────────────────────────────
 
 fn test_models() -> PathBuf {
-    std::env::var_os("MARGIN_TEST_MODELS").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/test-models"))
+    std::env::var_os("CILICA_TEST_MODELS").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/test-models"))
 }
 
 /// Word error rate by edit distance, after lower-casing and dropping punctuation.
@@ -755,22 +755,22 @@ fn wer(reference: &str, hypothesis: &str) -> f32 {
     d[r.len()][h.len()] as f32 / r.len().max(1) as f32
 }
 
-/// The same meeting through Whisper (default: tiny; `MARGIN_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin`
+/// The same meeting through Whisper (default: tiny; `CILICA_TEST_WHISPER=ggml-large-v3-turbo-q5_0.bin`
 /// for the default model), Silero VAD, pyannote segmentation and CAM++: accuracy, no echo
 /// duplicates, two people found on the call, and a Saved person recognised (named or suggested).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "needs Whisper, Silero VAD and the speaker models in target/test-models"]
 async fn whole_meeting_with_real_models() {
     let dir = test_models();
-    let whisper = dir.join(std::env::var("MARGIN_TEST_WHISPER").unwrap_or_else(|_| "ggml-tiny.bin".into()));
+    let whisper = dir.join(std::env::var("CILICA_TEST_WHISPER").unwrap_or_else(|_| "ggml-tiny.bin".into()));
     let models = (dir.join("pyannote-segmentation-3.0.onnx"), dir.join("campplus-voxceleb.onnx"));
-    let engine = margin_stt::WhisperLocal::load(margin_stt::WhisperOptions::new(whisper.clone(), Some(dir.join("silero_vad.onnx")))).unwrap();
+    let engine = cilica_stt::WhisperLocal::load(cilica_stt::WhisperOptions::new(whisper.clone(), Some(dir.join("silero_vad.onnx")))).unwrap();
     let h = harness(FakeAudio::meeting(40.0), FakeSpeech { engine: Arc::new(engine), speaker_models: Some(models.clone()), refiner: None }).await;
 
     // Karen is a Saved person from an earlier meeting (her first sentence).
     let system = mono("meeting_system.wav");
     let karen_turn = &truth()[2];
-    let mut d = margin_diarize::Diarizer::load(&models.0, &models.1).unwrap();
+    let mut d = cilica_diarize::Diarizer::load(&models.0, &models.1).unwrap();
     let karen_print = d.embed(&system[karen_turn.start_ms as usize * 16..karen_turn.end_ms as usize * 16]).unwrap();
     let karen = h.db.create_person("Karen", Some(&karen_print)).await.unwrap();
 
@@ -822,15 +822,15 @@ async fn whole_meeting_with_real_models() {
     let karen_ids: Vec<_> = turns.iter().filter(|t| t.speaker == "Karen").flat_map(speaker_of).collect();
     assert!(daniel.iter().all(|s| *s == daniel[0]) && karen_ids.iter().all(|s| *s == karen_ids[0]) && daniel[0] != karen_ids[0]);
 
-    // Karen's voice is known: her speaker is named Karen when Margin is sure, suggested when it
+    // Karen's voice is known: her speaker is named Karen when Cilica is sure, suggested when it
     // is less sure, never both. Learning waits for a confirmation either way.
-    let suggestions = h.db.speaker_suggestions(note_id, margin_diarize::SUGGEST_THRESHOLD).await.unwrap();
+    let suggestions = h.db.speaker_suggestions(note_id, cilica_diarize::SUGGEST_THRESHOLD).await.unwrap();
     println!("suggestions: {suggestions:?}");
     let person_of = |id: Option<Id>| transcript.speakers.iter().find(|s| Some(s.id) == id).and_then(|s| s.person_id);
     let named = person_of(karen_ids[0]) == Some(karen.id);
     let suggested = suggestions.iter().any(|s| Some(s.speaker_id) == karen_ids[0] && s.person_id == karen.id);
     assert!(named != suggested, "named {named}, suggested {suggested}");
     assert_eq!(h.db.get_person(karen.id).await.unwrap().sample_count, 1);
-    // Daniel is nobody Margin knows.
+    // Daniel is nobody Cilica knows.
     assert_eq!(person_of(daniel[0]), None);
 }

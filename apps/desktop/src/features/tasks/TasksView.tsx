@@ -87,7 +87,7 @@ function TaskList() {
             <div>
               <h1 className="t-title">Scheduled tasks</h1>
               <p className="t-callout">
-                Margin works through your notes on a schedule and leaves suggestions for you to
+                Cilica works through your notes on a schedule and leaves suggestions for you to
                 approve. Tasks never run while you are recording.
               </p>
             </div>
@@ -99,7 +99,7 @@ function TaskList() {
               art="tasks"
               title="No scheduled tasks"
               tip={
-                <ShortcutTip action="assistant.newThread">Or ask Margin to set one up</ShortcutTip>
+                <ShortcutTip action="assistant.newThread">Or ask Cilica to set one up</ShortcutTip>
               }
               actions={
                 <Button
@@ -112,7 +112,7 @@ function TaskList() {
                 </Button>
               }
             >
-              Ask Margin to tidy, summarise or review your notes every few days.
+              Ask Cilica to tidy, summarise or review your notes every few days.
             </EmptyState>
           ) : (
             <div className="nt-list">
