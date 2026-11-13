@@ -37,23 +37,31 @@ export type ViewName = View["name"];
 
 interface RouterState {
   view: View;
-  /** The view before the current one, for "Done" in settings and Esc. */
+  /** The view before the current one, for Back, "Done" in settings and Esc. */
   previous: View | null;
+  /** Earlier views, oldest first; `previous` is the last one. */
+  stack: View[];
   navigate: (view: View) => void;
   back: () => void;
 }
 
+const MAX_HISTORY = 50;
+
 export const useRouter = create<RouterState>()((set, get) => ({
   view: { name: "home" },
   previous: null,
+  stack: [],
   navigate: (view) => {
-    const current = get().view;
+    const { view: current, stack } = get();
     if (JSON.stringify(current) === JSON.stringify(view)) return;
-    set({ view, previous: current });
+    // Going home starts over; otherwise remember where we were (capped so it can't grow forever).
+    const next = view.name === "home" ? [] : [...stack, current].slice(-MAX_HISTORY);
+    set({ view, stack: next, previous: next.at(-1) ?? null });
   },
   back: () => {
-    const { previous } = get();
-    set({ view: previous ?? { name: "home" }, previous: null });
+    const stack = get().stack.slice(0, -1);
+    const view = get().stack.at(-1) ?? { name: "home" };
+    set({ view, stack, previous: stack.at(-1) ?? null });
   },
 }));
 

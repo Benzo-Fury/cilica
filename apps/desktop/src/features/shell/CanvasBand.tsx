@@ -2,7 +2,7 @@ import { ArrowLeft, PanelLeft, PanelRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
-import { navigate, useRouter } from "@/app/router";
+import { useRouter } from "@/app/router";
 import { useCilicaPlacement } from "@/features/assistant/placement";
 import { isTauri } from "@/ipc/client";
 import { CanvasBandLayout, IconButton, TrafficLightsSpace, WindowControls } from "@/ui";
@@ -14,8 +14,8 @@ import { useWindowControls } from "./useWindowControls";
  * for the traffic lights) when the sidebar is closed, and, while Cilica's side panel is hidden, ends with the button that
  * shows it (the panel carries its own hide button; the floating bar needs neither).
  *
- * Any view with a breadcrumb gets a back button before it that closes the view and leaves the
- * page empty, or returns to Settings for a page opened from there (Cilica activity, Trash). A view that has its own way back (a task report) passes `back={false}`.
+ * Any view with a breadcrumb gets a back button before it that returns to the view you came from
+ * (home when there is none). A view that has its own way back (a task report) passes `back={false}`.
  */
 export function CanvasBand({
   start,
@@ -37,7 +37,6 @@ export function CanvasBand({
   const sidebarKeys = useShortcut("sidebar.toggle");
   const assistantKeys = useShortcut("assistant.toggle");
   const controls = useWindowControls();
-  const fromSettings = useRouter((s) => s.previous?.name === "settings");
   const goBack = useRouter((s) => s.back);
   return (
     <CanvasBandLayout
@@ -60,7 +59,7 @@ export function CanvasBand({
               icon={ArrowLeft}
               iconMotion="arrow"
               label="Back"
-              onClick={() => (fromSettings ? goBack() : navigate({ name: "home" }))}
+              onClick={goBack}
             />
           )}
           {start}
