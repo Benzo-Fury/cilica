@@ -699,6 +699,11 @@ mark {
   align-self: stretch;
   height: var(--size-titlebar);
 }
+/* The band's end column already packs right; an auto margin here would strand the buttons
+   before the captions (Ask Cilica) in the middle of the band on Windows and Linux. */
+.nt-band-end .nt-win-caps {
+  margin-left: 0;
+}
 .nt-win-caps button:focus-visible {
   box-shadow: inset 0 0 0 2px var(--accent-text);
 }

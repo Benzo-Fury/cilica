@@ -55,7 +55,7 @@ export function Sidebar() {
       <div className="nt-sidebar-inner" data-sidebar>
         <TitleBand className="nt-sidebar-band">
           {isMac && <TrafficLightsSpace preview={!isTauri} />}
-          <span className="nt-band-spacer" data-tauri-drag-region />
+          {isMac && <span className="nt-band-spacer" data-tauri-drag-region />}
           <IconButton
             icon={FolderPlus}
             iconMotion="folder"
@@ -76,6 +76,8 @@ export function Sidebar() {
             shortcut={keys.sidebar}
             onClick={toggleSidebar}
           />
+          {/* On Windows the window controls sit top right, so the buttons start at the left. */}
+          {!isMac && <span className="nt-band-spacer" data-tauri-drag-region />}
         </TitleBand>
         <button
           type="button"
