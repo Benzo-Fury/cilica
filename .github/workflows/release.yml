@@ -32,7 +32,7 @@ concurrency:
 jobs:
   # Picks the platforms to build: all of them for a published release, or the one asked for.
   platforms:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.pick.outputs.matrix }}
     steps:
@@ -59,7 +59,7 @@ jobs:
         include: ${{ fromJSON(needs.platforms.outputs.matrix) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ───────── Toolchains ─────────
 
