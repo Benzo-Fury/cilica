@@ -15,11 +15,15 @@ apps/desktop/
       import.rs       Settings › Import: detection, previews, imports, keys (keychain `import.<provider>`)
   src/
     app/              root layout, providers, keybind registry, motion presets
-    features/         sidebar, note, transcript, recorder, assistant, people, tasks, activity, trash, settings, onboarding, palette, import
+    features/         sidebar, note, transcript, recorder, assistant, people, tasks, activity, trash, settings, onboarding, palette, import, installer
     ui/               design-system components (the only place raw styling lives)
     lib/toast/        in-house toast library
-    ipc/              bindings.ts (generated) + client.ts (real or mock backend) + event bus
+    ipc/              bindings.ts (generated) + client.ts (real or mock backend) + event bus; installer/ is the same for Cilica Setup
     styles/           tokens.css (generated), theme.css (Tailwind ↔ tokens), components.css (design-system classes)
+apps/setup/           Cilica Setup, the Windows installer window (see Windows installer below)
+  src/plan.rs         modes, steps and their weights, folders, NSIS command lines (no I/O; tested everywhere)
+  src/system/         windows.rs does it; simulated.rs plays the same steps on macOS and Linux
+  src/job.rs          SetupEvent(JobEvent): progress to the window and the taskbar button
 crates/
   domain/             shared types, AppError, AppEvent + EventSink, MeetingSummarizer trait
   store/              SQLite (sqlx), migrations, FTS5. One module per schema area, each `impl Db`
@@ -87,3 +91,22 @@ Shared files (`Cargo.toml` manifests, `src-tauri/src/lib.rs` command list, `crat
 | `commands::assistant::summarizer(app)` | AI | Audio (pipeline, at end of meeting) |
 
 Until the owner lands the real body, code that calls a seam compiles but the call fails or panics at run time (`todo!()`), so test your own area against in-memory fakes or your own fixtures, not against another area's unfinished code.
+
+## Windows installer
+
+Cilica Setup (`apps/setup`, crate `cilica-setup`) is a second, small Tauri program. It draws its window with the desktop frontend (`index.html?window=installer`, `src/features/installer`, built into Setup like Cilica's own frontend) and has its own commands and one event, `SetupEvent`, reached through `src/ipc/installer/` (`bindings.ts` from `bun run bindings`). It never uses Cilica's `api` and has no access to Cilica's database.
+
+It does no installing of its own. One binary plays two roles:
+
+| Copy | Built with | Started by | Does |
+| --- | --- | --- | --- |
+| `Cilica_<version>_x64_Setup.exe` on the release | `CILICA_SETUP_PAYLOAD` = Tauri's NSIS `*-setup.exe`, built in by `build.rs` | the person who downloaded it | unpacks the NSIS installer to its temporary folder and runs it with `/S` (plus `/NODESKTOP` or `/UPDATE`) and `/D=<folder>`, measuring the bytes it writes for the bar |
+| `cilica-setup.exe` next to Cilica | no payload | Installed apps, via the `UninstallString` that `hooks.nsh` writes | copies itself to the temporary folder, starts that copy, which runs `uninstall.exe /S _?=<folder>`, then deletes Cilica's data folders and keychain entries when asked |
+
+Everything Tauri's installer does stays its own: files, Start menu shortcut, the Installed apps entry, `MainBinaryName`, and what the updater relies on. `apps/desktop/src-tauri/windows/hooks.nsh` adds two things after install: it honours `/NODESKTOP`, and when `cilica-setup.exe` was bundled it points `UninstallString` at it (`QuietUninstallString` keeps Tauri's silent uninstaller for tools). `tauri.windows-setup.conf.json` bundles that copy; only the release and pull request test builds pass it, so `tauri build` on Windows works without Setup.
+
+**Open Cilica when you sign in** writes the same `Run` value as the autostart plugin. On its first launch Cilica adopts that item as its Open at login setting (`shell::adopt_installer_login_item`) so its own sync keeps it.
+
+Setup's WebView2 profile lives in its temporary folder and is removed after it exits, so it leaves nothing behind in AppData. Without WebView2 it starts Tauri's NSIS wizard (or uninstaller) instead and waits for it.
+
+Off Windows, `bun run setup` (`cargo run -p cilica-setup`, `-- --uninstall` for the other flow) opens the window against `simulated.rs`; with the Vite dev server running it hot-reloads. In the browser, `?window=installer` uses a mock with the same steps (`&flow=uninstall`, `&existing`, `&fail=copy`).

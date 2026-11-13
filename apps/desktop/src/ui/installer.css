@@ -1,0 +1,317 @@
+/*
+ * The Windows installer window (docs/design-system/components/InstallerWindow): frameless,
+ * 600 × 480, one screen at a time over the setup ridgeline. The art reads clearly only in the
+ * bottom third; a fade to the canvas keeps text off it. Windows 11 rounds the corners itself.
+ */
+
+.nt-installer {
+  position: relative;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg-canvas);
+  color: var(--ink);
+}
+
+/* ───────── Art ───────── */
+
+.nt-installer-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Taller than the window so the ridges sit low and the sun has room to rise. */
+.nt-installer-art canvas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 125%;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 1600ms var(--ease-out) 200ms,
+    transform 1800ms var(--ease-out) 200ms;
+}
+.nt-installer[data-ready] .nt-installer-art canvas {
+  opacity: 1;
+  transform: none;
+}
+.nt-installer-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-canvas) 0,
+    var(--bg-canvas) 30%,
+    color-mix(in srgb, var(--bg-canvas) 70%, transparent) 46%,
+    transparent 72%
+  );
+}
+
+/* ───────── Title band ───────── */
+
+.nt-installer-band {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: 14px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.nt-installer-icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+.nt-installer-appicon {
+  width: 16px;
+  height: 16px;
+}
+.nt-installer-title {
+  flex: 1;
+  font-weight: 500;
+}
+.nt-installer-band .nt-win-caps,
+.nt-installer-band .nt-win-caps button {
+  height: 44px;
+}
+
+/* ───────── Screens ───────── */
+
+.nt-installer-body {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  padding: 18px 40px 28px;
+}
+.nt-installer-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: nt-installer-in var(--spring-smooth-dur) var(--spring-smooth) both;
+}
+@keyframes nt-installer-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.nt-installer-screen h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+.nt-installer-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 46ch;
+}
+.nt-installer-spacer {
+  flex: 1;
+}
+.nt-installer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.nt-installer-hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.nt-installer-link {
+  font: inherit;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-installer-link:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.nt-installer-link:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-installer-path {
+  display: block;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-installer-lead .nt-installer-path,
+.nt-installer-hint .nt-installer-path {
+  display: inline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.nt-installer-band .nt-win-caps button:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.nt-installer-problem {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 52ch;
+}
+.nt-installer-problem .nt-ico {
+  margin-top: 2px;
+  flex: none;
+  color: var(--danger);
+}
+
+/* ───────── Options ───────── */
+
+.nt-installer-options {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--spring-smooth-dur) var(--spring-smooth);
+}
+.nt-installer-options[data-open] {
+  grid-template-rows: 1fr;
+}
+/* Closed, the panel's edge would still show in the clip's 1px padding: hide it once shut. */
+.nt-installer-options:not([data-open]) .nt-installer-panel {
+  visibility: hidden;
+  transition: visibility 0s linear var(--spring-smooth-dur);
+}
+.nt-installer-options-inner {
+  overflow: hidden;
+  min-height: 0;
+  /* Room for the panel's edge and shadow inside the clip. */
+  padding: 1px;
+  margin: -1px;
+}
+.nt-installer-panel {
+  padding: 4px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-fill-strong);
+  box-shadow:
+    0 0 0 0.5px var(--glass-edge),
+    var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+:root[data-material="opaque"] .nt-installer-panel {
+  background: var(--bg-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.nt-installer-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: 5px 0;
+}
+.nt-installer-option + .nt-installer-option {
+  border-top: 0.5px solid var(--line);
+}
+.nt-installer-option-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.nt-installer-option-label {
+  font-weight: 500;
+  font-size: 13.5px;
+}
+.nt-installer-option-detail {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* Deleting notes is the one switch that turns red when on. */
+.nt-installer .nt-switch[data-tone="danger"][aria-checked="true"] {
+  background: var(--danger);
+}
+
+/* ───────── Progress ───────── */
+
+.nt-installer-progress {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+.nt-installer-status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.nt-installer-status > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.nt-installer-percent {
+  font: 500 12px / 1 var(--font-mono);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.nt-installer-progress[data-failed] .nt-progress > span {
+  background: var(--danger);
+}
+.nt-installer-done {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.nt-installer-done li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  animation: nt-installer-in var(--spring-smooth-dur) var(--spring-smooth) both;
+}
+.nt-installer-done .nt-ico {
+  flex: none;
+  color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-installer-art canvas {
+    transform: none;
+    transition: opacity 120ms linear;
+  }
+  .nt-installer-screen,
+  .nt-installer-done li {
+    animation-duration: 1ms;
+  }
+  .nt-installer-options {
+    transition-duration: 1ms;
+  }
+}

@@ -111,7 +111,8 @@ pub fn error_toast(title: impl Into<String>, description: impl Into<String>) -> 
 /// Build the shell: theme and material on the main window, the island window, the tray, the
 /// global hotkey, launch at login, and the event listener that keeps them in step.
 pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
-    let settings = tauri::async_runtime::block_on(core.db.get_settings())?;
+    let mut settings = tauri::async_runtime::block_on(core.db.get_settings())?;
+    adopt_installer_login_item(app, core, &mut settings);
     app.manage(Shell::new(core.db.clone(), core.events.clone(), settings.clone()));
 
     apply_theme(app, settings.appearance.theme);
@@ -227,6 +228,23 @@ fn apply_theme(app: &AppHandle, mode: ThemeMode) {
         {
             tracing::warn!(%error, label, "could not set the window theme");
         }
+    }
+}
+
+/// Cilica Setup on Windows (apps/setup) can turn on "Open Cilica when you sign in" before Cilica
+/// has ever run, by writing the same login item the autostart plugin writes. On first launch,
+/// take that as the Open at login setting, so the sync below keeps it instead of removing it.
+fn adopt_installer_login_item(app: &AppHandle, core: &Core, settings: &mut Settings) {
+    if !cfg!(target_os = "windows") || cfg!(debug_assertions) || settings.onboarding_done || settings.launch_at_login {
+        return;
+    }
+    if !app.autolaunch().is_enabled().unwrap_or(false) {
+        return;
+    }
+    settings.launch_at_login = true;
+    if let Err(error) = tauri::async_runtime::block_on(core.db.set_settings(settings)) {
+        tracing::warn!(error = %cilica_domain::AppError::from(error).message, "could not keep the installer's login item");
+        settings.launch_at_login = false;
     }
 }
 

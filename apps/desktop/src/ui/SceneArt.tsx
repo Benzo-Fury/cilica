@@ -5,6 +5,10 @@
  *
  * Every colour comes from the theme tokens (`bg-canvas`, `ink`, `home-accent`), mixed per layer, so
  * the scene repaints itself when the theme changes. Reduce motion keeps it still.
+ *
+ * `sun` sets how high the sun stands: 0 on the ridges, 1 its usual height, up to 2 well above it.
+ * The Windows installer raises it as Cilica installs and lowers it as Cilica is removed. It eases
+ * toward a new value.
  */
 import { useEffect, useRef } from "react";
 
@@ -98,8 +102,11 @@ const noise = (x: number, s: number) => {
 const fbm = (x: number, s: number) =>
   noise(x, s) * 0.6 + noise(x * 2.1, s + 3) * 0.27 + noise(x * 4.3, s + 7) * 0.13;
 
-/** Paint one frame into `img` (width × height scene pixels) at time `t` in ms. */
-export function paintScene(img: ImageData, p: ScenePalette, t: number) {
+/** How far the sun moves toward a new height each frame. */
+const SUN_EASE = 0.12;
+
+/** Paint one frame into `img` (width × height scene pixels) at time `t` in ms, the sun at `sun` (0..2). */
+export function paintScene(img: ImageData, p: ScenePalette, t: number, sun = 1) {
   const { width: W, height: H, data } = img;
   const drift = t * 0.000012;
   const tops = p.ridges.map((_, L) => {
@@ -113,7 +120,7 @@ export function paintScene(img: ImageData, p: ScenePalette, t: number) {
     );
   });
   const sunX = W * 0.74;
-  const sunY = H * 0.72;
+  const sunY = H * (0.88 - 0.16 * Math.min(2, Math.max(0, sun)));
   const sunR = W * 0.06;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -181,8 +188,14 @@ function readPalette(): ScenePalette | null {
   return canvas && ink && warm ? scenePalette(canvas, ink, warm) : null;
 }
 
-export function SceneArt({ still = false }: { still?: boolean }) {
+export function SceneArt({ still = false, sun = 1 }: { still?: boolean; sun?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const sunTarget = useRef(sun);
+  const repaintNow = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    sunTarget.current = sun;
+    repaintNow.current?.();
+  }, [sun]);
   useEffect(() => {
     const cv = ref.current;
     const ctx = cv?.getContext("2d");
@@ -193,6 +206,7 @@ export function SceneArt({ still = false }: { still?: boolean }) {
     let raf = 0;
     let last = 0;
     let img: ImageData | null = null;
+    let sunNow = sunTarget.current;
 
     const size = () => {
       const w = Math.max(1, Math.round(cv.clientWidth / SCALE));
@@ -205,7 +219,8 @@ export function SceneArt({ still = false }: { still?: boolean }) {
     };
     const draw = (now: number) => {
       if (!palette || !img) return;
-      paintScene(img, palette, now - t0);
+      sunNow = reduced ? sunTarget.current : sunNow + (sunTarget.current - sunNow) * SUN_EASE;
+      paintScene(img, palette, now - t0, sunNow);
       ctx.putImageData(img, 0, 0);
     };
     const frame = (now: number) => {
@@ -221,6 +236,8 @@ export function SceneArt({ still = false }: { still?: boolean }) {
     };
 
     repaint();
+    // Still scenes repaint when the sun is moved; moving ones pick it up on the next frame.
+    repaintNow.current = reduced ? () => draw(performance.now()) : null;
     if (!reduced) raf = requestAnimationFrame(frame);
     const resize = new ResizeObserver(repaint);
     resize.observe(cv);
@@ -238,6 +255,7 @@ export function SceneArt({ still = false }: { still?: boolean }) {
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      repaintNow.current = null;
       cancelAnimationFrame(raf);
       resize.disconnect();
       themeAttr.disconnect();

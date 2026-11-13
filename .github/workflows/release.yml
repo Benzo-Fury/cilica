@@ -43,7 +43,7 @@ jobs:
         run: |
           ALL='[
             {"name":"macOS (Apple Silicon)","os":"macos-latest","target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"},
-            {"name":"Windows","os":"windows-latest","target":"x86_64-pc-windows-msvc","args":""},
+            {"name":"Windows","os":"windows-latest","target":"x86_64-pc-windows-msvc","args":"--config src-tauri/tauri.windows-setup.conf.json"},
             {"name":"Linux","os":"ubuntu-24.04","target":"x86_64-unknown-linux-gnu","args":""}
           ]'
           echo "matrix=$(jq -c --arg p "$PLATFORM" 'map(select($p == "all" or .name == $p))' <<<"$ALL")" >> "$GITHUB_OUTPUT"
@@ -110,6 +110,12 @@ jobs:
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile
 
+      # Cilica Setup (apps/setup) is Cilica's installer window on Windows. Its remove-only copy is
+      # built first so Tauri bundles it into the NSIS installer (tauri.windows-setup.conf.json).
+      - name: Build Cilica Setup's remove-only copy
+        if: runner.os == 'Windows'
+        run: bun tools/build-windows-setup.ts prepare
+
       - name: Build and attach to the release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -132,3 +138,15 @@ jobs:
           args: ${{ matrix.args }}
           tagName: ${{ github.event.release.tag_name || inputs.tag }}
           updaterJsonPreferNsis: true
+
+      # Then Setup itself, carrying the NSIS installer Tauri just built. The NSIS installer stays
+      # on the release too: the updater downloads it.
+      - name: Build Cilica Setup and attach it
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          bun tools/build-windows-setup.ts package
+          gh release upload "$TAG" target/release/bundle/setup/*.exe --clobber

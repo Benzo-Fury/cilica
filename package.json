@@ -12,6 +12,8 @@
     "tokens": "python3 tools/build-tokens.py",
     "import-apps": "python3 tools/build-import-apps.py",
     "dmg-background": "bun tools/build-dmg-background.ts",
-    "bindings": "cargo test -p cilica-desktop export_bindings"
+    "bindings": "cargo test -p cilica-desktop export_bindings && cargo test -p cilica-setup export_bindings",
+    "setup": "cargo run -p cilica-setup",
+    "windows-setup": "bun tools/build-windows-setup.ts"
   }
 }

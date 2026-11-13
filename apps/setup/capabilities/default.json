@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Setup's window: its own minimise and close buttons, the drag region, the folder picker.",
+  "windows": ["installer"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-start-dragging",
+    "dialog:allow-open"
+  ]
+}
