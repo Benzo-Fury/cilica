@@ -73,6 +73,8 @@ function appliedSummary(kind: Proposal["kind"]): string {
       return `Deleted ${kind.name}`;
     case "bulk_move":
       return `Moved ${kind.notes.length} notes to ${kind.category_name}`;
+    case "move_groups":
+      return `Moved ${kind.groups.reduce((n, g) => n + g.notes.length, 0)} notes`;
     case "create_note":
       return `Created ${kind.title}`;
   }
@@ -792,6 +794,16 @@ export function assistantCommands({ state, emit }: MockContext) {
           for (const ref of kind.notes) {
             const note = state.notes.get(ref.id);
             if (note) note.category_id = kind.category_id;
+          }
+          scopes.add("notes");
+          break;
+        }
+        case "move_groups": {
+          for (const group of kind.groups) {
+            for (const ref of group.notes) {
+              const note = state.notes.get(ref.id);
+              if (note) note.category_id = group.category_id;
+            }
           }
           scopes.add("notes");
           break;

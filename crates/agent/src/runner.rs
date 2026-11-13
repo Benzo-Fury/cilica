@@ -4,8 +4,10 @@
 //! - Additive applies at once and records undo data.
 //! - Edit becomes a diff proposal unless `auto_apply_edits` is on (still versioned).
 //! - Destructive always becomes a confirm proposal.
-//! - A write that would take the turn past 5 distinct existing notes becomes Destructive.
-//! - At most [`MAX_WRITES_PER_TURN`] writes per turn.
+//! - A write that would take the turn past 5 distinct existing notes becomes Destructive. In a chat
+//!   turn, every such move joins one grouped card, so a bulk reorganisation is one confirmation.
+//! - At most [`MAX_NOTES_PER_TURN`] distinct notes and [`MAX_WRITES_PER_TURN`] write calls per turn.
+//!   These stop a runaway turn; they are not meant to be reached by real work.
 //! - In propose-only mode (scheduled tasks) every write becomes a proposal, and suggestions that
 //!   were dismissed (or are still pending) are not made again.
 //!
@@ -14,10 +16,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use cilica_domain::{
-    AiAction, AiActionStatus, AppEvent, AppResult, AssistantEvent, DataScope, Events, Id, NoteRef, Proposal,
+    AiAction, AiActionStatus, ProposalKind, AppEvent, AppResult, AssistantEvent, DataScope, Events, Id, NoteRef, Proposal,
     ProposalSource, ProposalStatus, TaskDraft, TaskSchedule, TaskScope, ToolTier, new_id, now,
 };
 use cilica_store::Db;
@@ -31,7 +33,10 @@ use crate::prompt::quoted;
 use crate::store::NoteStore;
 use crate::tools::{self, ToolDef};
 
-pub const MAX_WRITES_PER_TURN: u32 = 20;
+/// Write calls per turn. One call can move many notes, so this only catches a looping model.
+pub const MAX_WRITES_PER_TURN: u32 = 200;
+/// Distinct existing notes one turn may change or propose to change.
+pub const MAX_NOTES_PER_TURN: usize = 1_000;
 pub const MAX_NOTES_WITHOUT_CONFIRM: usize = 5;
 const MAX_TRANSCRIPT_CHARS: usize = 150_000;
 const MAX_NOTE_CHARS: usize = 100_000;
@@ -59,12 +64,30 @@ pub struct CallContext {
     pub auto_apply_edits: bool,
     pub emit: Option<ChatEmit>,
     writes: AtomicU32,
+    /// Notes changed without confirmation this turn (for the "more than 5 notes" rule).
     touched: Mutex<HashSet<Id>>,
+    /// Notes changed or proposed this turn (for [`MAX_NOTES_PER_TURN`]).
+    planned: Mutex<HashSet<Id>>,
+    /// The turn's grouped move card while it is open. Async, so parallel calls join it in turn.
+    grouped: tokio::sync::Mutex<Option<Id>>,
+    /// Set once a grouped card exists, so later moves join it instead of applying piecemeal.
+    grouping: AtomicBool,
 }
 
 impl CallContext {
     pub fn chat(thread_id: Option<Id>, turn_id: Id, auto_apply_edits: bool, emit: Option<ChatEmit>) -> Self {
-        Self { thread_id, turn_id, mode: RunMode::Chat, auto_apply_edits, emit, writes: AtomicU32::new(0), touched: Mutex::default() }
+        Self {
+            thread_id,
+            turn_id,
+            mode: RunMode::Chat,
+            auto_apply_edits,
+            emit,
+            writes: AtomicU32::new(0),
+            touched: Mutex::default(),
+            planned: Mutex::default(),
+            grouped: tokio::sync::Mutex::default(),
+            grouping: AtomicBool::new(false),
+        }
     }
 
     pub fn propose_only(task_run_id: Id) -> Self {
@@ -76,6 +99,9 @@ impl CallContext {
             emit: None,
             writes: AtomicU32::new(0),
             touched: Mutex::default(),
+            planned: Mutex::default(),
+            grouped: tokio::sync::Mutex::default(),
+            grouping: AtomicBool::new(false),
         }
     }
 
@@ -185,7 +211,7 @@ impl ToolRunner {
                 let used = ctx.writes.fetch_add(1, Ordering::SeqCst);
                 if used >= MAX_WRITES_PER_TURN {
                     return Err(format!(
-                        "Cilica can make at most {MAX_WRITES_PER_TURN} changes in one turn. Stop here and tell the user what is left to do."
+                        "Cilica can make at most {MAX_WRITES_PER_TURN} write calls in one turn. Stop here and tell the user what is left to do."
                     ));
                 }
             }
@@ -239,6 +265,16 @@ impl ToolRunner {
     ) -> Result<String, String> {
         let mut tier = op.base_tier();
         let touched = op.touched_notes();
+        {
+            let mut planned = ctx.planned.lock().unwrap();
+            let fresh = touched.iter().filter(|id| !planned.contains(id)).count();
+            if planned.len() + fresh > MAX_NOTES_PER_TURN {
+                return Err(format!(
+                    "Cilica can change at most {MAX_NOTES_PER_TURN} notes in one turn. Stop here and tell the user what is left to do."
+                ));
+            }
+            planned.extend(touched.iter().copied());
+        }
         // Decide under one lock so parallel calls cannot each slip under the limit.
         let propose = {
             let mut seen = ctx.touched.lock().unwrap();
@@ -248,6 +284,10 @@ impl ToolRunner {
                 if union.len() > MAX_NOTES_WITHOUT_CONFIRM {
                     tier = ToolTier::Destructive;
                 }
+            }
+            // Once this turn has a move card, every later move joins it, so the card is the whole plan.
+            if matches!(op, WriteOp::MoveNotes { .. }) && ctx.grouping.load(Ordering::SeqCst) {
+                tier = ToolTier::Destructive;
             }
             let propose = match (ctx.mode, tier) {
                 (RunMode::ProposeOnly { .. }, _) => true,
@@ -271,6 +311,10 @@ impl ToolRunner {
             scopes.extend(s);
             *note_scope = n;
             return Ok(format!("Done: {}.", action.summary));
+        }
+
+        if let (RunMode::Chat, ToolTier::Destructive, WriteOp::MoveNotes { notes, category }) = (ctx.mode, tier, &op) {
+            return self.group_move(ctx, action, notes, category, reason, proposal_out, scopes).await;
         }
 
         let kind = op.to_proposal_kind().ok_or_else(|| "This change cannot be suggested for review here.".to_string())?;
@@ -312,6 +356,77 @@ impl ToolRunner {
         Ok(format!(
             "Not applied yet: {}. The user sees {waiting} and decides. Do not claim it is done.",
             action.summary
+        ))
+    }
+
+    /// Put a bulk move on the turn's one grouped card: join the open card, or start one. The card
+    /// is re-sent with the same id, so the chat updates it in place instead of adding another.
+    #[allow(clippy::too_many_arguments)]
+    async fn group_move(
+        &self,
+        ctx: &CallContext,
+        action: &mut AiAction,
+        notes: &[NoteRef],
+        category: &Option<(Id, String)>,
+        reason: String,
+        proposal_out: &mut Option<Proposal>,
+        scopes: &mut Vec<DataScope>,
+    ) -> Result<String, String> {
+        let mut open = ctx.grouped.lock().await;
+        let existing = match *open {
+            Some(id) => Some(self.db.get_proposal(id).await.map_err(|e| e.to_string())?),
+            None => None,
+        };
+        let proposal = match existing {
+            // Still waiting: add to it. If the user answered it meanwhile, start a new card.
+            Some(mut p) if p.status == ProposalStatus::Pending => {
+                let ProposalKind::MoveGroups { groups } = &mut p.kind else {
+                    return Err("This change cannot be suggested for review here.".into());
+                };
+                ops::merge_move(groups, notes, category);
+                if self.db.update_pending_proposal_kind(p.id, &p.kind).await.map_err(|e| e.to_string())? {
+                    Some(p)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let proposal = match proposal {
+            Some(p) => p,
+            None => {
+                let mut groups = Vec::new();
+                ops::merge_move(&mut groups, notes, category);
+                let p = Proposal {
+                    id: new_id(),
+                    source: ProposalSource::Chat,
+                    thread_id: ctx.thread_id,
+                    task_run_id: None,
+                    tier: ToolTier::Destructive,
+                    kind: ProposalKind::MoveGroups { groups },
+                    reason,
+                    status: ProposalStatus::Pending,
+                    created_at: now(),
+                    resolved_at: None,
+                };
+                self.db.insert_proposal(&p, None).await.map_err(|e| e.to_string())?;
+                *open = Some(p.id);
+                ctx.grouping.store(true, Ordering::SeqCst);
+                p
+            }
+        };
+        action.status = AiActionStatus::Proposed;
+        action.proposal_id = Some(proposal.id);
+        action.summary = WriteOp::MoveNotes { notes: notes.to_vec(), category: category.clone() }.proposed_summary();
+        scopes.push(DataScope::Proposals);
+        let total: usize = match &proposal.kind {
+            ProposalKind::MoveGroups { groups } => groups.iter().map(|g| g.notes.len()).sum(),
+            _ => notes.len(),
+        };
+        *proposal_out = Some(proposal);
+        Ok(format!(
+            "Not applied yet: added to this turn's move card, which now holds {total} notes. The user confirms the whole card once. \
+             Keep making the remaining moves; do not claim they are done."
         ))
     }
 

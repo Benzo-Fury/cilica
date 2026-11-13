@@ -103,7 +103,7 @@ impl Default for Limits {
     fn default() -> Self {
         // ~100k tokens of history: well inside a 1M window, cheap with caching, and safe for
         // smaller local models after trimming.
-        Self { max_steps: 12, max_tokens: 32_000, history_chars: 400_000 }
+        Self { max_steps: 40, max_tokens: 32_000, history_chars: 400_000 }
     }
 }
 
@@ -262,10 +262,17 @@ impl Agent {
         if p.status != ProposalStatus::Pending || !db.transition_proposal(proposal_id, ProposalStatus::Pending, ProposalStatus::Applied).await? {
             return Err(Self::not_pending(&db.get_proposal(proposal_id).await?));
         }
-        // The audit row made when the proposal was created; one is made now if it is missing.
-        let (mut action, _) = match db.ai_action_for_proposal(proposal_id).await? {
-            Some(found) => found,
+        // The audit rows made when the proposal was created (a grouped card has one per call). The
+        // first carries the undo for the whole card; one is made now if none exists.
+        let mut rows = db.ai_actions_for_proposal(proposal_id).await?.into_iter();
+        let others: Vec<AiAction>;
+        let (mut action, _) = match rows.next() {
+            Some(found) => {
+                others = rows.map(|(a, _)| a).collect();
+                found
+            }
             None => {
+                others = Vec::new();
                 let a = AiAction {
                     id: new_id(),
                     thread_id: p.thread_id,
@@ -293,6 +300,11 @@ impl Agent {
                 action.can_undo = undo_json.is_some();
                 action.error = None;
                 db.update_ai_action(&action, undo_json.as_deref()).await?;
+                for mut other in others {
+                    other.status = AiActionStatus::Applied;
+                    other.can_undo = false;
+                    db.update_ai_action(&other, None).await?;
+                }
                 let (mut scopes, note_id) = op.scopes();
                 scopes.extend([DataScope::Proposals, DataScope::AiActions, DataScope::Tasks]);
                 self.emit_changed(scopes, note_id);
@@ -311,7 +323,7 @@ impl Agent {
         if !db.transition_proposal(proposal_id, ProposalStatus::Pending, ProposalStatus::Dismissed).await? {
             return Err(Self::not_pending(&db.get_proposal(proposal_id).await?));
         }
-        if let Some((mut action, undo)) = db.ai_action_for_proposal(proposal_id).await? {
+        for (mut action, undo) in db.ai_actions_for_proposal(proposal_id).await? {
             action.status = AiActionStatus::Rejected;
             action.can_undo = false;
             db.update_ai_action(&action, undo.as_deref()).await?;

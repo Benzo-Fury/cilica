@@ -95,9 +95,23 @@ function headline(proposal: Proposal): { action: string; subject: string } {
       return { action: "Delete person", subject: k.name };
     case "bulk_move":
       return { action: "Move", subject: `${plural(k.notes.length, "note")} to ${k.category_name}` };
+    case "move_groups":
+      return { action: "Move", subject: moveGroupsSubject(k.groups) };
     case "create_note":
       return { action: "New note", subject: displayTitle(k.title) };
   }
+}
+
+type MoveGroups = Extract<Proposal["kind"], { type: "move_groups" }>["groups"];
+
+const destination = (g: MoveGroups[number]) => (g.category_id ? g.category_name : "No category");
+
+/** "24 notes to Clients", or "214 notes into 9 categories". */
+function moveGroupsSubject(groups: MoveGroups): string {
+  const count = groups.reduce((n, g) => n + g.notes.length, 0);
+  const [only] = groups;
+  if (groups.length === 1 && only) return `${plural(count, "note")} to ${destination(only)}`;
+  return `${plural(count, "note")} into ${plural(groups.length, "category", "categories")}`;
 }
 
 function ResolvedRow({ proposal }: { proposal: Proposal }) {
@@ -291,6 +305,24 @@ function PendingCard({
         </>
       );
       break;
+    case "move_groups": {
+      const count = kind.groups.reduce((n, g) => n + g.notes.length, 0);
+      acceptLabel = `Move ${plural(count, "note")}`;
+      rejectLabel = "Leave them";
+      body = (
+        <div className="nt-proposal-groups">
+          {kind.groups.map((g) => (
+            <section key={g.category_id ?? "none"}>
+              <p className="nt-proposal-note-line">
+                To {destination(g)} · {plural(g.notes.length, "note")}
+              </p>
+              <NoteList notes={g.notes} />
+            </section>
+          ))}
+        </div>
+      );
+      break;
+    }
     case "create_note":
       acceptLabel = "Create note";
       rejectLabel = "Dismiss";

@@ -174,6 +174,20 @@ pub enum ProposalKind {
         category_id: Option<Id>,
         category_name: Option<String>,
     },
+    /// Every bulk move of one chat turn, gathered into one card: notes grouped by destination.
+    /// Later moves in the same turn join this card instead of making a new one.
+    MoveGroups {
+        groups: Vec<MoveGroup>,
+    },
+}
+
+/// Notes going to one destination inside a `MoveGroups` card.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct MoveGroup {
+    pub notes: Vec<NoteRef>,
+    /// `None` moves the notes out of every category.
+    pub category_id: Option<Id>,
+    pub category_name: String,
 }
 
 /// A change the assistant wants to make that waits for the user.

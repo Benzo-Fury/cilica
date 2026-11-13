@@ -111,6 +111,7 @@ fn kind_name(kind: &ProposalKind) -> &'static str {
         ProposalKind::DeletePerson { .. } => "delete_person",
         ProposalKind::BulkMove { .. } => "bulk_move",
         ProposalKind::CreateNote { .. } => "create_note",
+        ProposalKind::MoveGroups { .. } => "move_groups",
     }
 }
 
@@ -249,6 +250,18 @@ impl Db {
         Ok(())
     }
 
+    /// Replace what a still-pending proposal would do. Returns false when it was already resolved,
+    /// so a card the user has answered is never changed under them.
+    pub async fn update_pending_proposal_kind(&self, id: Id, kind: &ProposalKind) -> StoreResult<bool> {
+        let done = sqlx::query("UPDATE proposals SET payload_json = ?, kind = ? WHERE id = ? AND status = 'pending'")
+            .bind(serde_json::to_string(kind)?)
+            .bind(kind_name(kind))
+            .bind(id.to_string())
+            .execute(self.pool())
+            .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
     pub async fn get_proposal(&self, id: Id) -> StoreResult<Proposal> {
         let row = sqlx::query("SELECT * FROM proposals WHERE id = ?")
             .bind(id.to_string())
@@ -377,6 +390,15 @@ impl Db {
             .fetch_optional(self.pool())
             .await?;
         row.as_ref().map(action_from).transpose()
+    }
+
+    /// Every audit row that points at a proposal, oldest first. A grouped card collects several.
+    pub async fn ai_actions_for_proposal(&self, proposal_id: Id) -> StoreResult<Vec<(AiAction, Option<String>)>> {
+        let rows = sqlx::query("SELECT * FROM ai_actions WHERE proposal_id = ? ORDER BY created_at, rowid")
+            .bind(proposal_id.to_string())
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(action_from).collect()
     }
 
     // ── Settings (read-only view for the assistant) ─────────────────────

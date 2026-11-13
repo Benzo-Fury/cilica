@@ -159,7 +159,7 @@ Each turn starts with a compact `` block built by the frontend: open note id and
 | Read | `search_notes`, `get_note`, `get_transcript`, `list_categories`, `list_people`, `list_tasks`, `get_note_history` |
 | Additive | `create_note`, `create_category`, `move_note`, `rename_category`, `label_speaker`, `create_task` |
 | Edit | `edit_note` (takes a patch, never a full rewrite), `rename_note` |
-| Destructive | `trash_note`, `merge_notes`, `delete_category`, `delete_person`, any write touching more than 5 notes |
+| Destructive | `trash_note`, `merge_notes`, `delete_category`, `delete_person`, any write that takes a turn past 5 notes |
 
 The tool registry lives in the `agent` crate and is the only write path for AI. The same registry is exposed over MCP for the Claude Code bridge.
 
@@ -172,6 +172,7 @@ The tool registry lives in the `agent` crate and is the only write path for AI. 
 
 - **Edit**: a diff card; accept the whole change or per hunk.
 - **Destructive**: a confirm card naming every affected note. This one cannot be switched off.
+- **Bulk moves**: in a chat turn, once moves pass 5 notes, every further move joins one grouped card (notes listed under each destination category). The card grows as Cilica works and is confirmed once; applying it is one step with one Undo.
 
 ### Always on
 
@@ -184,7 +185,7 @@ The tool registry lives in the `agent` crate and is the only write path for AI. 
 - **Prompt-injection isolation**: transcripts and note bodies reach the model wrapped as quoted data. A participant saying “delete all my notes” must never get past the destructive-tier confirmation, whatever the model decides.
 - **Scheduled tasks only propose**: they run without the user present, so every change they suggest waits as a proposal.
 
-- **Limits**: at most 20 writes per turn. No network or shell tools.
+- **Limits**: guards against a runaway turn, not limits real work should reach: 40 model steps, 200 write calls and 1,000 distinct notes per turn. No network or shell tools.
 - Settings can promote Edit to auto-apply (still versioned). Destructive cannot be promoted.
 
 ## AI providers and auth

@@ -4,7 +4,7 @@
 use std::collections::BTreeSet;
 
 use cilica_domain::{
-    AppError, AppResult, Author, DataScope, ErrorCode, Id, NoteRef, ProposalKind, TaskDraft, ToolTier,
+    AppError, AppResult, Author, DataScope, ErrorCode, Id, MoveGroup, NoteRef, ProposalKind, TaskDraft, ToolTier,
 };
 use cilica_store::{Db, NewNote};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,8 @@ pub enum WriteOp {
     CreateNote { title: String, body_md: String, category: Option<(Id, String)> },
     CreateCategory { name: String },
     MoveNotes { notes: Vec<NoteRef>, category: Option<(Id, String)> },
+    /// Several bulk moves confirmed together (a grouped card); applied as one step with one undo.
+    MoveGroups { groups: Vec<MoveGroup> },
     RenameCategory { category_id: Id, old_name: String, new_name: String },
     LabelSpeaker { note_id: Id, speaker_id: Id, old_label: String, label: Option<String>, person: Option<(Id, String)> },
     CreateTask { draft: TaskDraft },
@@ -61,6 +63,35 @@ fn notes_phrase(notes: &[NoteRef]) -> String {
     }
 }
 
+/// "214 notes into 9 categories", or "12 notes to Clients" when there is one destination.
+fn groups_phrase(groups: &[MoveGroup]) -> String {
+    let count: usize = groups.iter().map(|g| g.notes.len()).sum();
+    match groups {
+        [one] if one.category_id.is_some() => format!("{} to {}", plural(count, "note", "notes"), one.category_name),
+        [_] => format!("{} out of their category", plural(count, "note", "notes")),
+        _ => format!("{} into {} categories", plural(count, "note", "notes"), groups.len()),
+    }
+}
+
+/// Add a move to a grouped card. A note that was already headed somewhere else in the card now
+/// goes to the new place (the latest call wins); groups left empty are dropped.
+pub fn merge_move(groups: &mut Vec<MoveGroup>, notes: &[NoteRef], category: &Option<(Id, String)>) {
+    let ids: BTreeSet<Id> = notes.iter().map(|n| n.id).collect();
+    for g in groups.iter_mut() {
+        g.notes.retain(|n| !ids.contains(&n.id));
+    }
+    groups.retain(|g| !g.notes.is_empty());
+    let target = category.as_ref().map(|c| c.0);
+    match groups.iter_mut().find(|g| g.category_id == target) {
+        Some(g) => g.notes.extend(notes.iter().cloned()),
+        None => groups.push(MoveGroup {
+            notes: notes.to_vec(),
+            category_id: target,
+            category_name: category.as_ref().map(|c| c.1.clone()).unwrap_or_default(),
+        }),
+    }
+}
+
 trait TitleOrUntitled {
     fn title_or_untitled(&self) -> String;
 }
@@ -76,6 +107,7 @@ impl WriteOp {
             Self::CreateNote { .. }
             | Self::CreateCategory { .. }
             | Self::MoveNotes { .. }
+            | Self::MoveGroups { .. }
             | Self::RenameCategory { .. }
             | Self::LabelSpeaker { .. }
             | Self::CreateTask { .. } => ToolTier::Additive,
@@ -91,6 +123,7 @@ impl WriteOp {
         match self {
             Self::MoveNotes { notes, .. } | Self::TrashNotes { notes } => notes.iter().map(|n| n.id).collect(),
             Self::MergeNotes { sources, .. } => sources.iter().map(|n| n.id).collect(),
+            Self::MoveGroups { groups } => groups.iter().flat_map(|g| g.notes.iter().map(|n| n.id)).collect(),
             Self::EditNote { note, .. } | Self::RenameNote { note, .. } => vec![note.id],
             _ => vec![],
         }
@@ -103,6 +136,7 @@ impl WriteOp {
             Self::CreateCategory { name } => format!("Created the category {name}"),
             Self::MoveNotes { notes, category: Some((_, name)) } => format!("Moved {} to {name}", notes_phrase(notes)),
             Self::MoveNotes { notes, category: None } => format!("Moved {} out of its category", notes_phrase(notes)),
+            Self::MoveGroups { groups } => format!("Moved {}", groups_phrase(groups)),
             Self::RenameCategory { old_name, new_name, .. } => format!("Renamed the category {old_name} to {new_name}"),
             Self::LabelSpeaker { old_label, label, person, .. } => match (label, person) {
                 (_, Some((_, name))) => format!("Linked {old_label} to {name}"),
@@ -125,6 +159,7 @@ impl WriteOp {
             Self::CreateNote { title, .. } => format!("Suggested a new note, {title}"),
             Self::MoveNotes { notes, category: Some((_, name)) } => format!("Asked to move {} to {name}", notes_phrase(notes)),
             Self::MoveNotes { notes, category: None } => format!("Asked to move {} out of their category", notes_phrase(notes)),
+            Self::MoveGroups { groups } => format!("Asked to move {}", groups_phrase(groups)),
             Self::EditNote { note, .. } => format!("Suggested an edit to {}", note.title_or_untitled()),
             Self::RenameNote { note, new_title } => format!("Suggested renaming {} to {new_title}", note.title_or_untitled()),
             Self::TrashNotes { notes } => format!("Asked to move {} to Trash", notes_phrase(notes)),
@@ -140,7 +175,7 @@ impl WriteOp {
         match self {
             Self::CreateNote { .. } => (vec![Notes], None),
             Self::CreateCategory { .. } | Self::RenameCategory { .. } => (vec![Categories], None),
-            Self::MoveNotes { .. } => (vec![Notes, Categories], None),
+            Self::MoveNotes { .. } | Self::MoveGroups { .. } => (vec![Notes, Categories], None),
             Self::LabelSpeaker { note_id, .. } => (vec![Transcript, People], Some(*note_id)),
             Self::CreateTask { .. } => (vec![Tasks], None),
             Self::EditNote { note, .. } | Self::RenameNote { note, .. } => (vec![Notes, Versions], Some(note.id)),
@@ -164,6 +199,7 @@ impl WriteOp {
                 category_id: category.as_ref().map(|c| c.0),
                 category_name: category.map(|c| c.1).unwrap_or_default(),
             },
+            Self::MoveGroups { groups } => ProposalKind::MoveGroups { groups },
             Self::EditNote { note, before_md, after_md } => ProposalKind::EditNote { note, before_md, after_md },
             Self::RenameNote { note, new_title } => ProposalKind::RenameNote { note, new_title },
             Self::TrashNotes { notes } => ProposalKind::TrashNotes { notes },
@@ -194,6 +230,7 @@ impl WriteOp {
                 body_md: final_md.unwrap_or(body_md),
                 category: category_id.map(|id| (id, category_name.unwrap_or_default())),
             },
+            ProposalKind::MoveGroups { groups } => Self::MoveGroups { groups },
         }
     }
 }
@@ -207,7 +244,7 @@ pub fn tool_for_kind(kind: &ProposalKind) -> &'static str {
         ProposalKind::MergeNotes { .. } => "merge_notes",
         ProposalKind::DeleteCategory { .. } => "delete_category",
         ProposalKind::DeletePerson { .. } => "delete_person",
-        ProposalKind::BulkMove { .. } => "move_note",
+        ProposalKind::BulkMove { .. } | ProposalKind::MoveGroups { .. } => "move_note",
         ProposalKind::CreateNote { .. } => "create_note",
     }
 }
@@ -242,6 +279,13 @@ pub fn fingerprint(kind: &ProposalKind) -> String {
             format!("move:{}:{}", sorted_ids(notes), category_id.map(|c| c.to_string()).unwrap_or_default())
         }
         ProposalKind::CreateNote { title, body_md, .. } => format!("create:{}", fnv(&format!("{}\n{body_md}", title.to_lowercase()))),
+        ProposalKind::MoveGroups { groups } => {
+            let parts: BTreeSet<String> = groups
+                .iter()
+                .map(|g| format!("{}>{}", sorted_ids(&g.notes), g.category_id.map(|c| c.to_string()).unwrap_or_default()))
+                .collect();
+            format!("move_groups:{}", parts.into_iter().collect::<Vec<_>>().join(";"))
+        }
     };
     fnv(&raw)
 }
@@ -277,6 +321,21 @@ pub async fn apply(notes: &dyn NoteStore, db: &Db, op: &WriteOp, action_id: Id) 
                 notes.move_note(r.id, target, position).await?;
                 position -= 1.0;
                 moves.push((r.id, n.category_id, n.position));
+            }
+            Some(UndoOp::MoveBack { moves })
+        }
+        WriteOp::MoveGroups { groups } => {
+            // One undo for the whole card: every note goes back to where it was.
+            let mut moves = Vec::new();
+            for g in groups {
+                let target = g.category_id;
+                let mut position = top_position(notes, target).await?;
+                for r in &g.notes {
+                    let n = notes.get_note(r.id).await?;
+                    notes.move_note(r.id, target, position).await?;
+                    position -= 1.0;
+                    moves.push((r.id, n.category_id, n.position));
+                }
             }
             Some(UndoOp::MoveBack { moves })
         }

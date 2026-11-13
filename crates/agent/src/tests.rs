@@ -347,10 +347,10 @@ async fn more_than_five_notes_needs_confirmation_even_across_calls() {
     let notes: Vec<_> = (0..8).map(|i| e.notes.add_note(&format!("N{i}"), "x")).collect();
     let ids = |r: std::ops::Range<usize>| notes[r].iter().map(|n| n.id.to_string()).collect::<Vec<_>>();
 
-    // Six in one call → BulkMove proposal.
+    // Six in one call → a grouped move card.
     let out = e.call(&ctx, "move_note", json!({"note_ids": ids(0..6), "category_id": null})).await;
     assert_eq!(out.action.tier, ToolTier::Destructive);
-    assert!(matches!(out.proposal.unwrap().kind, ProposalKind::BulkMove { ref notes, .. } if notes.len() == 6));
+    assert!(matches!(out.proposal.unwrap().kind, ProposalKind::MoveGroups { ref groups } if groups[0].notes.len() == 6));
 
     // Five one by one apply; the sixth distinct note in the same turn needs confirmation.
     let ctx = e.ctx();
@@ -367,19 +367,97 @@ async fn more_than_five_notes_needs_confirmation_even_across_calls() {
 }
 
 #[tokio::test]
-async fn twenty_writes_per_turn_at_most() {
+async fn a_bulk_reorganisation_is_one_card_one_apply_one_undo() {
     let e = env(vec![]).await;
     let ctx = e.ctx();
-    for i in 0..20 {
+    let notes: Vec<_> = (0..30).map(|i| e.notes.add_note(&format!("N{i}"), "x")).collect();
+    let cats: Vec<_> = make_categories(&e, &["Clients", "Ideas", "Admin"]).await;
+
+    // Once per note, the way a model sorting an import tends to do it.
+    let mut card = None;
+    for (i, n) in notes.iter().enumerate() {
+        let cat = &cats[i % 3];
+        let out = e.call(&ctx, "move_note", json!({"note_ids": [n.id.to_string()], "category_id": cat.to_string()})).await;
+        assert!(!out.is_error, "{}", out.content);
+        if i < 5 {
+            assert_eq!(out.action.status, AiActionStatus::Applied, "the first five apply at once");
+        } else {
+            let p = out.proposal.expect("later moves go on the card");
+            assert_eq!(*card.get_or_insert(p.id), p.id, "every later move joins the same card");
+        }
+    }
+    let card = card.unwrap();
+    let p = e.agent.get_proposal(card).await.unwrap();
+    let ProposalKind::MoveGroups { groups } = &p.kind else { panic!("not a grouped card") };
+    assert_eq!(groups.len(), 3);
+    assert_eq!(groups.iter().map(|g| g.notes.len()).sum::<usize>(), 25);
+
+    // One apply moves all 25; one undo puts them all back.
+    e.agent.apply_proposal(card, None).await.unwrap();
+    let in_a_category = |e: &Env| notes.iter().filter(|n| e.notes.note(n.id).category_id.is_some()).count();
+    assert_eq!(in_a_category(&e), 30);
+    let rows = e.agent.db().ai_actions_for_proposal(card).await.unwrap();
+    assert_eq!(rows.len(), 25);
+    assert!(rows.iter().all(|(a, _)| a.status == AiActionStatus::Applied));
+    assert_eq!(rows.iter().filter(|(a, _)| a.can_undo).count(), 1, "one undo covers the card");
+    e.agent.undo_ai_action(rows[0].0.id).await.unwrap();
+    assert_eq!(in_a_category(&e), 5);
+}
+
+async fn make_categories(e: &Env, names: &[&str]) -> Vec<cilica_domain::Id> {
+    let mut out = Vec::new();
+    for n in names {
+        out.push(e.notes.create_category(n).await.unwrap().id);
+    }
+    out
+}
+
+#[tokio::test]
+async fn a_note_moved_twice_on_the_card_goes_to_the_last_place_and_dismiss_rejects_every_row() {
+    let e = env(vec![]).await;
+    let ctx = e.ctx();
+    let notes: Vec<_> = (0..7).map(|i| e.notes.add_note(&format!("N{i}"), "x")).collect();
+    let ids: Vec<_> = notes.iter().map(|n| n.id.to_string()).collect();
+    let cats = make_categories(&e, &["A", "B"]).await;
+
+    let first = e.call(&ctx, "move_note", json!({"note_ids": ids, "category_id": cats[0].to_string()})).await;
+    let card = first.proposal.unwrap().id;
+    // A small move after the card exists joins it rather than applying on its own.
+    let second = e.call(&ctx, "move_note", json!({"note_ids": [notes[0].id.to_string()], "category_id": cats[1].to_string()})).await;
+    assert_eq!(second.action.status, AiActionStatus::Proposed);
+    assert_eq!(second.proposal.unwrap().id, card);
+
+    let ProposalKind::MoveGroups { groups } = e.agent.get_proposal(card).await.unwrap().kind else { panic!() };
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].notes.len(), 6);
+    assert_eq!(groups[1].notes[0].id, notes[0].id);
+
+    e.agent.dismiss_proposal(card).await.unwrap();
+    let rows = e.agent.db().ai_actions_for_proposal(card).await.unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|(a, _)| a.status == AiActionStatus::Rejected));
+    assert!(notes.iter().all(|n| e.notes.note(n.id).category_id.is_none()), "nothing moved");
+
+    // The answered card is closed: the next bulk move starts a new one.
+    let next = e.call(&ctx, "move_note", json!({"note_ids": [notes[1].id.to_string()], "category_id": cats[1].to_string()})).await;
+    assert_ne!(next.proposal.unwrap().id, card);
+}
+
+#[tokio::test]
+async fn write_calls_per_turn_are_capped_to_stop_a_runaway_model() {
+    use crate::runner::MAX_WRITES_PER_TURN;
+    let e = env(vec![]).await;
+    let ctx = e.ctx();
+    for i in 0..MAX_WRITES_PER_TURN {
         let out = e.call(&ctx, "create_note", json!({"title": format!("N{i}")})).await;
         assert!(!out.is_error, "{}", out.content);
     }
     let out = e.call(&ctx, "create_note", json!({"title": "one too many"})).await;
     assert!(out.is_error);
-    assert!(out.content.contains("at most 20 changes"));
+    assert!(out.content.contains("write calls in one turn"));
     // Reads still work.
     assert!(!e.call(&ctx, "list_categories", json!({})).await.is_error);
-    assert_eq!(e.notes.live_count(), 20);
+    assert_eq!(e.notes.live_count(), MAX_WRITES_PER_TURN as usize);
 }
 
 // ── Prompt-injection isolation ───────────────────────────────────────────

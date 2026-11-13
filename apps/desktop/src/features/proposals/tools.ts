@@ -42,6 +42,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
   delete_category: Trash2,
   delete_person: UserX,
   bulk_move: FolderInput,
+  move_groups: FolderInput,
 };
 
 export function toolIcon(tool: string): LucideIcon {

@@ -1207,6 +1207,25 @@ export type Monologue_Serialize = {
 	record_ms: number | null,
 };
 
+/**  Notes going to one destination inside a `MoveGroups` card. */
+export type MoveGroup = MoveGroup_Serialize | MoveGroup_Deserialize;
+
+/**  Notes going to one destination inside a `MoveGroups` card. */
+export type MoveGroup_Deserialize = {
+	notes: NoteRef[],
+	/**  `None` moves the notes out of every category. */
+	category_id?: string | null,
+	category_name: string,
+};
+
+/**  Notes going to one destination inside a `MoveGroups` card. */
+export type MoveGroup_Serialize = {
+	notes: NoteRef[],
+	/**  `None` moves the notes out of every category. */
+	category_id: string | null,
+	category_name: string,
+};
+
 /**
  *  Something said in a meeting that is close to a search nobody matched: a near spelling, the same
  *  words run together or split apart ("road map" for "roadmap").
@@ -1526,7 +1545,12 @@ export type ProposalKind_Deserialize =
 /**  A write that touches more than five notes at once. */
 { type: "bulk_move"; notes: NoteRef[]; category_id?: string | null; category_name: string } | 
 /**  A new note suggested by a scheduled task (tasks only propose). Render like a merge preview. */
-{ type: "create_note"; title: string; body_md: string; category_id?: string | null; category_name?: string | null };
+{ type: "create_note"; title: string; body_md: string; category_id?: string | null; category_name?: string | null } | 
+/**
+ *  Every bulk move of one chat turn, gathered into one card: notes grouped by destination.
+ *  Later moves in the same turn join this card instead of making a new one.
+ */
+{ type: "move_groups"; groups: MoveGroup_Deserialize[] };
 
 /**  What a proposal would do. Each variant carries everything the card needs to render. */
 export type ProposalKind_Serialize = 
@@ -1537,7 +1561,12 @@ export type ProposalKind_Serialize =
 /**  A write that touches more than five notes at once. */
 { type: "bulk_move"; notes: NoteRef[]; category_id: string | null; category_name: string } | 
 /**  A new note suggested by a scheduled task (tasks only propose). Render like a merge preview. */
-{ type: "create_note"; title: string; body_md: string; category_id: string | null; category_name: string | null };
+{ type: "create_note"; title: string; body_md: string; category_id: string | null; category_name: string | null } | 
+/**
+ *  Every bulk move of one chat turn, gathered into one card: notes grouped by destination.
+ *  Later moves in the same turn join this card instead of making a new one.
+ */
+{ type: "move_groups"; groups: MoveGroup_Serialize[] };
 
 export type ProposalSource = "chat" | "task";
 

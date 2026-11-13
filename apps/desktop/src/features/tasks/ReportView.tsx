@@ -71,6 +71,8 @@ export function destructiveLine(proposal: Proposal): string | null {
       return `Delete ${k.name} from Saved people`;
     case "bulk_move":
       return `Move ${names(k.notes)} to ${k.category_name}`;
+    case "move_groups":
+      return k.groups.map((g) => `Move ${names(g.notes)} to ${g.category_name || "no category"}`).join("; ");
     default:
       return `Apply a change Cilica marked as destructive`;
   }

@@ -47,7 +47,7 @@ pub const TOOLS: &[ToolDef] = &[
     ToolDef {
         name: "move_note",
         tier: ToolTier::Additive,
-        description: "Move one or more notes into a category, or out of every category with category_id null. Moving more than 5 notes asks the user first.",
+        description: "Move one or more notes into a category, or out of every category with category_id null. Pass every note for one category in a single call. Moves past 5 notes in a turn gather on one card the user confirms once.",
         running: "Moving notes",
         in_tasks: true,
     },
