@@ -3,7 +3,8 @@
  *
  * Margin checks shortly after launch and then every six hours. With automatic updates on, a new
  * version downloads and installs in the background and a toast offers to restart. With them off,
- * the toast offers to install it. Settings › General can check on demand.
+ * the toast offers to install it. Settings › General can check on demand; a version found there
+ * downloads only when its Download button is pressed.
  */
 import { useEffect } from "react";
 import { create } from "zustand";
@@ -96,6 +97,8 @@ export async function checkForUpdate({
       return;
     }
     setState({ phase: "available", update });
+    // A manual check from Settings only reports the update; its Download button installs it.
+    if (manual) return;
     if (autoInstall) {
       await installUpdate();
     } else {

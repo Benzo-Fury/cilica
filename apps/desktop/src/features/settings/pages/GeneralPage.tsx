@@ -57,16 +57,21 @@ export function GeneralPage() {
               <Button size="sm" variant="primary" icon={RotateCw} onClick={restartToUpdate}>
                 Restart to update
               </Button>
-            ) : phase === "available" ? (
-              <Button size="sm" variant="secondary" onClick={() => void installUpdate()}>
-                Install
+            ) : phase === "available" || phase === "installing" ? (
+              <Button
+                size="sm"
+                variant="primary"
+                loading={phase === "installing"}
+                onClick={() => void installUpdate()}
+              >
+                Download
               </Button>
             ) : (
               <Button
                 size="sm"
                 variant="secondary"
                 icon={RefreshCw}
-                loading={phase === "checking" || phase === "installing"}
+                loading={phase === "checking"}
                 onClick={() => void checkForUpdate({ manual: true, autoInstall })}
               >
                 Check for updates
@@ -131,7 +136,7 @@ function updateLabel(phase: string, version: string | undefined): string {
     case "available":
       return `Margin ${version} is available`;
     case "installing":
-      return `Installing Margin ${version}…`;
+      return `Downloading Margin ${version}…`;
     case "ready":
       return `Margin ${version} is ready`;
     case "error":
