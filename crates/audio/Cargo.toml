@@ -17,7 +17,7 @@ aec3 = "0.4.0"
 cpal = "0.18.2"
 crossbeam-channel = "0.5.17"
 hound = "3.5.1"
-margin-domain = { version = "0.1.0", path = "../domain" }
+margin-domain = { path = "../domain" }
 ogg = { version = "0.9.2", optional = true }
 opus = { version = "0.4.0", optional = true }
 ringbuf = "0.6.0"

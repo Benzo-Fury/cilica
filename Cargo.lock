@@ -3033,7 +3033,7 @@ checksum = "dae608c151f68243f2b000364e1f7b186d9c29845f7d2d85bd31b9ad77ad552b"
 
 [[package]]
 name = "margin-agent"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3053,7 +3053,7 @@ dependencies = [
 
 [[package]]
 name = "margin-audio"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "aec3",
  "cidre",
@@ -3075,7 +3075,7 @@ dependencies = [
 
 [[package]]
 name = "margin-desktop"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3124,7 +3124,7 @@ dependencies = [
 
 [[package]]
 name = "margin-detect"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "cidre",
  "margin-domain",
@@ -3137,7 +3137,7 @@ dependencies = [
 
 [[package]]
 name = "margin-diarize"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "margin-domain",
@@ -3152,7 +3152,7 @@ dependencies = [
 
 [[package]]
 name = "margin-domain"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3165,7 +3165,7 @@ dependencies = [
 
 [[package]]
 name = "margin-import"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3191,7 +3191,7 @@ dependencies = [
 
 [[package]]
 name = "margin-llm"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3209,7 +3209,7 @@ dependencies = [
 
 [[package]]
 name = "margin-mcp"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "margin-agent",
  "margin-domain",
@@ -3223,14 +3223,14 @@ dependencies = [
 
 [[package]]
 name = "margin-onnx"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "ort",
 ]
 
 [[package]]
 name = "margin-pipeline"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3254,7 +3254,7 @@ dependencies = [
 
 [[package]]
 name = "margin-scheduler"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3274,7 +3274,7 @@ dependencies = [
 
 [[package]]
 name = "margin-store"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "margin-domain",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "margin-stt"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "crossbeam-channel",

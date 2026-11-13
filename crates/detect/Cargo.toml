@@ -6,7 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-margin-domain = { version = "0.1.0", path = "../domain" }
+margin-domain = { path = "../domain" }
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", features = ["sync", "rt", "macros", "time"] }
 tracing = "0.1.44"

@@ -7,8 +7,8 @@ publish.workspace = true
 
 [dependencies]
 ndarray = "0.17.2"
-margin-domain = { version = "0.1.0", path = "../domain" }
-margin-onnx = { version = "0.1.0", path = "../onnx" }
+margin-domain = { path = "../domain" }
+margin-onnx = { path = "../onnx" }
 ort = "2.0.0-rc.15"
 rustfft = "6.4.1"
 serde = "1.0.229"

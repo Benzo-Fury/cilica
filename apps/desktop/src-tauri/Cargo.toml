@@ -42,20 +42,20 @@ tauri-plugin-autostart = "2.7.0"
 tauri-plugin-dialog = "2.8.4"
 tauri-plugin-os = "2.4.0"
 tauri-plugin-process = "2.4.0"
-margin-domain = { version = "0.1.0", path = "../../../crates/domain" }
-margin-store = { version = "0.1.0", path = "../../../crates/store" }
-margin-audio = { version = "0.1.0", path = "../../../crates/audio" }
-margin-detect = { version = "0.1.0", path = "../../../crates/detect" }
-margin-stt = { version = "0.1.0", path = "../../../crates/stt" }
-margin-diarize = { version = "0.1.0", path = "../../../crates/diarize" }
-margin-llm = { version = "0.1.0", path = "../../../crates/llm" }
-margin-agent = { version = "0.1.0", path = "../../../crates/agent" }
-margin-scheduler = { version = "0.1.0", path = "../../../crates/scheduler" }
-margin-mcp = { version = "0.1.0", path = "../../../crates/mcp" }
-margin-pipeline = { version = "0.1.0", path = "../../../crates/pipeline" }
+margin-domain = { path = "../../../crates/domain" }
+margin-store = { path = "../../../crates/store" }
+margin-audio = { path = "../../../crates/audio" }
+margin-detect = { path = "../../../crates/detect" }
+margin-stt = { path = "../../../crates/stt" }
+margin-diarize = { path = "../../../crates/diarize" }
+margin-llm = { path = "../../../crates/llm" }
+margin-agent = { path = "../../../crates/agent" }
+margin-scheduler = { path = "../../../crates/scheduler" }
+margin-mcp = { path = "../../../crates/mcp" }
+margin-pipeline = { path = "../../../crates/pipeline" }
 async-trait = "0.1.92"
 futures = "0.3.34"
-margin-import = { version = "0.1.0", path = "../../../crates/import" }
+margin-import = { path = "../../../crates/import" }
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -1,7 +1,7 @@
 # Builds, signs and uploads Margin for every platform when a GitHub release is published.
 #
-# Publish a release with a tag like `v0.2.0`. The version is taken from the tag, so there is no
-# version to bump by hand. Each platform builds on its own runner and attaches its installers,
+# Publish a release with a tag like `v0.2.0`. The tag must match the version in the root Cargo.toml
+# (`[workspace.package]`), which is the one place to bump. Each platform builds on its own runner and attaches its installers,
 # plus the signed updater packages and `latest.json` that installed copies check for updates.
 # See docs/releasing.md for the secrets this needs.
 
@@ -83,18 +83,16 @@ jobs:
 
       # ───────── Version and secrets ─────────
 
-      - name: Set the app version from the release tag
+      - name: Check the release tag matches the app version
         shell: bash
         run: |
           TAG="${{ github.event.release.tag_name || inputs.tag }}"
           VERSION="${TAG#v}"
-          node -e '
-            const fs = require("fs");
-            const path = "apps/desktop/src-tauri/tauri.conf.json";
-            const conf = JSON.parse(fs.readFileSync(path, "utf8"));
-            conf.version = process.argv[1];
-            fs.writeFileSync(path, JSON.stringify(conf, null, 2) + "\n");
-          ' "$VERSION"
+          CARGO_VERSION=$(sed -n '/^\[workspace.package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p;}' Cargo.toml)
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Tag $TAG does not match the version in Cargo.toml ($CARGO_VERSION). Bump [workspace.package] version, push, then re-tag."
+            exit 1
+          fi
           echo "Building Margin $VERSION"
 
       - name: Write the App Store Connect key for notarization

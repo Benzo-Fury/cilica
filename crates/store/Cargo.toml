@@ -7,7 +7,7 @@ publish.workspace = true
 
 [dependencies]
 chrono = "0.4.45"
-margin-domain = { version = "0.1.0", path = "../domain" }
+margin-domain = { path = "../domain" }
 serde = "1.0.229"
 serde_json = "1.0.154"
 similar = "3.2.1"

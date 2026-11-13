@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Margin",
-  "version": "0.1.0",
   "identifier": "app.margin.desktop",
   "build": {
     "beforeDevCommand": "bun run dev",

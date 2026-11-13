@@ -16,12 +16,12 @@ chrono = "0.4.45"
 crossbeam-channel = "0.5.17"
 futures = "0.3.34"
 hound = "3.5.1"
-margin-audio = { version = "0.1.0", path = "../audio", default-features = false }
-margin-detect = { version = "0.1.0", path = "../detect" }
-margin-diarize = { version = "0.1.0", path = "../diarize" }
-margin-domain = { version = "0.1.0", path = "../domain" }
-margin-store = { version = "0.1.0", path = "../store" }
-margin-stt = { version = "0.1.0", path = "../stt" }
+margin-audio = { path = "../audio", default-features = false }
+margin-detect = { path = "../detect" }
+margin-diarize = { path = "../diarize" }
+margin-domain = { path = "../domain" }
+margin-store = { path = "../store" }
+margin-stt = { path = "../stt" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"

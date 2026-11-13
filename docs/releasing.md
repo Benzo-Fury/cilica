@@ -44,7 +44,7 @@ spctl -a -vvv -t install target/aarch64-apple-darwin/release/bundle/macos/Margin
 
 ## Releasing from GitHub
 
-[`.github/workflows/release.yml`](../.github/workflows/release.yml) runs when a GitHub release is **published**. It builds macOS (Apple Silicon), Windows and Linux on separate runners, signs and notarizes the Mac build, and attaches every installer to the release, plus the signed updater packages and `latest.json`. The version comes from the tag (`v0.2.0` builds 0.2.0), so there is nothing to bump by hand. A failing platform doesn't stop the others from shipping.
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) runs when a GitHub release is **published**. It builds macOS (Apple Silicon), Windows and Linux on separate runners, signs and notarizes the Mac build, and attaches every installer to the release, plus the signed updater packages and `latest.json`. The version lives in one place, `[workspace.package]` in the root `Cargo.toml`; the crates, the Tauri bundle and the updater all read it. To release, bump it, commit and push, then publish a release whose tag matches (`v0.2.1` for 0.2.1). The workflow fails fast if the tag and the version disagree. A failing platform doesn't stop the others from shipping.
 
 To release: create a release on GitHub with a new tag such as `v0.2.0`, write the notes (they appear in the update prompt), and publish it. Watch the Actions tab; the installers appear on the release when each job finishes.
 
