@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode, Ref } from "react";
 import { tweens } from "@/app/motion";
+import { ChipButton } from "./Chip";
 import { cn } from "./cn";
 import { Icon } from "./Icon";
 import { Kbd } from "./Kbd";
@@ -40,6 +41,56 @@ export function PaletteInput({
       />
       <Kbd keys={escKeys} />
     </div>
+  );
+}
+
+export interface PaletteFilterChip {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+/**
+ * What the search understood, as chips under the input. Clicking a chip removes that filter
+ * (and the words it came from). An optional quiet text action sits at the end of the row.
+ */
+export function PaletteFilters({
+  filters,
+  onRemove,
+  action,
+}: {
+  filters: readonly PaletteFilterChip[];
+  onRemove: (key: string) => void;
+  action?: { label: string; onClick: () => void };
+}) {
+  if (filters.length === 0) return null;
+  return (
+    <fieldset className="nt-palette-filters" aria-label="Search filters">
+      {filters.map((f) => (
+        <ChipButton
+          key={f.key}
+          icon={f.icon}
+          className="nt-palette-filter"
+          aria-label={`Remove filter: ${f.label}`}
+          title="Remove filter"
+          // Keep focus in the search field.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onRemove(f.key)}
+        >
+          {f.label}
+        </ChipButton>
+      ))}
+      {action && (
+        <button
+          type="button"
+          className="nt-palette-filters-action nt-anim"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </button>
+      )}
+    </fieldset>
   );
 }
 

@@ -47,7 +47,8 @@ export function TasksView({ taskRunId }: { taskRunId?: string }) {
   return <TaskList />;
 }
 
-function status(task: Task): { tone: StatusTone; label: string } {
+/** How a task stands, for its row and the command palette. */
+export function taskStatus(task: Task): { tone: StatusTone; label: string } {
   if (task.last_run?.status === "running") return { tone: "running", label: "Running" };
   if (!task.enabled) return { tone: "neutral", label: "Off" };
   if (task.last_run?.status === "failed") return { tone: "danger", label: "Last run failed" };
@@ -118,7 +119,7 @@ function TaskList() {
             <div className="nt-list">
               <AnimatePresence initial={false}>
                 {tasks.map((task) => {
-                  const s = status(task);
+                  const s = taskStatus(task);
                   const running = task.last_run?.status === "running";
                   const lastRun = task.last_run;
                   const openReport = () =>
