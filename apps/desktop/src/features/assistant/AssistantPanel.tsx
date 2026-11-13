@@ -65,6 +65,7 @@ import {
 } from "./hooks";
 import { Receipt } from "./Receipt";
 import { isComposing, workingLine } from "./status";
+import { useStickToBottom } from "./stickToBottom";
 import { useAssistantStore } from "./store";
 import { isPending, isToolWorking, streamingPart, type ThreadState } from "./thread";
 
@@ -413,26 +414,13 @@ function ThreadView({
   chipsLoading: boolean;
   onChip: (prompt: string) => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const following = useRef(true);
   const streaming = streamingPart(state);
   const lastLength = useMemo(() => {
     const last = state.messages[state.messages.length - 1];
     return last ? JSON.stringify(last.parts).length : 0;
   }, [state.messages]);
-
   // Follow new words until you scroll up.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: follow every streamed change
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !following.current) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [state.messages.length, lastLength]);
-
-  const onScroll = () => {
-    const el = scrollRef.current;
-    if (el) following.current = el.scrollHeight - el.clientHeight - el.scrollTop < 48;
-  };
+  const scroll = useStickToBottom(`${state.messages.length}:${lastLength}`);
 
   // No model yet: the notice above the composer says so; the conversation area stays empty.
   if (notReady) return <div className="nt-assistant-body" />;
@@ -457,7 +445,11 @@ function ThreadView({
       (m) => m.role === "assistant" && m.turn_id === state.activeTurn && m.parts.length > 0,
     );
   return (
-    <div className="nt-assistant-body nt-assistant-scroll" ref={scrollRef} onScroll={onScroll}>
+    <div
+      className="nt-assistant-body nt-assistant-scroll"
+      ref={scroll.ref}
+      onScroll={scroll.onScroll}
+    >
       <div className="nt-thread">
         {state.messages.map((message) => (
           <MessageView key={message.id} message={message} state={state} streaming={streaming} />

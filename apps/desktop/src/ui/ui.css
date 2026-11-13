@@ -3307,8 +3307,10 @@ mark {
   display: flex;
   flex-direction: column;
 }
+/* The bar hugs its content, so the view never grows; it shrinks once the bar hits its cap, which
+   gives the thread a bounded height to scroll in. */
 .nt-assistant-bar .nt-assistant-view {
-  flex: none;
+  flex: 0 1 auto;
 }
 /* Retention line under the composer, in every state. */
 .nt-assistant > .nt-conv-footnote {
