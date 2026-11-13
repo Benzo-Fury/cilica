@@ -86,7 +86,7 @@ pub fn set_listening(app: &AppHandle, on: bool) {
     }
 }
 
-/// On macOS a template glyph drawn here (the margin mark, with a larger dot while recording); elsewhere the app icon.
+/// On macOS a template glyph drawn here (the ridgeline mark, with a larger sun while recording); elsewhere the app icon.
 fn icon(app: &AppHandle, recording: bool) -> Image<'static> {
     if !cfg!(target_os = "macos")
         && let Some(icon) = app.default_window_icon()
@@ -97,9 +97,8 @@ fn icon(app: &AppHandle, recording: bool) -> Image<'static> {
     Image::new_owned(rgba, size, size)
 }
 
-/// A 36 px (18 pt @2x) black-on-transparent glyph matching the app icon: a margin rule with three
-/// lines of text beside it and a dot in the margin, which grows while recording. Anti-aliased by
-/// 4×4 supersampling.
+/// A 36 px (18 pt @2x) black-on-transparent glyph matching the app icon: three ridgelines drawn
+/// as strokes, under a small sun that grows while recording. Anti-aliased by 4×4 supersampling.
 fn draw_glyph(recording: bool) -> (Vec<u8>, u32) {
     const SIZE: u32 = 36;
     const SS: u32 = 4;
@@ -125,18 +124,22 @@ fn draw_glyph(recording: bool) -> (Vec<u8>, u32) {
     (rgba, SIZE)
 }
 
+/// Ridgelines as (baseline y, amplitude, phase): far ridge on top, gentler as they come closer.
+const RIDGES: [(f32, f32, f32); 3] = [(15.0, 2.4, 0.4), (22.0, 2.0, 1.5), (29.0, 1.6, 2.6)];
+
 fn glyph_hit(x: f32, y: f32, stroke: f32, recording: bool) -> bool {
-    // The dot in the margin: small at rest, large while recording.
-    let radius = if recording { 6.0_f32 } else { 3.2 };
-    if ((x - 6.5).powi(2) + (y - 18.0).powi(2)).sqrt() <= radius {
+    // The sun above the far ridge: small at rest, large while recording.
+    let radius = if recording { 4.6_f32 } else { 2.6 };
+    if ((x - 26.0).powi(2) + (y - 6.5).powi(2)).sqrt() <= radius {
         return true;
     }
-    // The margin rule, then the text lines: (x0, y0, x1, y1) segments with round caps.
-    let segments: &[(f32, f32, f32, f32)] =
-        &[(15.0, 6.0, 15.0, 30.0), (21.0, 11.0, 33.0, 11.0), (21.0, 18.0, 33.0, 18.0), (21.0, 25.0, 28.0, 25.0)];
-    segments.iter().any(|&(x0, y0, x1, y1)| {
-        let (cx, cy) = (x.clamp(x0, x1), y.clamp(y0, y1));
-        ((x - cx).powi(2) + (y - cy).powi(2)).sqrt() <= stroke / 2.0
+    // Each ridgeline from x 4 to 32 with round caps: the nearest of a dense run of points on it.
+    RIDGES.iter().any(|&(base, amp, phase)| {
+        (0..=112).any(|i| {
+            let cx = 4.0 + i as f32 * 0.25;
+            let cy = base - amp * (cx / 5.5 + phase).sin();
+            ((x - cx).powi(2) + (y - cy).powi(2)).sqrt() <= stroke / 2.0
+        })
     })
 }
 
