@@ -1,5 +1,5 @@
 //! The native shell around the webview: window material, theme, tray, global hotkey, the Dynamic
-//! Island window, the first-run setup window, the macOS app menu, close and quit behaviour, haptics. Owner: Core agent.
+//! Island window, the first-run setup window, the macOS app menu, the spell checker, close and quit behaviour, haptics. Owner: Core agent.
 //!
 //! State lives in one managed [`Shell`]. It learns about recording and settings changes by
 //! listening to backend events (see [`crate::events`]), so other areas never call into it.
@@ -11,6 +11,7 @@ pub mod material;
 pub mod onboarding;
 #[cfg(target_os = "macos")]
 pub mod menu;
+pub mod spelling;
 pub mod titlebar;
 pub mod tray;
 
