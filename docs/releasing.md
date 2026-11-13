@@ -7,7 +7,7 @@ macOS builds are signed with a **Developer ID** certificate and notarized by App
 | Platform | Architecture | Signing |
 | --- | --- | --- |
 | macOS 14.4+ | Apple Silicon only (`aarch64-apple-darwin`) | Developer ID + notarization |
-| Windows | x86_64 | Optional (Authenticode; avoids SmartScreen warnings). Ships Cilica Setup plus Tauri's NSIS installer and MSI |
+| Windows | x86_64 | Optional (Authenticode; avoids SmartScreen warnings). Ships Cilica Setup only |
 | Linux | x86_64 | None |
 
 No Intel or universal Mac build: `ort` ships no prebuilt ONNX Runtime for `x86_64-apple-darwin`, so Intel would mean building ONNX Runtime from source on every release. Intel Macs on 14.4+ are a small share, and on-device Whisper runs poorly on them anyway.
@@ -44,7 +44,7 @@ spctl -a -vvv -t install target/aarch64-apple-darwin/release/bundle/macos/Cilica
 
 ## Windows installer
 
-People on Windows download **`Cilica_<version>_x64_Setup.exe`**, Cilica Setup (`apps/setup`, docs/architecture.md › Windows installer). Tauri's `Cilica_<version>_x64-setup.exe` (NSIS) and `.msi` stay on the release: Setup carries the NSIS installer inside it, the updater downloads it directly (and hands it to the copy of Setup next to Cilica to install), and the MSI is for managed installs.
+Windows ships one file, **`Cilica_<version>_x64_Setup.exe`**, Cilica Setup (`apps/setup`, docs/architecture.md › Windows installer). It is what people download and also the updater's package, signed for the updater as `Cilica_<version>_x64_Setup.exe.sig`. Tauri's NSIS installer is only built to go inside it, and the MSI isn't built: neither goes on the release, so there is no second installer to pick by mistake.
 
 Setup is built on Windows around Tauri's build, by `tools/build-windows-setup.ts`:
 
@@ -53,10 +53,10 @@ bun run windows-setup
 ```
 
 1. `prepare`: builds the frontend and a copy of Setup that can only remove Cilica, into `target/windows-setup/cilica-setup.exe`.
-2. `tauri build --config src-tauri/tauri.windows-setup.conf.json`: Cilica's installers, with that copy bundled next to Cilica.
-3. `package`: Setup with the NSIS installer inside, into `target/release/bundle/setup/`.
+2. `tauri build --config src-tauri/tauri.windows-setup.conf.json`: Cilica's NSIS installer (the only Windows bundle that config makes), with that copy bundled next to Cilica.
+3. `package`: Setup with the NSIS installer inside, into `target/release/bundle/setup/`. With `TAURI_SIGNING_PRIVATE_KEY` set it also writes the updater signature next to it.
 
-CI runs `prepare` before tauri-action and `package` after it, then attaches the result to the release. To sign both copies of Setup, set `WINDOWS_SIGN_COMMAND` to a signing command with `%1` for the file; unsigned, SmartScreen warns the first time it runs. Tauri's own installers are signed through Tauri's Windows signing settings, which are not set up yet.
+CI runs `prepare` before tauri-action, which only builds on Windows, and `package` after it, then attaches Setup and its signature to the release. Once every platform is done, the `windows-updater` job points latest.json's `windows-x86_64` and `windows-x86_64-nsis` entries at Setup. To sign both copies of Setup, set `WINDOWS_SIGN_COMMAND` to a signing command with `%1` for the file; unsigned, SmartScreen warns the first time it runs. The NSIS installer inside Setup is signed through Tauri's Windows signing settings, which are not set up yet.
 
 Try the window without Windows: `bun run setup` (`-- --uninstall` for removal, `-- --update x.exe --version 9.9.9` for an update) runs it against a simulated backend; start `bun run dev:web` first. On Windows, try the real thing in a VM: install, update over it with Setup, update from inside Cilica (Settings › General, then Restart), remove from Settings › Apps with and without deleting notes, and a PC without WebView2.
 
@@ -87,12 +87,12 @@ Only the macOS job uses the Apple secrets.
 
 ## Test builds for pull requests
 
-[`.github/workflows/test-builds.yml`](../.github/workflows/test-builds.yml) builds Cilica for macOS (Apple Silicon, `.dmg`), Windows (Cilica Setup and Tauri's NSIS `-setup.exe`) and Linux (AppImage and `.deb`) on every pull request that touches the app, its crates or the build. The installers appear under **Artifacts** on the workflow run and are kept for 14 days; nothing is published. A new push to the pull request cancels the build still running for the old one. Docs-only pull requests don't build. To build any branch without a pull request, run **Test builds** from the Actions tab.
+[`.github/workflows/test-builds.yml`](../.github/workflows/test-builds.yml) builds Cilica for macOS (Apple Silicon, `.dmg`), Windows (Cilica Setup) and Linux (AppImage and `.deb`) on every pull request that touches the app, its crates or the build. The installers appear under **Artifacts** on the workflow run and are kept for 14 days; nothing is published. A new push to the pull request cancels the build still running for the old one. Docs-only pull requests don't build. To build any branch without a pull request, run **Test builds** from the Actions tab.
 
 Test builds use no secrets: they are unsigned and have no updater packages, so an installed test build never offers or takes an update. macOS asks you to open the app from Finder's context menu (Open) the first time; Windows SmartScreen warns until you choose More info › Run anyway.
 
 ## Updates
 
-Installed copies check `latest.json` on the latest GitHub release 30 seconds after launch and every six hours. With **Settings › General › Install updates automatically** on (the default), a new version downloads and installs in the background, then a toast offers to restart. On Windows it only downloads in the background; Restart closes Cilica and installs it in Cilica Setup's window, which opens Cilica again (copies installed before this shipped still update once through Tauri's NSIS window). With it off, the toast offers to install. The same page has **Check for updates**. Checks are skipped in `bun run dev`. In the browser preview, add `?update` to the URL to see the update flow.
+Installed copies check `latest.json` on the latest GitHub release 30 seconds after launch and every six hours. With **Settings › General › Install updates automatically** on (the default), a new version downloads and installs in the background, then a toast offers to restart. On Windows it only downloads in the background; Restart closes Cilica and starts the Cilica Setup it downloaded, which installs the update in its window and opens Cilica again. Copies from before 0.6 start it through Tauri's updater, and it shows the same window; Cilica 0.6 runs it silently under its own copy of Setup. With it off, the toast offers to install. The same page has **Check for updates**. Checks are skipped in `bun run dev`. In the browser preview, add `?update` to the URL to see the update flow.
 
 The updater only accepts packages signed with `~/.tauri/cilica-updater.key`. On Linux, automatic updates work for the AppImage only; `.deb` installs update through the package manager.
