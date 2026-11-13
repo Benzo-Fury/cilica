@@ -1,0 +1,99 @@
+# Builds Cilica for every platform on each pull request, so a change can be installed and tried
+# before it lands. The installers are attached to the workflow run as downloads (Actions › the run ›
+# Artifacts) and kept for 14 days; nothing is published.
+#
+# Test builds are unsigned and carry no updater packages: they use no secrets, macOS asks you to
+# open the app from Finder's context menu the first time, and Windows SmartScreen warns until you
+# choose Run anyway. See docs/releasing.md.
+
+name: Test builds
+
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "crates/**"
+      - "tools/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/test-builds.yml"
+  # Build any branch by hand from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the pull request replaces the build still running for the old one.
+concurrency:
+  group: test-builds-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+            bundles: dmg
+            files: target/release/bundle/dmg/*.dmg
+          - name: Windows
+            os: windows-latest
+            bundles: nsis
+            files: target/release/bundle/nsis/*.exe
+          - name: Linux
+            os: ubuntu-24.04
+            bundles: appimage,deb
+            files: |
+              target/release/bundle/appimage/*.AppImage
+              target/release/bundle/deb/*.deb
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # ───────── Toolchains ─────────
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: test-build
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            libpipewire-0.3-dev libspa-0.2-dev libasound2-dev libclang-dev clang cmake pkg-config
+
+      # ───────── Build ─────────
+
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile
+
+      # Updater packages need the release signing key, which pull requests don't get.
+      - name: Turn off updater packages
+        shell: bash
+        run: echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$RUNNER_TEMP/test-build.json"
+
+      - name: Build
+        shell: bash
+        run: bun run --cwd apps/desktop tauri build --bundles ${{ matrix.bundles }} --config "$RUNNER_TEMP/test-build.json"
+
+      # ───────── Upload ─────────
+
+      - name: Attach the installers to the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: Cilica (${{ matrix.name }})
+          path: ${{ matrix.files }}
+          retention-days: 14
+          if-no-files-found: error

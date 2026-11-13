@@ -67,6 +67,12 @@ tools/set-release-secrets.sh <owner/repo> <Key ID> <Issuer ID>
 
 Only the macOS job uses the Apple secrets.
 
+## Test builds for pull requests
+
+[`.github/workflows/test-builds.yml`](../.github/workflows/test-builds.yml) builds Cilica for macOS (Apple Silicon, `.dmg`), Windows (`-setup.exe`) and Linux (AppImage and `.deb`) on every pull request that touches the app, its crates or the build. The installers appear under **Artifacts** on the workflow run and are kept for 14 days; nothing is published. A new push to the pull request cancels the build still running for the old one. Docs-only pull requests don't build. To build any branch without a pull request, run **Test builds** from the Actions tab.
+
+Test builds use no secrets: they are unsigned and have no updater packages, so an installed test build never offers or takes an update. macOS asks you to open the app from Finder's context menu (Open) the first time; Windows SmartScreen warns until you choose More info › Run anyway.
+
 ## Updates
 
 Installed copies check `latest.json` on the latest GitHub release 30 seconds after launch and every six hours. With **Settings › General › Install updates automatically** on (the default), a new version downloads and installs in the background, then a toast offers to restart. With it off, the toast offers to install. The same page has **Check for updates**. Checks are skipped in `bun run dev`. In the browser preview, add `?update` to the URL to see the update flow.
