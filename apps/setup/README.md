@@ -7,4 +7,4 @@ Cilica Setup: Cilica's install, update and uninstall window on Windows. A small 
 - `src/commands.rs`, `src/job.rs`: the IPC surface (`bun run bindings` writes `apps/desktop/src/ipc/installer/bindings.ts`) and the progress event.
 - `build.rs`: builds in the NSIS installer named by `CILICA_SETUP_PAYLOAD`; without it, the copy can only remove Cilica.
 
-Run it anywhere with `bun run setup` (add `-- --uninstall` for removal, `-- --update x.exe --version 9.9.9` for an update Cilica handed over) while `bun run dev:web` is up. It must not depend on Cilica's crates beyond `cilica-domain`, and never touches Cilica's database.
+Run it anywhere with `bun run setup` (add `-- --uninstall` for removal, `-- --update x.exe --version 9.9.9` for an update) while `bun run dev:web` is up. It must not depend on Cilica's crates beyond `cilica-domain`, and never touches Cilica's database.

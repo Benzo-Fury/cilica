@@ -13,9 +13,16 @@ pub const PRODUCT: &str = "Cilica";
 pub const IDENTIFIER: &str = "app.cilica.desktop";
 /// Installed apps runs the copy of Setup next to Cilica with this to remove it.
 pub const UNINSTALL_FLAG: &str = "--uninstall";
-/// Cilica starts the copy of Setup next to it with this, the path of a downloaded and verified
-/// NSIS installer, to update itself under Setup's window instead of the NSIS one.
+/// Cilica starts the Cilica Setup it downloaded with this, to install the update Setup carries
+/// under Setup's window. Followed by a path, as Cilica 0.6 sent it to the copy of Setup next to
+/// it: the downloaded installer to run instead.
 pub const UPDATE_FLAG: &str = "--update";
+/// Tauri's updater starts the package it downloaded with this (plus `/P` and `/R`), which is how
+/// copies of Cilica from before 0.6, and Cilica when it can't start Setup itself, update.
+pub const NSIS_UPDATE_FLAG: &str = "/UPDATE";
+/// NSIS's silent switch. Cilica 0.6's copy of Setup runs the package Cilica downloaded with it,
+/// thinking it is Tauri's NSIS installer; Setup passes the whole line on to the one it carries.
+pub const NSIS_SILENT_FLAG: &str = "/S";
 /// With [`UPDATE_FLAG`]: the version that installer holds.
 pub const VERSION_FLAG: &str = "--version";
 /// Set on the copy Setup starts from the temporary folder, so it can replace or delete Cilica's
@@ -37,12 +44,13 @@ pub enum Mode {
     Uninstall,
 }
 
-/// The update Cilica handed over ([`UPDATE_FLAG`], [`VERSION_FLAG`]).
+/// The update to install in [`Mode::Update`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateSource {
-    /// Tauri's NSIS installer for the new version, already checked against its signature.
-    pub installer: PathBuf,
-    /// Its version, empty when Cilica didn't say.
+    /// A downloaded NSIS installer to run, already checked against its signature. `None`: the
+    /// one this copy of Setup carries.
+    pub installer: Option<PathBuf>,
+    /// The version it installs, empty when nobody said.
     pub version: String,
 }
 
@@ -54,37 +62,54 @@ pub struct Launch {
     pub relaunched: bool,
     /// Set in [`Mode::Update`].
     pub update: Option<UpdateSource>,
+    /// Started like Tauri's NSIS installer in silent mode ([`NSIS_SILENT_FLAG`]): run the
+    /// installer this copy carries with these arguments, without a window.
+    pub silent: Option<Vec<String>>,
 }
 
 impl Launch {
-    /// Read the arguments after the program name. An update Cilica handed over comes first; a
-    /// copy of Setup without Cilica inside it can otherwise only remove Cilica, so it uninstalls
-    /// whatever it was asked.
+    /// Read the arguments after the program name. A copy carrying Cilica answers the switches
+    /// Tauri's NSIS installer takes, because that is how older copies of Cilica update. Then an
+    /// update comes first; a copy of Setup without Cilica inside it can otherwise only remove
+    /// Cilica, so it uninstalls whatever it was asked.
     pub fn parse(args: impl IntoIterator<Item = String>, has_payload: bool) -> Self {
         let args: Vec<String> = args.into_iter().collect();
+        let has = |flag: &str| args.iter().any(|a| a.eq_ignore_ascii_case(flag));
         let value = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).filter(|v| !v.starts_with("--")).cloned();
-        let update = value(UPDATE_FLAG)
-            .filter(|path| !path.trim().is_empty())
-            .map(|path| UpdateSource { installer: PathBuf::from(path), version: value(VERSION_FLAG).unwrap_or_default() });
+        let relaunched = has(RELAUNCHED_FLAG);
+
+        if has_payload && has(NSIS_SILENT_FLAG) {
+            return Self { mode: Mode::Install, relaunched, update: None, silent: Some(args) };
+        }
+
+        let version = value(VERSION_FLAG).unwrap_or_default();
+        let update = match value(UPDATE_FLAG).filter(|path| !path.trim().is_empty()) {
+            Some(path) => Some(UpdateSource { installer: Some(PathBuf::from(path)), version }),
+            None if has_payload && (has(UPDATE_FLAG) || has(NSIS_UPDATE_FLAG)) => Some(UpdateSource {
+                installer: None,
+                version: if version.is_empty() { env!("CARGO_PKG_VERSION").to_owned() } else { version },
+            }),
+            None => None,
+        };
         let mode = if update.is_some() {
             Mode::Update
-        } else if args.iter().any(|a| a == UNINSTALL_FLAG) || !has_payload {
+        } else if has(UNINSTALL_FLAG) || !has_payload {
             Mode::Uninstall
         } else {
             Mode::Install
         };
-        Self { mode, relaunched: args.iter().any(|a| a == RELAUNCHED_FLAG), update }
+        Self { mode, relaunched, update, silent: None }
     }
 
     /// The arguments that start the same job from a copy of Setup in the temporary folder.
     pub fn relaunch_args(&self) -> Vec<String> {
         let mut args = match (&self.mode, &self.update) {
-            (Mode::Update, Some(update)) => vec![
-                UPDATE_FLAG.to_owned(),
-                update.installer.display().to_string(),
-                VERSION_FLAG.to_owned(),
-                update.version.clone(),
-            ],
+            (Mode::Update, Some(update)) => {
+                let mut args = vec![UPDATE_FLAG.to_owned()];
+                args.extend(update.installer.as_ref().map(|path| path.display().to_string()));
+                args.extend([VERSION_FLAG.to_owned(), update.version.clone()]);
+                args
+            }
             _ => vec![UNINSTALL_FLAG.to_owned()],
         };
         args.push(RELAUNCHED_FLAG.to_owned());
@@ -275,15 +300,15 @@ mod tests {
     #[test]
     fn a_copy_with_cilica_inside_installs() {
         let launch = Launch::parse(args(&[]), true);
-        assert_eq!(launch, Launch { mode: Mode::Install, relaunched: false, update: None });
+        assert_eq!(launch, Launch { mode: Mode::Install, relaunched: false, update: None, silent: None });
     }
 
     #[test]
     fn an_update_handed_over_by_cilica_wins() {
-        let update = UpdateSource { installer: PathBuf::from("C:/T/a b.exe"), version: "0.6.0".into() };
+        let update = UpdateSource { installer: Some(PathBuf::from("C:/T/a b.exe")), version: "0.6.0".into() };
         for payload in [true, false] {
             let launch = Launch::parse(args(&["--update", "C:/T/a b.exe", "--version", "0.6.0"]), payload);
-            assert_eq!(launch, Launch { mode: Mode::Update, relaunched: false, update: Some(update.clone()) });
+            assert_eq!(launch, Launch { mode: Mode::Update, relaunched: false, update: Some(update.clone()), silent: None });
         }
         // Without a path, or without a version, it is still read sensibly.
         assert_eq!(Launch::parse(args(&["--update"]), false).mode, Mode::Uninstall);
@@ -291,10 +316,37 @@ mod tests {
     }
 
     #[test]
+    fn a_copy_carrying_cilica_updates_with_what_it_carries() {
+        let own = Some(UpdateSource { installer: None, version: env!("CARGO_PKG_VERSION").to_owned() });
+        // Cilica, starting the Setup it downloaded.
+        let launch = Launch::parse(args(&["--update", "--version", "9.9.9"]), true);
+        assert_eq!(launch.mode, Mode::Update);
+        assert_eq!(launch.update, Some(UpdateSource { installer: None, version: "9.9.9".into() }));
+        // Tauri's updater, in copies of Cilica from before 0.6.
+        let launch = Launch::parse(args(&["/P", "/UPDATE", "/R", "/ARGS"]), true);
+        assert_eq!((launch.mode, launch.update, launch.silent), (Mode::Update, own, None));
+    }
+
+    #[test]
+    fn a_silent_nsis_line_is_passed_on() {
+        // Cilica 0.6's copy of Setup, running the downloaded package as if it were NSIS.
+        let line = args(&["/S", "/UPDATE", "/D=C:\\Users\\Ana", "Lee\\AppData\\Local\\Cilica"]);
+        let launch = Launch::parse(line.clone(), true);
+        assert_eq!(launch.silent, Some(line.clone()));
+        assert_eq!(launch.update, None);
+        // A copy without Cilica inside has nothing to pass it to.
+        assert_eq!(Launch::parse(line, false).silent, None);
+    }
+
+    #[test]
     fn a_relaunch_carries_the_same_job() {
         let update = Launch::parse(args(&["--update", "C:/T/a b.exe", "--version", "0.6.0"]), false);
         let relaunched = Launch::parse(update.relaunch_args(), false);
         assert_eq!(relaunched, Launch { relaunched: true, ..update });
+
+        let own = Launch::parse(args(&["--update", "--version", "0.7.0"]), true);
+        let relaunched = Launch::parse(own.relaunch_args(), true);
+        assert_eq!(relaunched, Launch { relaunched: true, ..own });
 
         let uninstall = Launch::parse(args(&["--uninstall"]), false);
         assert_eq!(uninstall.relaunch_args(), args(&["--uninstall", "--relaunched"]));

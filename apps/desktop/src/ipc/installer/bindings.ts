@@ -18,8 +18,8 @@ export const commands = {
 	/**  Start installing. Returns the steps the progress screen lists; progress follows as events. */
 	install: (options: InstallOptions) => __TAURI_INVOKE<Step[]>("install", { options }),
 	/**
-	 *  Start installing the update Cilica handed over. The window calls this as soon as it opens;
-	 *  there is nothing to choose. Returns the steps; progress follows as events.
+	 *  Start installing the update: the one this copy carries, or one Cilica 0.6 handed over. The
+	 *  window calls this as soon as it opens; there is nothing to choose. Returns the steps; progress follows as events.
 	 */
 	update: () => __TAURI_INVOKE<Step[]>("update"),
 	/**  Start removing Cilica. Returns the steps; progress follows as events. */

@@ -1,16 +1,19 @@
 //! Cilica Setup: Cilica's installer and uninstaller window on Windows.
 //!
-//! One small program in two roles (docs/architecture.md › Windows installer):
+//! One small program, and the only thing Cilica ships on Windows (docs/architecture.md › Windows
+//! installer):
 //! - **Install.** `Cilica_<version>_x64_Setup.exe` carries Tauri's NSIS installer (src/payload.rs)
 //!   and runs it silently under a frameless window drawn by the desktop frontend
 //!   (`index.html?window=installer`, src/features/installer).
+//! - **Update.** The same file is the updater's package. Cilica downloads and verifies it, then
+//!   starts it with `--update --version <v>` (apps/desktop/src-tauri/src/commands/updates); it
+//!   waits for Cilica to quit, runs the installer it carries silently, then opens Cilica again.
+//!   Older copies of Cilica start it the ways they knew: Tauri's updater with `/P /UPDATE /R`
+//!   (the same window), and Cilica 0.6 through its own copy of Setup with NSIS's silent line,
+//!   which is passed on to the carried installer as it came.
 //! - **Uninstall.** A copy without the installer sits next to Cilica as `cilica-setup.exe`;
 //!   Installed apps starts it with `--uninstall` (apps/desktop/src-tauri/windows/hooks.nsh). It
 //!   moves itself to the temporary folder, then runs Cilica's own uninstaller silently.
-//! - **Update.** Cilica starts that same copy with `--update <installer> --version <v>` once it
-//!   has downloaded and verified a new version (apps/desktop/src-tauri/src/commands/updates).
-//!   It moves itself to the temporary folder, waits for Cilica to quit, runs the new installer
-//!   silently, then opens Cilica again.
 //!
 //! Without WebView2 it hands over to Tauri's NSIS wizard, which installs WebView2 itself.
 
@@ -64,6 +67,13 @@ pub fn run() -> i32 {
         .init();
     let launch = Launch::parse(std::env::args().skip(1), payload::present());
     let session = system::session_dir(launch.relaunched);
+
+    // Asked to be Tauri's NSIS installer, silently: be exactly that, with no window.
+    if let Some(args) = &launch.silent {
+        let code = system::run_carried_installer(args, &session);
+        system::clean_up_after_exit(&session);
+        return code;
+    }
 
     // Removing or updating Cilica deletes or replaces the copy of Setup in its folder, which is
     // this one: continue from a copy elsewhere.
@@ -122,12 +132,25 @@ pub fn run() -> i32 {
         }
     };
     let cleanup = app.state::<Setup>().session.clone();
+    let download = (launch.mode == Mode::Update).then(downloaded_from).flatten();
     app.run(move |_, event| {
         if let RunEvent::Exit = event {
             system::clean_up_after_exit(&cleanup);
+            // An update runs from the folder Cilica downloaded it to, which it can't delete
+            // while it runs.
+            if let Some(dir) = &download {
+                system::clean_up_after_exit(dir);
+            }
         }
     });
     0
+}
+
+/// The folder Cilica downloads updates to (`STAGING_DIR` in
+/// apps/desktop/src-tauri/src/commands/updates/windows.rs), when this copy runs from it.
+fn downloaded_from() -> Option<std::path::PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    (dir.file_name()? == "cilica-update").then_some(dir)
 }
 
 #[cfg(test)]

@@ -148,8 +148,8 @@ pub fn install(app: AppHandle, state: State<'_, Setup>, options: InstallOptions)
     Ok(steps)
 }
 
-/// Start installing the update Cilica handed over. The window calls this as soon as it opens;
-/// there is nothing to choose. Returns the steps; progress follows as events.
+/// Start installing the update: the one this copy carries, or one Cilica 0.6 handed over. The
+/// window calls this as soon as it opens; there is nothing to choose. Returns the steps; progress follows as events.
 #[tauri::command]
 #[specta::specta]
 pub fn update(app: AppHandle, state: State<'_, Setup>) -> AppResult<Vec<Step>> {
@@ -162,7 +162,7 @@ pub fn update(app: AppHandle, state: State<'_, Setup>) -> AppResult<Vec<Step>> {
         .ok_or_else(|| AppError::not_found("Cilica isn't installed on this PC, so there's nothing to update. Download Cilica to install it."))?;
     let steps = update_steps();
     start(&app, &state, steps.clone(), move |setup, report| {
-        let exe = system::update(&existing.dir, &source, report)?;
+        let exe = system::update(&existing.dir, &source, &setup.session, report)?;
         if let Ok(mut installed) = setup.installed.lock() {
             *installed = Some(exe);
         }

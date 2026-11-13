@@ -41,7 +41,7 @@ pub fn install(options: &InstallOptions, _updating: bool, _session: &Path, repor
     Ok(PathBuf::from(&options.dir).join("Cilica.exe"))
 }
 
-pub fn update(dir: &Path, _source: &UpdateSource, report: &Reporter) -> AppResult<PathBuf> {
+pub fn update(dir: &Path, _source: &UpdateSource, _session: &Path, report: &Reporter) -> AppResult<PathBuf> {
     play(report)?;
     Ok(dir.join("Cilica.exe"))
 }
@@ -74,6 +74,11 @@ pub fn relaunch_from_temp(_session: &Path, _args: &[String]) -> AppResult<()> {
 
 pub fn runs_from_install_dir() -> bool {
     false
+}
+
+pub fn run_carried_installer(args: &[String], _session: &Path) -> i32 {
+    tracing::info!(?args, "would run Cilica's installer silently");
+    0
 }
 
 pub fn fall_back_to_wizard(_launch: &Launch, _session: &Path) -> i32 {

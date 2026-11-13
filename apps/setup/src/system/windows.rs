@@ -143,9 +143,10 @@ pub fn install(options: &InstallOptions, updating: bool, session: &Path, report:
     Ok(exe)
 }
 
-/// Install the update Cilica handed over into `dir`, where Cilica already is, step by step.
-/// Returns Cilica's program file. The shortcuts and login item stay as they are.
-pub fn update(dir: &Path, source: &UpdateSource, report: &Reporter) -> AppResult<PathBuf> {
+/// Install an update into `dir`, where Cilica already is, step by step: the installer this copy
+/// carries, unpacked into `session`, or one Cilica 0.6 downloaded. Returns Cilica's program file.
+/// The shortcuts and login item stay as they are.
+pub fn update(dir: &Path, source: &UpdateSource, session: &Path, report: &Reporter) -> AppResult<PathBuf> {
     // Cilica quits right after starting Setup; give it a moment to finish saving.
     report.start(Step::Close);
     let started = std::time::Instant::now();
@@ -157,7 +158,11 @@ pub fn update(dir: &Path, source: &UpdateSource, report: &Reporter) -> AppResult
     report.done(Step::Close);
 
     report.start(Step::Check);
-    let size = std::fs::metadata(&source.installer).map(|m| m.len()).map_err(|_| {
+    let installer = match &source.installer {
+        Some(path) => path.clone(),
+        None => unpack(session, |_| {})?,
+    };
+    let size = std::fs::metadata(&installer).map(|m| m.len()).map_err(|_| {
         AppError::not_found("The downloaded update is missing from the temporary folder. Open Cilica and update again from Settings › General.")
     })?;
     // What the installer writes is about what is there now; a fresh folder falls back to a guess.
@@ -169,7 +174,11 @@ pub fn update(dir: &Path, source: &UpdateSource, report: &Reporter) -> AppResult
     report.done(Step::Check);
 
     report.start(Step::Copy);
-    run_installer(&source.installer, &installer_args(dir, false, true), expected, report)?;
+    let copied = run_installer(&installer, &installer_args(dir, false, true), expected, report);
+    if source.installer.is_none() {
+        let _ = std::fs::remove_file(&installer);
+    }
+    copied?;
     let exe = main_exe(dir);
     if !exe.is_file() {
         return Err(AppError::internal(format!(
@@ -186,12 +195,38 @@ pub fn update(dir: &Path, source: &UpdateSource, report: &Reporter) -> AppResult
     }
     report.done(Step::Register);
 
-    // Done with the download. Cilica keeps it in a folder of its own; remove that too if empty.
-    let _ = std::fs::remove_file(&source.installer);
-    if let Some(folder) = source.installer.parent() {
-        let _ = std::fs::remove_dir(folder);
+    // Done with a download Cilica 0.6 handed over. It keeps it in a folder of its own; remove
+    // that too if empty.
+    if let Some(download) = &source.installer {
+        let _ = std::fs::remove_file(download);
+        if let Some(folder) = download.parent() {
+            let _ = std::fs::remove_dir(folder);
+        }
     }
     Ok(exe)
+}
+
+/// Started like Tauri's NSIS installer in silent mode: run the installer this copy carries with
+/// the same `args`, without a window, and return its exit code. Cilica 0.6's copy of Setup does
+/// this to the Cilica Setup it downloaded, and checks the result itself.
+pub fn run_carried_installer(args: &[String], session: &Path) -> i32 {
+    let installer = match unpack(session, |_| {}) {
+        Ok(installer) => installer,
+        Err(error) => {
+            tracing::error!(error = %error.message, "could not unpack Cilica's installer");
+            return 1;
+        }
+    };
+    // NSIS reads its own command line: hand it on as it came, `/D=` (spaces and all) last.
+    let status = run_raw(&installer, args, CREATE_NO_WINDOW).and_then(|mut child| child.wait());
+    let _ = std::fs::remove_file(&installer);
+    match status {
+        Ok(status) => status.code().unwrap_or(1),
+        Err(error) => {
+            tracing::error!(%error, "Cilica's installer didn't run");
+            1
+        }
+    }
 }
 
 /// Run Tauri's NSIS installer silently and wait for it, moving the Copy step by the bytes it writes.
@@ -386,7 +421,14 @@ pub fn fall_back_to_wizard(launch: &Launch, session: &Path) -> i32 {
             status
         }),
         // What Tauri's updater would have done: the installer's own progress window, then Cilica.
-        (Mode::Update, Some(update)) => Command::new(&update.installer).args(["/P", "/UPDATE", "/R"]).status().map_err(|e| e.to_string()),
+        (Mode::Update, Some(update)) => match &update.installer {
+            Some(installer) => Command::new(installer).args(["/P", "/UPDATE", "/R"]).status().map_err(|e| e.to_string()),
+            None => unpack(session, |_| {}).map_err(|e| e.message).and_then(|installer| {
+                let status = Command::new(&installer).args(["/P", "/UPDATE", "/R"]).status().map_err(|e| e.to_string());
+                let _ = std::fs::remove_file(&installer);
+                status
+            }),
+        },
         (Mode::Update, None) => Err("no update to install".to_owned()),
         (Mode::Uninstall, _) => match existing() {
             Some(existing) => Command::new(existing.dir.join("uninstall.exe")).status().map_err(|e| e.to_string()),
