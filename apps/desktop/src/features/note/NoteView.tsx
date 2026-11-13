@@ -33,6 +33,7 @@ import {
   useRenameNote,
   useTrashNote,
 } from "@/features/notes/hooks";
+import { useHasSelection } from "@/features/notes/selection";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
 import { RecordButton } from "@/features/recorder/RecordButton";
 import { CanvasBand } from "@/features/shell/CanvasBand";
@@ -208,7 +209,9 @@ function LoadedNote({ note }: { note: Note }) {
   });
 
   useAction("note.togglePanel", () => switchPanel(panel === "notes" ? "transcript" : "notes"));
-  useAction("note.trash", () => trash.mutate(note.id));
+  // With notes selected in the sidebar, ⌘⌫ trashes those instead (see NoteTree).
+  const hasSelection = useHasSelection();
+  useAction("note.trash", () => trash.mutate(note.id), !hasSelection);
   // On the Transcript side, the transcript's own find takes ⌘F.
   useAction(
     "note.find",

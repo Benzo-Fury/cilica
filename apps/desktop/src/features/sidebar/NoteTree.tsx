@@ -1,6 +1,7 @@
 import { DndContext, DragOverlay, useDroppable } from "@dnd-kit/core";
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useAction } from "@/app/keybinds";
 import { reducedTransition, springs } from "@/app/motion";
 import { useRouter } from "@/app/router";
 import {
@@ -11,6 +12,16 @@ import {
   useNotes,
 } from "@/features/notes/hooks";
 import { positionForInsert } from "@/features/notes/positions";
+import {
+  applyClick,
+  type ClickKind,
+  countNotes,
+  extendSelection,
+  pruneSelection,
+  useClickAway,
+  useNoteSelection,
+  visibleOrder,
+} from "@/features/notes/selection";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
 import type { NoteSummary } from "@/ipc/types";
 import { displayTitle } from "@/lib/format";
@@ -19,6 +30,7 @@ import { CategoryBlock } from "./CategoryBlock";
 import { InlineName } from "./InlineName";
 import { NoteRow } from "./NoteRow";
 import { useSidebarUi } from "./store";
+import { useBulkActions } from "./useBulkActions";
 import { type DragData, useSidebarDnd } from "./useSidebarDnd";
 
 /** Shown at the top while a filed note is dragged: drop here to take it out of its category. */
@@ -57,10 +69,13 @@ function DragPreview({
   data,
   notes,
   categoryName,
+  count,
 }: {
   data: DragData;
   notes: readonly NoteSummary[];
   categoryName?: string;
+  /** Notes carried along with a selection (1 when dragging one note). */
+  count: number;
 }) {
   const reduced = useReducedMotion();
   const note = data.type === "note" ? notes.find((n) => n.id === data.noteId) : undefined;
@@ -72,7 +87,9 @@ function DragPreview({
       transition={reduced ? reducedTransition : springs.snappy}
     >
       {data.type === "note" ? (
-        <span className="nt-row-label">{displayTitle(note?.title)}</span>
+        <span className="nt-row-label">
+          {count > 1 ? countNotes(count) : displayTitle(note?.title)}
+        </span>
       ) : (
         <span className="nt-row-label">{categoryName}</span>
       )}
@@ -90,7 +107,64 @@ export function NoteTree() {
   const recordingNoteId = isLive(recording) ? recording.note_id : null;
   const newCategory = useSidebarUi((s) => s.newCategory);
   const move = useMoveNote();
-  const dnd = useSidebarDnd(grouped, categories);
+
+  // ── Selection ──
+  const selection = useNoteSelection();
+  const setSelection = selection.set;
+  const order = useMemo(() => visibleOrder(grouped, categories), [grouped, categories]);
+  const hasSelection = selection.ids.length > 0;
+  const group = selection.ids.length > 1;
+  const selectedSet = useMemo(() => new Set(selection.ids), [selection.ids]);
+  const bulk = useBulkActions();
+
+  // Clicking anywhere but a note row (a heading, the editor, a panel) clears the selection. Note
+  // rows handle their own clicks: ⌘ and Shift change the selection, a plain click clears it.
+  useClickAway(hasSelection, "[data-sidebar] [data-note-id]", bulk.clear);
+
+  // Forget notes that left the list (trashed by Margin, removed in another window).
+  useEffect(() => {
+    const state = useNoteSelection.getState();
+    const pruned = pruneSelection(state, new Set(notes.map((n) => n.id)));
+    if (pruned !== state) setSelection(pruned);
+  }, [notes, setSelection]);
+
+  const onSelect = useCallback(
+    (note: NoteSummary, kind: ClickKind) => {
+      setSelection(applyClick(useNoteSelection.getState(), note.id, kind, order, currentNoteId));
+    },
+    [order, currentNoteId, setSelection],
+  );
+
+  const onExtend = useCallback(
+    (note: NoteSummary, direction: -1 | 1) => {
+      const next = extendSelection(useNoteSelection.getState(), note.id, direction, order);
+      if (!next) return;
+      setSelection(next.selection);
+      document.querySelector<HTMLElement>(`[data-sidebar] [data-note-id="${next.focus}"]`)?.focus();
+    },
+    [order, setSelection],
+  );
+
+  const onSelectAll = useCallback(
+    () => setSelection({ ids: order, anchor: order[0] ?? null }),
+    [order, setSelection],
+  );
+
+  const clearSelection = bulk.clear;
+  const onClearSelection = useCallback(() => {
+    if (useNoteSelection.getState().ids.length === 0) return false;
+    clearSelection();
+    return true;
+  }, [clearSelection]);
+
+  // ⌘⌫ moves the selection to Trash (the note view stands aside while there is one).
+  useAction("note.trash", bulk.trash, hasSelection);
+
+  const blockFor = useCallback(
+    (noteId: string) => (group && selectedSet.has(noteId) ? bulk.ids : null),
+    [group, selectedSet, bulk.ids],
+  );
+  const dnd = useSidebarDnd(grouped, categories, blockFor);
 
   const onNudge = useCallback(
     (note: NoteSummary, direction: -1 | 1) => {
@@ -109,6 +183,7 @@ export function NoteTree() {
 
   const drop = dnd.drop;
   const draggingNote = dnd.active?.type === "note" ? dnd.active.noteId : null;
+  const draggingBlock = group && draggingNote !== null && selectedSet.has(draggingNote);
   const draggingCategory = dnd.active?.type === "category" ? dnd.active.categoryId : null;
   const lineFor = (noteId: string) =>
     drop?.kind === "note-line" && drop.overId === noteId ? drop.edge : null;
@@ -121,9 +196,15 @@ export function NoteTree() {
       recording={note.id === recordingNoteId}
       categories={categories}
       dropLine={lineFor(note.id)}
-      dragging={note.id === draggingNote}
+      dragging={note.id === draggingNote || (draggingBlock && selectedSet.has(note.id))}
       droppable={dnd.active?.type !== "category"}
+      selected={selectedSet.has(note.id)}
+      groupMenu={group && selectedSet.has(note.id)}
       onNudge={onNudge}
+      onSelect={onSelect}
+      onExtend={onExtend}
+      onSelectAll={onSelectAll}
+      onClearSelection={onClearSelection}
     />
   );
 
@@ -173,6 +254,7 @@ export function NoteTree() {
             data={dnd.active}
             notes={notes}
             categoryName={categories.find((c) => c.id === draggingCategory)?.name}
+            count={draggingBlock ? bulk.count : 1}
           />
         )}
       </DragOverlay>

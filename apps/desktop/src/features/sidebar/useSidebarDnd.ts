@@ -2,7 +2,8 @@
  * Drag and drop for the sidebar (dnd-kit): notes move between Notes and categories or reorder
  * inside one; categories reorder. A drop line marks the insert point; hovering a collapsed
  * category for 500ms opens it. Positions are fractional, so only the moved item is written,
- * optimistically, with rollback on failure.
+ * optimistically, with rollback on failure. Dragging a note that is part of a selection of several
+ * moves the whole selection as one block, in sidebar order.
  */
 import {
   type CollisionDetection,
@@ -16,8 +17,13 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMoveNote, useReorderCategory, useSetCategoryCollapsed } from "@/features/notes/hooks";
-import { positionForInsert } from "@/features/notes/positions";
+import {
+  useMoveNote,
+  useMoveNotes,
+  useReorderCategory,
+  useSetCategoryCollapsed,
+} from "@/features/notes/hooks";
+import { positionForBlock, positionForInsert } from "@/features/notes/positions";
 import type { Category, NoteSummary } from "@/ipc/types";
 import { haptic } from "@/lib/haptics";
 
@@ -55,7 +61,12 @@ interface Grouped {
   byCategory: Map<string, NoteSummary[]>;
 }
 
-export function useSidebarDnd(grouped: Grouped, categories: readonly Category[]) {
+export function useSidebarDnd(
+  grouped: Grouped,
+  categories: readonly Category[],
+  /** The selected notes to carry along when `noteId` is dragged, or null to move it alone. */
+  blockFor: (noteId: string) => string[] | null,
+) {
   const [active, setActiveState] = useState<DragData | null>(null);
   const [drop, setDropState] = useState<DropState>(null);
   // Mirrors of the state for the end handler, which may run before a re-render.
@@ -72,6 +83,7 @@ export function useSidebarDnd(grouped: Grouped, categories: readonly Category[])
     setDropState(value);
   };
   const moveNote = useMoveNote();
+  const moveNotes = useMoveNotes();
   const reorderCategory = useReorderCategory();
   const setCollapsed = useSetCategoryCollapsed();
   const expandTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,10 +173,26 @@ export function useSidebarDnd(grouped: Grouped, categories: readonly Category[])
       const bucket = state.kind === "note-line" ? state.bucket : state.categoryId;
       const index = state.kind === "note-line" ? state.index : 0;
       const list = bucketOf(bucket);
+      const name = bucket ? categories.find((c) => c.id === bucket)?.name : "Notes";
+      const block = blockFor(data.noteId);
+      if (block && block.length > 1) {
+        const inBucket = new Set(list.map((n) => n.id));
+        const position =
+          state.kind === "note-into" ? null : positionForBlock(list, block, state.index);
+        const allHere = block.every((id) => inBucket.has(id));
+        if (state.kind === "note-line" && position === null) return;
+        haptic("alignment");
+        moveNotes.mutate({
+          noteIds: block,
+          categoryId: bucket,
+          position,
+          announce: allHere ? undefined : name,
+        });
+        return;
+      }
       const sameBucket = bucket === data.categoryId;
       const position = positionForInsert(list, data.noteId, index);
       if (sameBucket && position === null) return;
-      const name = bucket ? categories.find((c) => c.id === bucket)?.name : "Notes";
       haptic("alignment");
       moveNote.mutate({
         noteId: data.noteId,

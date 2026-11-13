@@ -1,4 +1,10 @@
-import { byPosition, impliedPositions, positionBetween, positionForInsert } from "./positions";
+import {
+  byPosition,
+  impliedPositions,
+  positionBetween,
+  positionForBlock,
+  positionForInsert,
+} from "./positions";
 
 const items = (...positions: (number | null)[]) =>
   positions.map((position, i) => ({ id: String.fromCharCode(97 + i), position }));
@@ -66,5 +72,24 @@ describe("positionForInsert", () => {
 
   it("sorts nulls last", () => {
     expect(byPosition(items(null, 2, 1)).map((i) => i.id)).toEqual(["c", "b", "a"]);
+  });
+});
+
+describe("positionForBlock", () => {
+  // a=1 b=2 c=3 d=4
+  const list = items(1, 2, 3, 4);
+  it("starts the block between the neighbours left once it is taken out", () => {
+    expect(positionForBlock(list, ["a", "b"], 4)).toBe(5); // to the end
+    expect(positionForBlock(list, ["c", "d"], 0)).toBe(0); // to the top
+    expect(positionForBlock(list, ["a", "d"], 2)).toBe(2.5); // between b and c
+  });
+  it("takes notes from elsewhere", () => {
+    expect(positionForBlock(list, ["x", "y"], 1)).toBe(1.5);
+  });
+  it("returns null when the block is already there in order", () => {
+    expect(positionForBlock(list, ["b", "c"], 1)).toBeNull();
+    expect(positionForBlock(list, ["b", "c"], 3)).toBeNull();
+    expect(positionForBlock(list, ["c", "b"], 1)).toBe(2.5); // reordered, between a and d
+    expect(positionForBlock(list, ["a", "c"], 0)).toBe(1); // gathered together, above b
   });
 });

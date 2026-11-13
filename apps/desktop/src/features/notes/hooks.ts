@@ -11,6 +11,7 @@ import type { Category, Note, NoteSummary } from "@/ipc/types";
 import { displayTitle } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { byPosition } from "./positions";
+import { countNotes } from "./selection";
 
 export function toSummary(note: Note): NoteSummary {
   const { body_md: _body, started_at: _s, ended_at: _e, ...summary } = note;
@@ -237,6 +238,170 @@ export function useTrashNote() {
         },
       });
     },
+  });
+}
+
+// ───────── Several notes at once (sidebar selection, Trash selection) ─────────
+
+/** Leave the open note if it is one of `ids`, for the nearest note that stays. */
+function leaveIfOpen(list: readonly NoteSummary[], ids: ReadonlySet<string>) {
+  const view = useRouter.getState().view;
+  if (view.name !== "note" || !ids.has(view.noteId)) return;
+  const index = list.findIndex((n) => n.id === view.noteId);
+  const after = list.slice(index + 1).find((n) => !ids.has(n.id));
+  const before = list
+    .slice(0, Math.max(0, index))
+    .reverse()
+    .find((n) => !ids.has(n.id));
+  const neighbour = after ?? before;
+  if (neighbour) openNote(neighbour.id);
+  else navigate({ name: "home" });
+}
+
+/** Move several notes to Trash, with one Undo toast that brings them all back. */
+export function useTrashNotes() {
+  const { queryClient, snapshot, restore } = useNotesCache();
+  return useMutation({
+    mutationFn: (noteIds: string[]) => api.trashNotes(noteIds),
+    onMutate: (noteIds) => {
+      const snap = snapshot();
+      const ids = new Set(noteIds);
+      const list = snap.notes ?? [];
+      queryClient.setQueryData<NoteSummary[]>(
+        qk.notes,
+        list.filter((n) => !ids.has(n.id)),
+      );
+      leaveIfOpen(list, ids);
+      return { snap };
+    },
+    onError: (error, _ids, context) => {
+      if (context) restore(undefined, context.snap);
+      toast.error("The notes were not moved to Trash", { description: errorMessage(error) });
+    },
+    onSuccess: (count, noteIds) => {
+      void queryClient.invalidateQueries({ queryKey: qk.trash });
+      toast.undo(`Moved ${countNotes(count)} to Trash`, {
+        description: "Notes stay in Trash for 30 days.",
+        onUndo: () => {
+          api.restoreNotes(noteIds).then(
+            () => {
+              void queryClient.invalidateQueries({ queryKey: qk.notes });
+              void queryClient.invalidateQueries({ queryKey: qk.trash });
+            },
+            (error) =>
+              toast.error("The notes were not restored", { description: errorMessage(error) }),
+          );
+        },
+      });
+    },
+  });
+}
+
+/**
+ * Move several notes into a category (or out, with `null`) as one block, in the order given.
+ * With a position the block starts there (drag and drop); without one it goes to the top.
+ */
+export function useMoveNotes() {
+  const { queryClient, snapshot, restore } = useNotesCache();
+  return useMutation({
+    mutationFn: ({
+      noteIds,
+      categoryId,
+      position,
+    }: {
+      noteIds: string[];
+      categoryId: string | null;
+      position: number | null;
+      /** Show "Moved 3 notes to …" with Undo. */
+      announce?: string;
+    }) => api.moveNotes(noteIds, categoryId, position),
+    onMutate: ({ noteIds, categoryId, position }) => {
+      const snap = snapshot();
+      const list = snap.notes ?? [];
+      const ids = new Set(noteIds);
+      const previous = list.filter((n) => ids.has(n.id));
+      // Close enough for the moment before the backend answers: the block, in order, at the spot.
+      const others = list
+        .filter((n) => n.category_id === categoryId && !ids.has(n.id))
+        .map((n) => n.position ?? 0);
+      const start = position ?? (others.length ? Math.min(...others) : 0) - noteIds.length;
+      const step = position === null ? 1 : 1e-9;
+      queryClient.setQueryData<NoteSummary[]>(qk.notes, (current) =>
+        current?.map((n) =>
+          ids.has(n.id)
+            ? { ...n, category_id: categoryId, position: start + step * noteIds.indexOf(n.id) }
+            : n,
+        ),
+      );
+      return { snap, previous };
+    },
+    onError: (error, _v, context) => {
+      if (context) restore(undefined, context.snap);
+      toast.error("The notes were not moved", { description: errorMessage(error) });
+    },
+    onSuccess: (moved, { announce }, context) => {
+      const byId = new Map(moved.map((n) => [n.id, n]));
+      queryClient.setQueryData<NoteSummary[]>(qk.notes, (list) =>
+        list?.map((n) => byId.get(n.id) ?? n),
+      );
+      const previous = context?.previous ?? [];
+      if (announce && previous.length > 0) {
+        toast.undo(`Moved ${countNotes(moved.length)} to ${announce}`, {
+          onUndo: () => {
+            Promise.all(previous.map((n) => api.moveNotes([n.id], n.category_id, n.position))).then(
+              () => void queryClient.invalidateQueries({ queryKey: qk.notes }),
+              (error) =>
+                toast.error("That move was not undone", { description: errorMessage(error) }),
+            );
+          },
+        });
+      }
+    },
+  });
+}
+
+/** Bring several notes back from Trash. */
+export function useRestoreNotes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (noteIds: string[]) => api.restoreNotes(noteIds),
+    onMutate: (noteIds) => {
+      const previous = queryClient.getQueryData<NoteSummary[]>(qk.trash);
+      const ids = new Set(noteIds);
+      queryClient.setQueryData<NoteSummary[]>(qk.trash, (list) =>
+        list?.filter((n) => !ids.has(n.id)),
+      );
+      return { previous };
+    },
+    onError: (error, _ids, context) => {
+      queryClient.setQueryData(qk.trash, context?.previous);
+      toast.error("The notes were not restored", { description: errorMessage(error) });
+    },
+    onSuccess: (restored) => {
+      void queryClient.invalidateQueries({ queryKey: qk.notes });
+      toast.success(`Restored ${countNotes(restored.length)}`);
+    },
+  });
+}
+
+/** Delete several notes from Trash for good. Ask first: this cannot be undone. */
+export function useDeleteNotesForever() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (noteIds: string[]) => api.deleteNotesForever(noteIds),
+    onMutate: (noteIds) => {
+      const previous = queryClient.getQueryData<NoteSummary[]>(qk.trash);
+      const ids = new Set(noteIds);
+      queryClient.setQueryData<NoteSummary[]>(qk.trash, (list) =>
+        list?.filter((n) => !ids.has(n.id)),
+      );
+      return { previous };
+    },
+    onError: (error, _ids, context) => {
+      queryClient.setQueryData(qk.trash, context?.previous);
+      toast.error("The notes were not deleted", { description: errorMessage(error) });
+    },
+    onSuccess: (count) => toast(`Deleted ${countNotes(count)}`),
   });
 }
 

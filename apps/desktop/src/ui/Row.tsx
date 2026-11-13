@@ -18,6 +18,8 @@ export interface RowProps extends HTMLAttributes<HTMLDivElement> {
   meta?: ReactNode;
   trailing?: ReactNode;
   current?: boolean;
+  /** In the note selection: an `accent-soft` ground, under the current row's pill. */
+  selected?: boolean;
   indent?: boolean;
   /** Visual states used while dragging. */
   dropTarget?: boolean;
@@ -38,6 +40,7 @@ export function Row({
   meta,
   trailing,
   current = false,
+  selected = false,
   indent = false,
   dropTarget = false,
   dimmed = false,
@@ -52,6 +55,7 @@ export function Row({
       className={cn(
         "nt-row nt-anim-host nt-anim",
         indent && "nt-row-indent",
+        selected && "nt-row-selected",
         dropTarget && "nt-drop-target",
         dimmed && "nt-row-dimmed",
         className,

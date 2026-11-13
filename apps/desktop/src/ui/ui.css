@@ -729,6 +729,11 @@ mark {
 .nt-row-dimmed {
   opacity: 0.4;
 }
+.nt-row-selected,
+.nt-row-selected:hover,
+.nt-row-selected[aria-current="page"]:hover {
+  background: var(--accent-soft);
+}
 .nt-row .nt-row-meta {
   display: inline-flex;
   align-items: center;

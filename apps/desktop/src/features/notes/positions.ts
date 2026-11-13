@@ -77,3 +77,32 @@ export function byPosition<T extends Positioned>(items: readonly T[]): T[] {
     return a.position - b.position;
   });
 }
+
+/**
+ * Where a block of notes (`movingIds`, in order) dropped at `index` of `list` starts: a position
+ * between the neighbours left once the block is taken out. The backend spreads the block from
+ * there up to the next note. Returns null when the block is already there, together, in order.
+ */
+export function positionForBlock(
+  list: readonly Positioned[],
+  movingIds: readonly string[],
+  index: number,
+): number | null {
+  const moving = new Set(movingIds);
+  const positions = impliedPositions(list);
+  const others = list
+    .map((item, i) => ({ id: item.id, position: positions[i] ?? 0 }))
+    .filter((item) => !moving.has(item.id));
+  const movedAbove = list.slice(0, Math.max(0, index)).filter((i) => moving.has(i.id)).length;
+  const target = Math.max(0, Math.min(others.length, index - movedAbove));
+
+  // Already in place: the block sits, in order and together, exactly at `target`.
+  const ids = list.map((i) => i.id);
+  const start = ids.indexOf(movingIds[0] ?? "");
+  const together = start >= 0 && movingIds.every((id, k) => ids[start + k] === id);
+  if (together && start === target) return null;
+
+  const before = others[target - 1]?.position ?? null;
+  const after = others[target]?.position ?? null;
+  return positionBetween(before, after);
+}
