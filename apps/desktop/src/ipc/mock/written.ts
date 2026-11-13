@@ -1,5 +1,6 @@
 /** Home's facts from written notes: a rough copy of `crates/store/src/written.rs`. */
 import type { HomeGlance, NoteLine as NoteLineIn, WritingHours } from "@/ipc/types";
+import { splitWiki } from "@/lib/links";
 import { addedWords, endsMidSentence, spellFixes } from "./faces";
 import type { MockState } from "./state";
 
@@ -52,7 +53,12 @@ export function plain(line: string): string | null {
     .replace(/^[#> ]+/, "")
     .replace(/^[-*+] /, "")
     .replace(/^\d+\. /, "")
+    .replace(/!?\[\[([^[\]\n]+?)\]\]/g, (_, inner: string) => {
+      const { page, alias } = splitWiki(inner);
+      return (alias ?? page.split("/").pop() ?? page).trim();
+    })
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/==|~~/g, "")
     .replace(/`[^`]*`/g, "")
     .replace(/\*/g, "")
     .replace(/(^|[^\p{L}\p{N}])_+|_+(?=[^\p{L}\p{N}]|$)/gu, "$1")

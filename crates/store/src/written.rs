@@ -75,11 +75,24 @@ fn plain(line: &str) -> Option<String> {
     {
         t = rest;
     }
-    // [text](target) keeps its text.
+    // [[Page|alias]] keeps its alias (or the page's name); [text](target) keeps its text.
     let mut out = String::with_capacity(t.len());
     let mut rest = t;
     while let Some(open) = rest.find('[') {
-        out.push_str(&rest[..open]);
+        let before = &rest[..open];
+        if let Some(inner) = rest[open..].strip_prefix("[[")
+            && let Some(close) = inner.find("]]")
+            && !inner[..close].contains(['[', ']', '\n'])
+        {
+            out.push_str(before.strip_suffix('!').unwrap_or(before));
+            let link = &inner[..close];
+            let (target, alias) = link.split_once('|').map_or((link, None), |(p, a)| (p, Some(a)));
+            let page = target.split('#').next().unwrap_or(target);
+            out.push_str(alias.map(str::trim).unwrap_or_else(|| page.rsplit('/').next().unwrap_or(page).trim()));
+            rest = &inner[close + 2..];
+            continue;
+        }
+        out.push_str(before);
         let after = &rest[open + 1..];
         match after.find("](").and_then(|close| after[close..].find(')').map(|end| (close, close + end))) {
             Some((close, end)) => {
@@ -93,6 +106,8 @@ fn plain(line: &str) -> Option<String> {
         }
     }
     out.push_str(rest);
+    // Highlight and strikethrough marks go; their words stay.
+    let out = out.replace("==", "").replace("~~", "");
     // Inline code is not prose: drop it whole. Underscores go only as emphasis, not inside words.
     let out: String = out.split('`').step_by(2).collect();
     let chars: Vec<char> = out.chars().collect();
@@ -533,6 +548,13 @@ mod tests {
         assert_eq!(plain("Run `WHERE notes_fts MATCH ?` first").as_deref(), Some("Run  first"));
         assert_eq!(plain("_really_ keep snake_case").as_deref(), Some("really keep snake_case"));
         assert_eq!(plain("https://example.com"), None);
+        assert_eq!(
+            plain("This is [[The Environment|ecologically]] important to [[Sexual Reproduction|reproduce]].").as_deref(),
+            Some("This is ecologically important to reproduce.")
+        );
+        assert_eq!(plain("See [[Projects/Acme kickoff#Pricing]] and ![[Sketch]]").as_deref(), Some("See Acme kickoff and Sketch"));
+        assert_eq!(plain("A ==bright== idea, ~~not~~ really").as_deref(), Some("A bright idea, not really"));
+        assert_eq!(plain("Keep [brackets] and [[half").as_deref(), Some("Keep [brackets] and [[half"));
     }
 
     #[test]

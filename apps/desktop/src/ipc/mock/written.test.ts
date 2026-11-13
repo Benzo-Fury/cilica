@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ownLines } from "./written";
+import { ownLines, plain } from "./written";
 
 /** Each quotable line with who said it (null for your own words). */
 const saidBy = (body: string) => ownLines(body).map(([text, , who]) => [text, who]);
@@ -33,5 +33,19 @@ describe("ownLines attribution", () => {
     expect(mine('Note: "we should ship before the pricing change."')).toBe(true);
     expect(mine('"We should ship before the pricing change," I said.')).toBe(true);
     expect(mine("We should ship before the pricing change - the team agrees.")).toBe(true);
+  });
+});
+
+describe("plain", () => {
+  it("shows wiki links and marks as their words", () => {
+    expect(
+      plain(
+        "This is [[The Environment|ecologically]] important to [[Sexual Reproduction|reproduce]].",
+      ),
+    ).toBe("This is ecologically important to reproduce.");
+    expect(plain("See [[Projects/Acme kickoff#Pricing]] and ![[Sketch]]")).toBe(
+      "See Acme kickoff and Sketch",
+    );
+    expect(plain("A ==bright== idea, ~~not~~ really")).toBe("A bright idea, not really");
   });
 });
