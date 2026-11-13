@@ -225,9 +225,15 @@ export const commands = {
 	emptySwearJar: () => __TAURI_INVOKE<null>("empty_swear_jar"),
 	/**  Ask GitHub whether a newer version exists. Returns `None` when Cilica is up to date. */
 	checkForUpdate: () => __TAURI_INVOKE<UpdateInfo_Serialize | null>("check_for_update"),
-	/**  Download and install the update found by the last check. Takes effect after a restart. */
+	/**
+	 *  Download and install the update found by the last check. Takes effect after a restart (on
+	 *  Windows, the restart installs it).
+	 */
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
-	/**  Restart Cilica, finishing an installed update. */
+	/**
+	 *  Restart Cilica, finishing an installed update. On Windows, an update waiting for this is
+	 *  installed by Cilica Setup, which opens Cilica again when it is done.
+	 */
 	restartApp: () => __TAURI_INVOKE<null>("restart_app"),
 	/**
 	 *  What Cilica can find on this computer for one app: its data with counts, whether the app is

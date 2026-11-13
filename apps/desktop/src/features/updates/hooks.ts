@@ -4,7 +4,8 @@
  * Cilica checks shortly after launch and then every six hours. With automatic updates on, a new
  * version downloads and installs in the background and a toast offers to restart. With them off,
  * the toast offers to install it. Settings › General can check on demand; a version found there
- * downloads only when its Download button is pressed.
+ * downloads only when its Download button is pressed. On Windows "installs" means downloaded and
+ * waiting: Restart hands it to Cilica Setup, which installs it in its own window and reopens Cilica.
  */
 import { useEffect } from "react";
 import { create } from "zustand";

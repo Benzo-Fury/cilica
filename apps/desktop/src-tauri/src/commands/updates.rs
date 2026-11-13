@@ -2,6 +2,13 @@
 //!
 //! The updater reads `latest.json` from the endpoint in `tauri.conf.json` and only accepts
 //! packages signed with the updater key whose public half is in that file.
+//!
+//! On macOS and Linux an installed update replaces Cilica in place and takes effect on restart.
+//! On Windows the new installer can't run while Cilica is open, so it is downloaded, verified and
+//! kept until Restart, which hands it to Cilica Setup (`windows.rs`) and quits.
+
+#[cfg(windows)]
+mod windows;
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -14,9 +21,14 @@ use tauri_plugin_updater::{Error as UpdaterError, Update, UpdaterExt};
 
 // ───────── State ─────────
 
-/// The update found by the last check, kept so `install_update` installs exactly that one.
+/// The update found by the last check, kept so `install_update` installs exactly that one, and on
+/// Windows the one downloaded and waiting for Restart.
 #[derive(Default)]
-pub struct PendingUpdate(Mutex<Option<Update>>);
+pub struct PendingUpdate {
+    found: Mutex<Option<Update>>,
+    #[cfg(windows)]
+    staged: Mutex<Option<windows::Staged>>,
+}
 
 /// A newer version that can be installed.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
@@ -54,17 +66,18 @@ pub async fn check_for_update(
     let info = update
         .as_ref()
         .map(|u| UpdateInfo { version: u.version.clone(), notes: u.body.clone() });
-    *pending.0.lock().map_err(|_| AppError::internal("Update state is unavailable."))? = update;
+    *pending.found.lock().map_err(|_| AppError::internal("Update state is unavailable."))? = update;
     Ok(info)
 }
 
-/// Download and install the update found by the last check. Takes effect after a restart.
+/// Download and install the update found by the last check. Takes effect after a restart (on
+/// Windows, the restart installs it).
 #[tauri::command]
 #[specta::specta]
 pub async fn install_update(core: State<'_, Core>, pending: State<'_, PendingUpdate>) -> AppResult<()> {
     // Take the update found by the last check
     let update = pending
-        .0
+        .found
         .lock()
         .map_err(|_| AppError::internal("Update state is unavailable."))?
         .take()
@@ -86,16 +99,39 @@ pub async fn install_update(core: State<'_, Core>, pending: State<'_, PendingUpd
             total_bytes: total.map(|t| t as f64),
         });
     };
-    update.download_and_install(on_chunk, || {}).await.map_err(|e| {
+    let failed = |e: UpdaterError| {
         tracing::warn!("update install failed: {e}");
         install_error(&e)
-    })
+    };
+
+    // Windows: keep the verified installer until Restart, rather than quitting Cilica now
+    #[cfg(windows)]
+    {
+        let bytes = update.download(on_chunk, || {}).await.map_err(failed)?;
+        let staged = windows::stage(update, bytes)?;
+        *pending.staged.lock().map_err(|_| AppError::internal("Update state is unavailable."))? = Some(staged);
+    }
+    #[cfg(not(windows))]
+    update.download_and_install(on_chunk, || {}).await.map_err(failed)?;
+    Ok(())
 }
 
-/// Restart Cilica, finishing an installed update.
+/// Restart Cilica, finishing an installed update. On Windows, an update waiting for this is
+/// installed by Cilica Setup, which opens Cilica again when it is done.
 #[tauri::command]
 #[specta::specta]
-pub async fn restart_app(app: AppHandle) -> AppResult<()> {
+pub async fn restart_app(app: AppHandle, pending: State<'_, PendingUpdate>) -> AppResult<()> {
+    #[cfg(windows)]
+    {
+        let staged = pending.staged.lock().map_err(|_| AppError::internal("Update state is unavailable."))?.take();
+        if let Some(staged) = staged {
+            windows::apply(staged)?;
+            app.exit(0);
+            return Ok(());
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = pending;
     app.restart()
 }
 
@@ -147,9 +183,11 @@ fn install_error(error: &UpdaterError) -> AppError {
         UpdaterError::Io(_)
         | UpdaterError::TempDirNotFound
         | UpdaterError::TempDirNotOnSameMountPoint
-        | UpdaterError::FailedToDetermineExtractPath => AppError::upstream(
-            "Cilica could not replace itself. Check it is in Applications and you can write there, then try again.",
-        ),
+        | UpdaterError::FailedToDetermineExtractPath => AppError::upstream(if cfg!(windows) {
+            "Cilica could not start the update's installer. Try again, or download Cilica Setup from GitHub."
+        } else {
+            "Cilica could not replace itself. Check it is in Applications and you can write there, then try again."
+        }),
         UpdaterError::AuthenticationFailed => {
             AppError::invalid("The update needs your password to install. Try again and allow it.")
         }
