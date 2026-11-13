@@ -44,8 +44,14 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
       underline: false,
       link: { openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" },
       trailingNode: false,
+      // Code is not prose: Check spelling leaves it alone.
+      code: { HTMLAttributes: { spellcheck: "false" } },
     }),
-    CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
+    CodeBlockLowlight.configure({
+      lowlight,
+      defaultLanguage: null,
+      HTMLAttributes: { spellcheck: "false" },
+    }),
     Image.configure({ inline: false, allowBase64: true }),
     TaskList,
     TaskItem.configure({ nested: true }),

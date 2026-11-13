@@ -23,7 +23,11 @@ function decorate(doc: PMNode): DecorationSet {
       if (!tag || tag.startsWith("/")) continue;
       const from = pos + (m.index ?? 0) + (m[1]?.length ?? 0);
       decorations.push(
-        Decoration.inline(from, from + 1 + tag.length, { class: "nt-tag", "data-tag": tag }),
+        Decoration.inline(from, from + 1 + tag.length, {
+          class: "nt-tag",
+          "data-tag": tag,
+          spellcheck: "false",
+        }),
       );
     }
   });
