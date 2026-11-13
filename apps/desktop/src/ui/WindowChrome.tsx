@@ -46,6 +46,8 @@ export interface WindowControlsProps {
   onMinimize?: () => void;
   onToggleMaximize?: () => void;
   onClose: () => void;
+  /** Close waits while the window is busy (the installer while it installs). */
+  closeDisabled?: boolean;
   className?: string;
 }
 
@@ -54,6 +56,7 @@ export function WindowControls({
   onMinimize,
   onToggleMaximize,
   onClose,
+  closeDisabled,
   className,
 }: WindowControlsProps) {
   return (
@@ -81,7 +84,13 @@ export function WindowControls({
           </svg>
         </button>
       )}
-      <button type="button" className="close" aria-label="Close" onClick={onClose}>
+      <button
+        type="button"
+        className="close"
+        aria-label="Close"
+        disabled={closeDisabled}
+        onClick={onClose}
+      >
         <svg viewBox="0 0 10 10" aria-hidden>
           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1" />
         </svg>

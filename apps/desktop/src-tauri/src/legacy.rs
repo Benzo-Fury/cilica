@@ -2,7 +2,8 @@
 //!
 //! Remove once every install has updated, together with the other Margin leftovers:
 //! `keychain.rs` (`LEGACY_SERVICE`), `core.rs` (`move_legacy_data`) and
-//! `windows/hooks.nsh` (uninstalling Margin before Cilica installs).
+//! `NSIS_HOOK_PREINSTALL` in `windows/hooks.nsh` (uninstalling Margin before Cilica installs; the
+//! post-install hook there is Cilica Setup's and stays).
 
 /// The app's name before the rename: its `.app` bundle and its login item were named after it.
 const LEGACY_NAME: &str = "Margin";
