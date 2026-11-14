@@ -382,6 +382,22 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     return person;
   };
   const allSpeakers = () => [...state.transcripts.values()].flatMap((t) => t.speakers);
+  /** Every line of `from` moves to `into`, and `from` goes (the store's `merge_speaker_into`). */
+  const foldSpeaker = (from: Speaker, into: Speaker): Speaker => {
+    if (from.id === into.id) return into;
+    const transcript = state.transcripts.get(into.note_id);
+    if (!transcript || from.note_id !== into.note_id) {
+      throw appError(
+        "invalid",
+        "Those speakers are in different meetings. Pick someone from this one.",
+      );
+    }
+    transcript.segments = transcript.segments.map((g) =>
+      g.speaker_id === from.id ? { ...g, speaker_id: into.id } : g,
+    );
+    transcript.speakers = transcript.speakers.filter((x) => x.id !== from.id);
+    return into;
+  };
 
   const commands = {
     getRecordingState(): RecordingState {
@@ -772,14 +788,27 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       const speaker = findSpeaker(speakerId);
       if (personId === null) {
         speaker.person_id = null;
+        speaker.is_self = false;
         return speaker;
       }
       const person = requirePerson(personId);
       speaker.person_id = person.id;
+      speaker.is_self = person.is_self;
       speaker.label = person.name;
       speaker.color_index = person.color_index;
       person.sample_count += 1;
-      return speaker;
+      // Someone else in this meeting is already them: one speaker now.
+      const same = state.transcripts
+        .get(speaker.note_id)
+        ?.speakers.find(
+          (x) =>
+            x.id !== speaker.id && (x.person_id === person.id || (person.is_self && x.is_self)),
+        );
+      return same ? foldSpeaker(speaker, same) : speaker;
+    },
+
+    mergeSpeakers(from: string, into: string): Speaker {
+      return foldSpeaker(findSpeaker(from), findSpeaker(into));
     },
 
     saveSpeakerAsPerson(speakerId: string, name: string): Person {

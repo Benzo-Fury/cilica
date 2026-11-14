@@ -10,7 +10,7 @@ import { qk } from "@/app/queryKeys";
 import { api, errorMessage, isTauri } from "@/ipc/client";
 import type { Person, Speaker, Transcript } from "@/ipc/types";
 import { toast } from "@/lib/toast";
-import { hasUnknownSpeaker, upsertSegment } from "./model";
+import { hasUnknownSpeaker, nextPersonLabel, upsertSegment } from "./model";
 
 /** A note's transcript (speakers and segments). Live segments are folded in by `useLiveTranscripts`. */
 export function useTranscript(noteId: string | null, enabled = true) {
@@ -84,15 +84,20 @@ export function useSpeakerActions(noteId: string) {
   const link = useMutation({
     mutationFn: ({ speakerId, personId }: { speakerId: string; personId: string | null }) =>
       api.linkSpeaker(speakerId, personId),
-    onSuccess: (speaker, { personId }) => {
+    onSuccess: (speaker, { speakerId, personId }) => {
       replaceSpeaker(speaker);
       refresh();
+      // Someone else here was already that person: the two are one speaker now.
+      if (speaker.id !== speakerId) {
+        void queryClient.invalidateQueries({ queryKey: qk.transcript(noteId) });
+      }
       if (personId) {
         const person = queryClient
           .getQueryData<Person[]>(qk.people)
           ?.find((p) => p.id === personId);
-        toast(`Linked to ${person?.name ?? speaker.label}`, {
-          description: "Cilica will use this meeting to recognise them next time.",
+        toast(`This speaker is now ${person?.name ?? speaker.label}`, {
+          description:
+            "Everything they said in this meeting is theirs, and Cilica will recognise them next time.",
         });
       }
     },
@@ -112,7 +117,37 @@ export function useSpeakerActions(noteId: string) {
     onError: (error) =>
       toast.error("That person was not saved", { description: errorMessage(error) }),
   });
-  return { rename, link, save };
+  /** Take the person off this speaker; they go back to being "Person N" in this meeting. */
+  const unlink = useMutation({
+    mutationFn: async (speakerId: string) => {
+      const speakers = queryClient.getQueryData<Transcript>(qk.transcript(noteId))?.speakers ?? [];
+      const unlinked = await api.linkSpeaker(speakerId, null);
+      const label = nextPersonLabel(speakers, speakerId);
+      return unlinked.label === label ? unlinked : api.renameSpeaker(speakerId, label);
+    },
+    onSuccess: (speaker) => {
+      replaceSpeaker(speaker);
+      refresh();
+      toast(`Unlinked, now ${speaker.label}`);
+    },
+    onError: (error) =>
+      toast.error("The speaker was not unlinked", { description: errorMessage(error) }),
+  });
+  /** "This speaker is that one": every line moves to `into`, and this speaker goes. */
+  const merge = useMutation({
+    mutationFn: ({ from, into }: { from: string; into: string; name: string }) =>
+      api.mergeSpeakers(from, into),
+    onSuccess: (_speaker, { name }) => {
+      void queryClient.invalidateQueries({ queryKey: qk.transcript(noteId) });
+      refresh();
+      toast(`Merged into ${name}`, {
+        description: "Everything they said in this meeting is theirs now.",
+      });
+    },
+    onError: (error) =>
+      toast.error("The speakers were not merged", { description: errorMessage(error) }),
+  });
+  return { rename, link, save, unlink, merge };
 }
 
 /**

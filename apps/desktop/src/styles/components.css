@@ -147,6 +147,8 @@ body {
 :is(.nt-btn, .nt-iconbtn, .nt-row, .nt-menu-item, .nt-anim-host):is(:hover, :focus-visible) .nt-i-clock { transform: rotate(30deg); }
 :is(.nt-btn, .nt-iconbtn, .nt-row, .nt-menu-item, .nt-anim-host):is(:hover, :focus-visible) .nt-i-users { animation: nt-pop 420ms var(--ease-out); }
 :is(.nt-btn, .nt-iconbtn, .nt-row, .nt-menu-item, .nt-anim-host):is(:hover, :focus-visible) .nt-i-x { transform: rotate(90deg) scale(.9); }
+:is(.nt-btn, .nt-iconbtn, .nt-row, .nt-menu-item, .nt-anim-host):is(:hover, :focus-visible) .nt-i-unlink { transform: rotate(-15deg) scale(1.08); }
+:is(.nt-btn, .nt-iconbtn, .nt-row, .nt-menu-item, .nt-anim-host):is(:hover, :focus-visible) .nt-i-pencil { transform: translate(1px, -1px) rotate(-10deg); }
 @keyframes nt-ring { 0%{transform:rotate(0)} 20%{transform:rotate(14deg)} 40%{transform:rotate(-12deg)} 60%{transform:rotate(8deg)} 80%{transform:rotate(-4deg)} 100%{transform:rotate(0)} }
 @keyframes nt-tip { 0%{transform:rotate(0)} 30%{transform:rotate(-10deg) translateY(-1px)} 60%{transform:rotate(6deg)} 100%{transform:rotate(0)} }
 @keyframes nt-pop { 0%{transform:scale(1)} 40%{transform:scale(.82)} 75%{transform:scale(1.1)} 100%{transform:scale(1)} }

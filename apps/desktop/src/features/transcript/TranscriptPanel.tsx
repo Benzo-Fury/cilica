@@ -496,6 +496,7 @@ function TranscriptBody({
                         : speakerLook(speaker, people, turn.channel)
                     }
                     people={people}
+                    speakers={speakers}
                     live={live}
                     hit={hitTurn === turn.id}
                     playingId={playingSegment?.id ?? null}
@@ -588,6 +589,7 @@ const TurnRow = memo(function TurnRow({
   speaker,
   look,
   people,
+  speakers,
   live,
   hit,
   playingId,
@@ -604,6 +606,7 @@ const TurnRow = memo(function TurnRow({
   speaker: Speaker | undefined;
   look: SpeakerLook;
   people: readonly Person[];
+  speakers: readonly Speaker[];
   live: boolean;
   hit: boolean;
   playingId: string | null;
@@ -626,6 +629,8 @@ const TurnRow = memo(function TurnRow({
             speaker={speaker}
             look={look}
             people={people}
+            speakers={speakers}
+            suggestedId={suggestion?.person_id}
             showChip={first && !suggestion}
           />
         ) : (

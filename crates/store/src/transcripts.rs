@@ -151,7 +151,12 @@ impl Db {
     /// the person's samples. A sample this speaker gave someone else before is taken back out,
     /// so a correction ("not Sam, Kim") untrains the wrong person. Confirming the person Cilica
     /// already picked adds the sample too.
+    ///
+    /// The speaker is "You" exactly when linked to "You", so unlinking "You" makes them someone
+    /// else. If another speaker in the meeting is already that person, the two become one: this
+    /// speaker's lines move to the other, which is returned.
     pub async fn link_speaker(&self, speaker_id: Id, person_id: Option<Id>) -> StoreResult<Speaker> {
+        let speaker_id = self.resolve_speaker(speaker_id);
         let mut tx = self.pool().begin().await?;
         let row = sqlx::query("SELECT embedding FROM speakers WHERE id = ?")
             .bind(speaker_id.to_string())
@@ -177,16 +182,25 @@ impl Db {
             insert_sample(&mut tx, pid, Some(speaker_id), &blob_to_vec(&emb)).await?;
             touched.push(pid);
         }
-        sqlx::query("UPDATE speakers SET person_id = ? WHERE id = ?")
-            .bind(person_id.map(|p| p.to_string()))
-            .bind(speaker_id.to_string())
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query(
+            "UPDATE speakers SET person_id = ?1, \
+             is_self = COALESCE((SELECT is_self FROM people WHERE id = ?1), 0) WHERE id = ?2",
+        )
+        .bind(person_id.map(|p| p.to_string()))
+        .bind(speaker_id.to_string())
+        .execute(&mut *tx)
+        .await?;
         for pid in touched {
             refresh_voiceprint(&mut tx, pid).await?;
         }
         tx.commit().await?;
-        self.get_speaker(speaker_id).await
+        let speaker = self.get_speaker(speaker_id).await?;
+        let Some(pid) = person_id else { return Ok(speaker) };
+        let same = self.list_speakers(speaker.note_id).await?.into_iter().find(|s| s.id != speaker.id && (s.person_id == Some(pid) || (speaker.is_self && s.is_self)));
+        match same {
+            Some(other) => self.merge_speaker_into(speaker.id, other.id).await,
+            None => Ok(speaker),
+        }
     }
 
     /// Cilica's own guess of who a speaker is (a voice it recognised): shown like a link, but it
@@ -298,6 +312,7 @@ impl Db {
 
     /// Insert or replace a segment by id (partials are refined in place).
     pub async fn upsert_segment(&self, segment: &Segment) -> StoreResult<()> {
+        let speaker_id = segment.speaker_id.map(|id| self.resolve_speaker(id));
         sqlx::query(
             "INSERT INTO segments (id, note_id, speaker_id, channel, start_ms, end_ms, text, is_final) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
@@ -306,7 +321,7 @@ impl Db {
         )
         .bind(segment.id.to_string())
         .bind(segment.note_id.to_string())
-        .bind(segment.speaker_id.map(|s| s.to_string()))
+        .bind(speaker_id.map(|s| s.to_string()))
         .bind(channel_str(segment.channel))
         .bind(segment.start_ms as i64)
         .bind(segment.end_ms as i64)
@@ -339,7 +354,7 @@ impl Db {
             )
             .bind(segment.id.to_string())
             .bind(segment.note_id.to_string())
-            .bind(segment.speaker_id.map(|s| s.to_string()))
+            .bind(segment.speaker_id.map(|s| self.resolve_speaker(s).to_string()))
             .bind(channel_str(segment.channel))
             .bind(segment.start_ms as i64)
             .bind(segment.end_ms as i64)
@@ -437,35 +452,74 @@ impl Db {
     /// speaker linked to a person over one that is not, otherwise `into`. Returns the speaker
     /// that is left.
     pub async fn merge_speakers(&self, from: Id, into: Id) -> StoreResult<Id> {
+        let (from, into) = (self.resolve_speaker(from), self.resolve_speaker(into));
         if from == into {
             return Ok(into);
         }
         let (a, b) = (self.get_speaker(from).await?, self.get_speaker(into).await?);
         let keep_from = (a.is_self && !b.is_self) || (!b.is_self && a.person_id.is_some() && b.person_id.is_none());
         let (keep, gone) = if keep_from { (a, b) } else { (b, a) };
+        self.fold_speaker(gone.id, keep.id, true).await?;
+        Ok(keep.id)
+    }
+
+    /// The person said "`from` is `into`": every line of `from` moves to `into`, which keeps its
+    /// own name, person and "You"-ness whatever `from` had. Returns the speaker that is left.
+    pub async fn merge_speaker_into(&self, from: Id, into: Id) -> StoreResult<Speaker> {
+        let (from, into) = (self.resolve_speaker(from), self.resolve_speaker(into));
+        if from != into {
+            let (a, b) = (self.get_speaker(from).await?, self.get_speaker(into).await?);
+            if a.note_id != b.note_id {
+                return Err(StoreError::Invalid("Those speakers are in different meetings. Pick someone from this one.".into()));
+            }
+            self.fold_speaker(from, into, false).await?;
+        }
+        self.get_speaker(into).await
+    }
+
+    /// Move `gone`'s lines and voice samples to `keep` and delete `gone`. With `inherit`, `keep`
+    /// also takes `gone`'s person link if it has none. `keep` takes `gone`'s voiceprint if it has
+    /// none either way.
+    async fn fold_speaker(&self, gone: Id, keep: Id, inherit: bool) -> StoreResult<()> {
         let mut tx = self.pool().begin().await?;
         sqlx::query("UPDATE segments SET speaker_id = ? WHERE speaker_id = ?")
-            .bind(keep.id.to_string())
-            .bind(gone.id.to_string())
+            .bind(keep.to_string())
+            .bind(gone.to_string())
             .execute(&mut *tx)
             .await?;
-        sqlx::query(
-            "UPDATE speakers SET person_id = COALESCE(person_id, (SELECT person_id FROM speakers WHERE id = ?)), \
-             embedding = COALESCE(embedding, (SELECT embedding FROM speakers WHERE id = ?)) WHERE id = ?",
-        )
-        .bind(gone.id.to_string())
-        .bind(gone.id.to_string())
-        .bind(keep.id.to_string())
+        let sql = if inherit {
+            "UPDATE speakers SET person_id = COALESCE(person_id, (SELECT person_id FROM speakers WHERE id = ?1)), \
+             embedding = COALESCE(embedding, (SELECT embedding FROM speakers WHERE id = ?1)) WHERE id = ?2"
+        } else {
+            "UPDATE speakers SET embedding = COALESCE(embedding, (SELECT embedding FROM speakers WHERE id = ?1)) WHERE id = ?2"
+        };
+        sqlx::query(sql)
+        .bind(gone.to_string())
+        .bind(keep.to_string())
         .execute(&mut *tx)
         .await?;
         sqlx::query("UPDATE voice_samples SET speaker_id = ? WHERE speaker_id = ?")
-            .bind(keep.id.to_string())
-            .bind(gone.id.to_string())
+            .bind(keep.to_string())
+            .bind(gone.to_string())
             .execute(&mut *tx)
             .await?;
-        sqlx::query("DELETE FROM speakers WHERE id = ?").bind(gone.id.to_string()).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM speakers WHERE id = ?").bind(gone.to_string()).execute(&mut *tx).await?;
         tx.commit().await?;
-        Ok(keep.id)
+        // Remember where `gone` went, and move anything that pointed at it along too.
+        let mut merged = self.merged_speakers.lock().unwrap_or_else(|e| e.into_inner());
+        for to in merged.values_mut() {
+            if *to == gone {
+                *to = keep;
+            }
+        }
+        merged.insert(gone, keep);
+        Ok(())
+    }
+
+    /// The speaker a (possibly merged-away) speaker id stands for now.
+    pub fn resolve_speaker(&self, speaker_id: Id) -> Id {
+        let merged = self.merged_speakers.lock().unwrap_or_else(|e| e.into_inner());
+        merged.get(&speaker_id).copied().unwrap_or(speaker_id)
     }
 
     // ── People ───────────────────────────────────────────────────────────
@@ -1081,5 +1135,60 @@ mod tests {
         let v = vec![0.25f32, -1.5, 3.0e-7];
         assert_eq!(blob_to_vec(&vec_to_blob(&v)), v);
         assert_eq!(vec_to_blob(&[1.0]), 1.0f32.to_le_bytes().to_vec());
+    }
+
+    /// Marking a third voice as someone already in the meeting makes them one speaker, and a
+    /// line live recording still writes for the merged speaker lands on the one that is left.
+    #[tokio::test]
+    async fn linking_to_someone_already_here_merges_the_speakers() {
+        let db = Db::open_in_memory().await.unwrap();
+        let marcus = db.create_person("Marcus", None).await.unwrap();
+        let n = note(&db).await;
+        let first = db.create_speaker(n, voice("Person 2", &[1.0, 0.0])).await.unwrap();
+        let third = db.create_speaker(n, voice("Person 3", &[0.9, 0.1])).await.unwrap();
+        db.upsert_segment(&seg(n, Some(first.id), AudioChannel::System, 0, "Hi")).await.unwrap();
+        db.upsert_segment(&seg(n, Some(third.id), AudioChannel::System, 2000, "Me again")).await.unwrap();
+
+        db.link_speaker(first.id, Some(marcus.id)).await.unwrap();
+        let left = db.link_speaker(third.id, Some(marcus.id)).await.unwrap();
+        assert_eq!((left.id, left.person_id), (first.id, Some(marcus.id)));
+        let t = db.get_transcript(n).await.unwrap();
+        assert_eq!(t.speakers.len(), 1);
+        assert!(t.segments.iter().all(|s| s.speaker_id == Some(first.id)));
+        // Both voices taught Marcus.
+        assert_eq!(db.get_person(marcus.id).await.unwrap().sample_count, 2);
+
+        // Live recording still knows the old id.
+        db.upsert_segment(&seg(n, Some(third.id), AudioChannel::System, 4000, "Later")).await.unwrap();
+        let t = db.get_transcript(n).await.unwrap();
+        assert!(t.segments.iter().all(|s| s.speaker_id == Some(first.id)));
+    }
+
+    /// "You" can be unlinked (they become someone else) and merging keeps the speaker picked.
+    #[tokio::test]
+    async fn you_can_be_unlinked_and_merged_into_someone() {
+        let db = Db::open_in_memory().await.unwrap();
+        let me = db.ensure_self_person().await.unwrap();
+        let n = note(&db).await;
+        let (you, _) = db.ensure_channel_speakers(n).await.unwrap();
+        db.link_self_speakers(n).await.unwrap();
+        db.upsert_segment(&seg(n, Some(you.id), AudioChannel::Mic, 0, "Mine?")).await.unwrap();
+
+        let unlinked = db.link_speaker(you.id, None).await.unwrap();
+        assert!(!unlinked.is_self && unlinked.person_id.is_none());
+        let relinked = db.link_speaker(you.id, Some(me.id)).await.unwrap();
+        assert!(relinked.is_self);
+
+        // Marking another voice as "You" folds it into the "You" speaker.
+        let echo = db.create_speaker(n, voice("Person 4", &[1.0, 0.0])).await.unwrap();
+        db.upsert_segment(&seg(n, Some(echo.id), AudioChannel::System, 900, "Also mine")).await.unwrap();
+        assert_eq!(db.link_speaker(echo.id, Some(me.id)).await.unwrap().id, you.id);
+
+        // "You" was really Person 2: Person 2 is kept as it was.
+        let p2 = db.create_speaker(n, voice("Person 2", &[0.0, 1.0])).await.unwrap();
+        let left = db.merge_speaker_into(you.id, p2.id).await.unwrap();
+        assert_eq!((left.id, left.is_self, left.person_id, left.label.as_str()), (p2.id, false, None, "Person 2"));
+        let t = db.get_transcript(n).await.unwrap();
+        assert!(t.segments.iter().all(|s| s.speaker_id == Some(p2.id)));
     }
 }

@@ -21,7 +21,9 @@ export type IconMotion =
   | "sidebar"
   | "clock"
   | "users"
-  | "x";
+  | "x"
+  | "unlink"
+  | "pencil";
 
 export interface IconProps extends Omit<LucideProps, "ref"> {
   icon: LucideIcon;

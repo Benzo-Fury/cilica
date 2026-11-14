@@ -2955,6 +2955,33 @@ mark {
   color: var(--ink);
   cursor: default;
 }
+/* Rows in a popover are buttons: they wash on hover, press in on a spring, and their avatar
+   nudges up, so it is plain what can be picked. */
+.nt-popover button.nt-menu-item {
+  transition:
+    background-color var(--dur-instant) linear,
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-popover button.nt-menu-item:hover,
+.nt-popover button.nt-menu-item[data-highlighted] {
+  background: var(--fill-press);
+}
+.nt-popover button.nt-menu-item:active {
+  transform: scale(0.98);
+  transition-duration: var(--dur-instant);
+}
+.nt-popover button.nt-menu-item .nt-avatar {
+  transition: transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-popover button.nt-menu-item:is(:hover, [data-highlighted]) .nt-avatar {
+  transform: scale(1.1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-popover button.nt-menu-item:active,
+  .nt-popover button.nt-menu-item:is(:hover, [data-highlighted]) .nt-avatar {
+    transform: none;
+  }
+}
 .nt-popover button.nt-menu-item:disabled {
   opacity: 0.45;
   pointer-events: none;
@@ -2968,6 +2995,34 @@ mark {
 .nt-accent-ico {
   color: var(--accent-text);
   margin-left: auto;
+}
+/* Speaker popup: who this speaker is now. */
+.nt-who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1-5);
+}
+.nt-who-text {
+  min-width: 0;
+  display: grid;
+}
+.nt-who-name {
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-who-state {
+  font: 400 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+/* A quiet word at the end of a menu row ("Suggested"). */
+.nt-menu-meta {
+  margin-left: auto;
+  font: 400 12px / 16px var(--font-sans);
+  color: var(--ink-3);
 }
 .nt-capsule-playback {
   padding: 0 var(--space-1);

@@ -87,6 +87,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::recording::get_audio_path,
             commands::recording::rename_speaker,
             commands::recording::link_speaker,
+            commands::recording::merge_speakers,
             commands::recording::save_speaker_as_person,
             commands::recording::list_speaker_suggestions,
             commands::recording::list_people,

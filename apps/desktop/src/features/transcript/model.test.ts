@@ -4,6 +4,8 @@ import {
   findMatches,
   groupTurns,
   hasUnknownSpeaker,
+  matchPeople,
+  nextPersonLabel,
   segmentAt,
   speakerLook,
   speakersLive,
@@ -157,3 +159,58 @@ describe("speakers while recording", () => {
     expect(speakersLive(recording({ live_speakers: true }), "another note")).toBe(false);
   });
 });
+
+describe("matchPeople", () => {
+  const person = (id: string, name: string): Person => ({
+    id,
+    name,
+    color_index: 1,
+    sample_count: 0,
+    meeting_count: 0,
+    created_at: "2026-01-01T00:00:00Z",
+    is_self: false,
+  });
+  const people = [person("me", "You"), person("w", "Will Worral"), person("l", "Lucile Chartier")];
+
+  it("keeps everyone with no query, the current person first", () => {
+    expect(matchPeople(people, "", "l").people.map((p) => p.id)).toEqual(["l", "me", "w"]);
+    expect(matchPeople(people, "  ").exact).toBeUndefined();
+  });
+
+  it("puts word starts before other matches", () => {
+    expect(matchPeople(people, "wor").people.map((p) => p.id)).toEqual(["w"]);
+    const withMarc = [person("m", "Marc Bell"), ...people];
+    expect(matchPeople(withMarc, "c").people.map((p) => p.id)).toEqual(["l", "m"]);
+    expect(matchPeople(people, "char").people.map((p) => p.id)).toEqual(["l"]);
+  });
+
+  it("finds an exact name regardless of case", () => {
+    const m = matchPeople(people, "will worral");
+    expect(m.exact?.id).toBe("w");
+    expect(m.people[0]?.id).toBe("w");
+    expect(matchPeople(people, "Lucy").exact).toBeUndefined();
+    expect(matchPeople(people, "Lucy").people).toEqual([]);
+  });
+});
+
+describe("nextPersonLabel", () => {
+  const speaker = (id: string, label: string): Speaker => ({
+    id,
+    note_id: "n",
+    label,
+    person_id: null,
+    color_index: 1,
+    is_self: false,
+  });
+
+  it("takes the lowest number nobody else uses", () => {
+    const speakers = [speaker("a", "Person 1"), speaker("b", "Speaker 2"), speaker("c", "Sam Lee")];
+    expect(nextPersonLabel(speakers, "c")).toBe("Person 3");
+    expect(nextPersonLabel([speaker("c", "Sam Lee")], "c")).toBe("Person 1");
+  });
+
+  it("keeps a speaker's own Person number", () => {
+    expect(nextPersonLabel([speaker("a", "Person 4")], "a")).toBe("Person 4");
+  });
+});
+

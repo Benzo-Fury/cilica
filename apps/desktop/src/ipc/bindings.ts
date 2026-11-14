@@ -168,6 +168,8 @@ export const commands = {
 	renameSpeaker: (speakerId: string, label: string) => __TAURI_INVOKE<Speaker_Serialize>("rename_speaker", { speakerId, label }),
 	/**  Link a speaker to a Saved person (adds this meeting's voice to their voiceprint), or unlink with `None`. */
 	linkSpeaker: (speakerId: string, personId: string | null) => __TAURI_INVOKE<Speaker_Serialize>("link_speaker", { speakerId, personId }),
+	/**  "This speaker is that one": every line of `from` moves to `into`, which is returned. */
+	mergeSpeakers: (from: string, into: string) => __TAURI_INVOKE<Speaker_Serialize>("merge_speakers", { from, into }),
 	saveSpeakerAsPerson: (speakerId: string, name: string) => __TAURI_INVOKE<Person>("save_speaker_as_person", { speakerId, name }),
 	listSpeakerSuggestions: (noteId: string) => __TAURI_INVOKE<SpeakerSuggestion[]>("list_speaker_suggestions", { noteId }),
 	listPeople: () => __TAURI_INVOKE<Person[]>("list_people"),

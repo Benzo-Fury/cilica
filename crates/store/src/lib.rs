@@ -125,6 +125,10 @@ pub struct Db {
     /// The app data directory. Recording paths stored in `notes.audio_path` are relative to it, so
     /// purging a note can remove its audio. `None` in tests that do not care about files.
     data_dir: Option<Arc<PathBuf>>,
+    /// Speakers merged away while the app runs → the speaker their lines went to. Live recording
+    /// keeps speaker ids in memory, so a line it writes for a merged speaker lands on the one
+    /// that is left instead of failing on a speaker that is gone.
+    merged_speakers: Arc<std::sync::Mutex<std::collections::HashMap<Id, Id>>>,
 }
 
 impl Db {
@@ -150,7 +154,7 @@ impl Db {
 
     async fn migrate(pool: sqlx::SqlitePool) -> StoreResult<Self> {
         sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(Self { pool, data_dir: None })
+        Ok(Self { pool, data_dir: None, merged_speakers: Arc::default() })
     }
 
     /// Tell the store where the app data directory is, so deleting a note for good also deletes

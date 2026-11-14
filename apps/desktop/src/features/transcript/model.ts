@@ -110,6 +110,7 @@ export const PENDING_LOOK: SpeakerLook = {
 };
 
 const GENERIC = /^(speaker|person)\s+\d+$/i;
+const GENERIC_NUMBER = /^(?:speaker|person)\s+(\d+)$/i;
 
 /** How a speaker appears: a linked person's name and colour win over the meeting's label. */
 export function speakerLook(
@@ -129,6 +130,58 @@ export function speakerLook(
     color: speaker.color_index,
     unnamed: !speaker.is_self && GENERIC.test(speaker.label.trim()),
   };
+}
+
+/**
+ * The name an unlinked speaker falls back to: "Person N" with the lowest N no other speaker in
+ * the meeting uses ("Speaker 3" counts as taken too). A speaker already called that keeps it.
+ */
+export function nextPersonLabel(speakers: readonly Speaker[], speakerId: string): string {
+  const own = speakers.find((s) => s.id === speakerId)?.label.trim() ?? "";
+  if (/^person\s+\d+$/i.test(own)) return own;
+  const taken = new Set(
+    speakers
+      .filter((s) => s.id !== speakerId)
+      .map((s) => GENERIC_NUMBER.exec(s.label.trim())?.[1])
+      .filter(Boolean)
+      .map(Number),
+  );
+  let n = 1;
+  while (taken.has(n)) n += 1;
+  return `Person ${n}`;
+}
+
+/** Saved people in the speaker popup, narrowed by what was typed. */
+export interface PeopleMatch {
+  /** People whose name contains the query, best first (name starts with it, then the rest). */
+  people: Person[];
+  /** A person whose name is exactly the query (ignoring case), so "Add as new" is not offered. */
+  exact: Person | undefined;
+}
+
+/**
+ * Narrow Saved people by a typed name. An empty query keeps everyone in order, with
+ * `firstId` (the person this speaker is now, or Cilica's guess) moved to the top.
+ */
+export function matchPeople(
+  people: readonly Person[],
+  query: string,
+  firstId?: string | null,
+): PeopleMatch {
+  const q = query.trim().toLowerCase();
+  const rank = (p: Person) => {
+    const name = p.name.toLowerCase();
+    if (!q) return p.id === firstId ? 0 : 1;
+    if (name === q) return 0;
+    if (name.startsWith(q) || name.split(/\s+/).some((w) => w.startsWith(q))) return 1;
+    return name.includes(q) ? 2 : -1;
+  };
+  const ranked = people
+    .map((person, index) => ({ person, index, r: rank(person) }))
+    .filter((x) => x.r >= 0)
+    .sort((a, b) => a.r - b.r || a.index - b.index)
+    .map((x) => x.person);
+  return { people: ranked, exact: q ? people.find((p) => p.name.toLowerCase() === q) : undefined };
 }
 
 /** The segment playing at `ms`, by binary search over time-ordered segments. */

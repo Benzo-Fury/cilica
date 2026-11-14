@@ -395,6 +395,15 @@ pub async fn link_speaker(core: State<'_, Core>, speaker_id: Id, person_id: Opti
     Ok(speaker)
 }
 
+/// "This speaker is that one": every line of `from` moves to `into`, which is returned.
+#[tauri::command]
+#[specta::specta]
+pub async fn merge_speakers(core: State<'_, Core>, from: Id, into: Id) -> AppResult<Speaker> {
+    let speaker = core.db.merge_speaker_into(from, into).await?;
+    people_changed(&core);
+    Ok(speaker)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn save_speaker_as_person(core: State<'_, Core>, speaker_id: Id, name: String) -> AppResult<Person> {
