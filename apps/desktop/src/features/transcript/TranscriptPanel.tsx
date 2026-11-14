@@ -45,7 +45,7 @@ import {
   SegmentText,
   Shimmer,
   SkeletonText,
-  TimeButton,
+  TurnTime,
   Utterance,
 } from "@/ui";
 import { BandPlayer, type RecordingDetails } from "./BandPlayer";
@@ -499,7 +499,6 @@ function TranscriptBody({
                     speakers={speakers}
                     live={live}
                     hit={hitTurn === turn.id}
-                    playingId={playingSegment?.id ?? null}
                     marks={matchesBySegment}
                     first={Boolean(turn.speakerId && firstTurnOf.get(turn.speakerId) === turn.id)}
                     suggestion={
@@ -508,7 +507,6 @@ function TranscriptBody({
                         : undefined
                     }
                     timed={timed}
-                    onSeek={seekTo}
                   />
                 </li>
               );
@@ -592,12 +590,10 @@ const TurnRow = memo(function TurnRow({
   speakers,
   live,
   hit,
-  playingId,
   marks,
   suggestion,
   first,
   timed,
-  onSeek,
 }: {
   noteId: string;
   first: boolean;
@@ -609,10 +605,8 @@ const TurnRow = memo(function TurnRow({
   speakers: readonly Speaker[];
   live: boolean;
   hit: boolean;
-  playingId: string | null;
   marks: Map<string, { start: number; end: number; current: boolean }[]>;
   suggestion: SpeakerSuggestion | undefined;
-  onSeek?: (ms: number) => void;
 }) {
   const { link } = useSpeakerActions(noteId);
   const decline = useDeclinedSuggestions((s) => s.decline);
@@ -637,16 +631,7 @@ const TurnRow = memo(function TurnRow({
           <span className="nt-utt-name">{look.name}</span>
         )
       }
-      time={
-        timed && (
-          <TimeButton
-            label={`Play from ${clock(turn.startMs)}`}
-            onSeek={onSeek ? () => onSeek(turn.startMs) : undefined}
-          >
-            {clock(turn.startMs)}
-          </TimeButton>
-        )
-      }
+      time={timed && <TurnTime>{clock(turn.startMs)}</TurnTime>}
       extra={
         <AnimatePresence>
           {suggestion && (
@@ -688,11 +673,9 @@ const TurnRow = memo(function TurnRow({
           text={s.text}
           partial={!s.is_final}
           live={live}
-          playing={s.id === playingId}
           marks={marks.get(s.id)}
           swears={swearsIn(s)}
           segmentId={s.id}
-          onClick={onSeek ? () => onSeek(s.start_ms) : undefined}
         />
       ))}
     </Utterance>

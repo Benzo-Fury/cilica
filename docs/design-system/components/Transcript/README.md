@@ -6,7 +6,7 @@ Transcript lines show who said what, when, with the speaker's colour only on the
 
 **Live**: new words fade in with a 2px blur clearing (`--dur-slow`) in `ink-3`, then settle to `ink` once the segment is final. Auto-scroll follows the newest line until the person scrolls up; then a "Jump to live" glass chip appears at the bottom.
 
-**Playback**: the current word gets an `accent-soft` wash; clicking a timecode seeks.
+**Playback**: driven from the playback bar only. Timecodes are plain text and lines are not highlighted as they play; the transcript keeps the playing turn on screen.
 
 **Pending lines**: while a meeting records with speakers told apart on this computer, a line Cilica has not placed yet shows "Pending" in `ink-3` with a dashed avatar ring, and moves under its speaker a few seconds later. Pending lines are not counted in the speakers chip.
 

@@ -63,22 +63,9 @@ export function SpeakerButton({ className, ...props }: ButtonHTMLAttributes<HTML
   );
 }
 
-/** A timecode that seeks when the recording can play. */
-export function TimeButton({
-  children,
-  onSeek,
-  label,
-}: {
-  children: ReactNode;
-  onSeek?: () => void;
-  label: string;
-}) {
-  if (!onSeek) return <span className="nt-utt-time">{children}</span>;
-  return (
-    <button type="button" className="nt-utt-time nt-time-btn" aria-label={label} onClick={onSeek}>
-      {children}
-    </button>
-  );
+/** When a turn starts, as plain text. Playing the recording is done from the playback bar. */
+export function TurnTime({ children }: { children: ReactNode }) {
+  return <span className="nt-utt-time">{children}</span>;
 }
 
 /** One segment's text. Partial text is `ink-3`; `fresh` words fade in. */
@@ -86,8 +73,6 @@ export function SegmentText({
   text,
   partial,
   live,
-  playing,
-  onClick,
   marks,
   swears,
   segmentId,
@@ -96,8 +81,6 @@ export function SegmentText({
   partial: boolean;
   /** Animate words as they arrive (live recording). */
   live: boolean;
-  playing?: boolean;
-  onClick?: () => void;
   /** Character ranges to highlight (find in transcript). `current` is the active match. */
   marks?: readonly { start: number; end: number; current: boolean }[];
   /** Swears that put a coin in the jar this session, washed in amber. Find matches win. */
@@ -116,17 +99,7 @@ export function SegmentText({
   const className = cn(
     "nt-seg-text",
     partial && "nt-word-partial",
-    playing && "nt-seg-playing",
-    onClick && "nt-seg-seek",
   );
-  if (onClick) {
-    return (
-      // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the timecode button is the keyboard path to seek
-      <span className={className} onClick={onClick} data-segment-id={segmentId}>
-        {body}{" "}
-      </span>
-    );
-  }
   return (
     <span className={className} data-segment-id={segmentId}>
       {body}{" "}

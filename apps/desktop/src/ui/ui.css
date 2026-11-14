@@ -2733,41 +2733,12 @@ mark {
 .nt-speaker-btn:focus-visible {
   box-shadow: var(--focus);
 }
-.nt-time-btn {
-  all: unset;
-  font: 450 12px / 16px var(--font-mono);
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  border-radius: 3px;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.nt-time-btn:hover {
-  color: var(--accent-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.nt-time-btn:focus-visible {
-  box-shadow: var(--focus);
-}
 .nt-seg-text {
   border-radius: 3px;
   transition:
     background-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     color var(--dur-slow) var(--ease-out);
-}
-.nt-seg-seek {
-  cursor: pointer;
-}
-.nt-seg-seek:hover {
-  background: var(--fill-hover);
-  box-shadow: 0 0 0 2px var(--fill-hover);
-}
-.nt-seg-playing,
-.nt-seg-playing:hover {
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .nt-transcript {
   position: relative;
