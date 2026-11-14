@@ -589,10 +589,18 @@ pub struct AppleNotes;
 
 /// Reads every note through Notes' own scripting interface: folders, dates and the HTML body.
 /// Locked notes report only that they exist.
+///
+/// Each note is written to stdout as it is read rather than returned as one string: osascript
+/// silently prints an empty line when a returned string is too long (somewhere around 160–200
+/// million characters), which a library with many photos (inlined as base64) easily reaches.
 const NOTES_SCRIPT: &str = r#"
+ObjC.import('Foundation');
 function run() {
   const Notes = Application('Notes');
-  const out = [];
+  const stdout = $.NSFileHandle.fileHandleWithStandardOutput;
+  const write = s => stdout.writeData($(s).dataUsingEncoding($.NSUTF8StringEncoding));
+  let first = true;
+  const out = { push(note) { write((first ? '[' : ',') + JSON.stringify(note)); first = false; } };
   function walk(folder, path) {
     const name = folder.name();
     if (name === 'Recently Deleted') return;
@@ -612,7 +620,8 @@ function run() {
   Notes.accounts().forEach(acc => acc.folders().forEach(f => {
     try { if (f.container().class() === 'account') walk(f, []); } catch (e) { walk(f, []); }
   }));
-  return JSON.stringify(out);
+  write(first ? '[]' : ']');
+  return '';
 }
 "#;
 
