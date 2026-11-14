@@ -47,6 +47,7 @@ import {
   SkeletonText,
   TurnTime,
   Utterance,
+  useTranscriptFlip,
 } from "@/ui";
 import { BandPlayer, type RecordingDetails } from "./BandPlayer";
 import {
@@ -70,6 +71,7 @@ import {
 } from "./model";
 import { SpeakerMenu } from "./SpeakerMenu";
 import { useAudioPlayer } from "./useAudioPlayer";
+import { useSegmentMotion } from "./useSegmentMotion";
 
 export interface TranscriptPanelProps {
   noteId: string;
@@ -201,7 +203,9 @@ function TranscriptBody({
   const [query, setQuery] = useState("");
   const [current, setCurrent] = useState(0);
   const { data: people = [] } = usePeople();
-  const turns = useMemo(() => groupTurns(segments), [segments]);
+  // Live: new lines rise in, and lines Cilica places leave "Pending" for their speaker.
+  const motion = useSegmentMotion(segments, live, pendingSpeakers);
+  const turns = useMemo(() => groupTurns(segments, pendingSpeakers), [segments, pendingSpeakers]);
   const speakerById = useMemo(() => new Map(speakers.map((s) => [s.id, s])), [speakers]);
   const findKeys = useShortcut("note.find");
 
@@ -298,6 +302,14 @@ function TranscriptBody({
   useLayoutEffect(() => {
     if (listRef.current) setScrollMargin(listRef.current.offsetTop);
   }, []);
+  // Live: lines glide to where they land instead of jumping.
+  useTranscriptFlip(listRef, live);
+  // Live: the transcript never gets shorter (a line leaving "Pending" for the turn above takes
+  // its row with it), so the view does not bounce; the next lines fill the space.
+  const tallest = useRef(0);
+  const total = virtualizer.getTotalSize();
+  tallest.current = live ? Math.max(tallest.current, total) : 0;
+  const listHeight = live ? tallest.current : total;
 
   const scrollToTurn = useCallback(
     (index: number, align: "center" | "auto" = "center") => {
@@ -472,7 +484,7 @@ function TranscriptBody({
           <ol
             ref={listRef}
             className="nt-transcript-list"
-            style={{ height: virtualizer.getTotalSize() }}
+            style={{ height: listHeight }}
             aria-label="Transcript"
           >
             {virtualizer.getVirtualItems().map((item) => {
@@ -483,6 +495,8 @@ function TranscriptBody({
                 <li
                   key={item.key}
                   data-index={item.index}
+                  data-key={item.key}
+                  data-start={item.start - scrollMargin}
                   ref={virtualizer.measureElement}
                   style={{ transform: `translateY(${item.start - scrollMargin}px)` }}
                 >
@@ -507,6 +521,8 @@ function TranscriptBody({
                         : undefined
                     }
                     timed={timed}
+                    fresh={motion.fresh}
+                    arriving={motion.arriving}
                   />
                 </li>
               );
@@ -594,6 +610,8 @@ const TurnRow = memo(function TurnRow({
   suggestion,
   first,
   timed,
+  fresh,
+  arriving,
 }: {
   noteId: string;
   first: boolean;
@@ -607,13 +625,24 @@ const TurnRow = memo(function TurnRow({
   hit: boolean;
   marks: Map<string, { start: number; end: number; current: boolean }[]>;
   suggestion: SpeakerSuggestion | undefined;
+  /** Lines that just appeared, and lines that just arrived from "Pending". */
+  fresh: ReadonlySet<string>;
+  arriving: ReadonlySet<string>;
 }) {
   const { link } = useSpeakerActions(noteId);
   const decline = useDeclinedSuggestions((s) => s.decline);
   const swearsIn = useSwearMarks();
+  const lines = turn.segments.map((s) => (arriving.has(s.id) ? "arrive" : undefined));
+  // A row the person has not seen rises in, and so does a speaker's name over the line that
+  // just left "Pending" for them.
+  const rowMotion =
+    fresh.has(turn.segments[0]?.id ?? "") || lines.every((m) => m === "arrive")
+      ? "rise"
+      : undefined;
   return (
     <Utterance
       hit={hit}
+      motion={rowMotion}
       className={look.pending ? "nt-utt-pending" : undefined}
       avatar={<Avatar name={look.name} color={look.color} pending={look.pending} />}
       name={
@@ -667,7 +696,7 @@ const TurnRow = memo(function TurnRow({
         </AnimatePresence>
       }
     >
-      {turn.segments.map((s) => (
+      {turn.segments.map((s, i) => (
         <SegmentText
           key={s.id}
           text={s.text}
@@ -676,6 +705,7 @@ const TurnRow = memo(function TurnRow({
           marks={marks.get(s.id)}
           swears={swearsIn(s)}
           segmentId={s.id}
+          motion={lines[i]}
         />
       ))}
     </Utterance>

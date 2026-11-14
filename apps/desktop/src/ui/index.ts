@@ -55,4 +55,5 @@ export * from "./TitleInput";
 export * from "./Tooltip";
 export * from "./Transcript";
 export * from "./useSpecular";
+export * from "./useTranscriptFlip";
 export * from "./WindowChrome";

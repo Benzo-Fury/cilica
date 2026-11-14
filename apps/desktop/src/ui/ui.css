@@ -2740,6 +2740,64 @@ mark {
     box-shadow var(--dur-base) var(--ease-out),
     color var(--dur-slow) var(--ease-out);
 }
+/* Live words rise from below as they are heard: travel on a spring, the blur clears on a tween. */
+.nt-tword {
+  display: inline-block;
+  white-space: pre-wrap;
+  animation:
+    nt-line-rise var(--spring-smooth-dur) var(--spring-smooth) both,
+    nt-line-clear var(--dur-slow) var(--ease-out) both;
+}
+/* A line moving from "Pending" glides there instead (useTranscriptFlip). A zero duration, not
+   `animation: none`, so taking the class off later does not start the rise again. */
+.nt-seg-arrive .nt-tword {
+  animation-duration: 0s;
+}
+/* A new row's avatar and name rise with its first words. */
+.nt-utt-rise > .nt-avatar,
+.nt-utt-rise > .nt-utt-head {
+  animation:
+    nt-line-rise var(--spring-smooth-dur) var(--spring-smooth) both,
+    nt-line-clear var(--dur-slow) var(--ease-out) both;
+}
+/* "Pending"'s avatar and name fading out over the transcript after its last line has moved. */
+.nt-utt-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+@keyframes nt-line-rise {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes nt-line-clear {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-tword,
+  .nt-utt-rise > .nt-avatar,
+  .nt-utt-rise > .nt-utt-head {
+    animation-name: nt-line-fade;
+  }
+}
+@keyframes nt-line-fade {
+  from {
+    opacity: 0;
+  }
+}
 .nt-transcript {
   position: relative;
   flex: 1;

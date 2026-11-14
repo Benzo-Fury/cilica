@@ -1,7 +1,8 @@
 /**
  * Transcript pieces (Transcript doc): one speaker turn per row with a 24px avatar, the name in
  * 13px semibold, a mono timecode, and the text in `transcript` 15/23. Colour lives only on the
- * avatar ring. Live words arrive grey with a 2px blur clearing, then settle to ink.
+ * avatar ring. Live words rise into place grey with a 2px blur clearing, then settle to ink. A
+ * line Cilica moves from "Pending" to its speaker glides there word by word (`useTranscriptFlip`).
  */
 import { ArrowDown } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -13,6 +14,7 @@ import { useSpecular } from "./useSpecular";
 
 export function Utterance({
   avatar,
+  motion,
   name,
   time,
   extra,
@@ -33,6 +35,8 @@ export function Utterance({
   /** A search hit landed here; washes briefly. */
   hit?: boolean;
   className?: string;
+  /** A new row's avatar and name rise in. */
+  motion?: "rise";
   ref?: Ref<HTMLDivElement>;
 }) {
   return (
@@ -42,6 +46,7 @@ export function Utterance({
         "nt-utt nt-utt-app",
         current && "nt-utt-current",
         hit && "nt-utt-hit",
+        motion === "rise" && "nt-utt-rise",
         className,
       )}
     >
@@ -68,7 +73,10 @@ export function TurnTime({ children }: { children: ReactNode }) {
   return <span className="nt-utt-time">{children}</span>;
 }
 
-/** One segment's text. Partial text is `ink-3`; `fresh` words fade in. */
+/** A line arriving under its speaker from "Pending": its words glide there, no rise. */
+export type LineMotion = "arrive";
+
+/** One segment's text. Partial text is `ink-3`; live words rise in as they are heard. */
 export function SegmentText({
   text,
   partial,
@@ -76,6 +84,7 @@ export function SegmentText({
   marks,
   swears,
   segmentId,
+  motion,
 }: {
   text: string;
   partial: boolean;
@@ -87,18 +96,20 @@ export function SegmentText({
   swears?: readonly { start: number; end: number }[];
   /** Lets a coin find the word it leaves from. */
   segmentId?: string;
+  motion?: LineMotion;
 }) {
   const body =
     marks && marks.length > 0
       ? markText(text, marks)
-      : swears && swears.length > 0
-        ? swearText(text, swears)
-        : live
-          ? liveWords(text)
+      : live || motion
+        ? liveWords(text, swears)
+        : swears && swears.length > 0
+          ? swearText(text, swears)
           : text;
   const className = cn(
     "nt-seg-text",
     partial && "nt-word-partial",
+    motion === "arrive" && "nt-seg-arrive",
   );
   return (
     <span className={className} data-segment-id={segmentId}>
@@ -107,30 +118,42 @@ export function SegmentText({
   );
 }
 
-function swearText(text: string, swears: readonly { start: number; end: number }[]): ReactNode {
+type Range = { start: number; end: number };
+
+/** `text` (which starts at `offset` in the segment) with its swears washed. */
+function swearText(text: string, swears: readonly Range[], offset = 0): ReactNode {
   const out: ReactNode[] = [];
   let last = 0;
   for (const s of swears) {
-    if (s.start > last) out.push(text.slice(last, s.start));
+    const start = Math.max(s.start - offset, last);
+    const end = Math.min(s.end - offset, text.length);
+    if (end <= start) continue;
+    if (start > last) out.push(text.slice(last, start));
     out.push(
-      <span key={s.start} className="nt-swear">
-        {text.slice(s.start, s.end)}
+      <span key={start} className="nt-swear">
+        {text.slice(start, end)}
       </span>,
     );
-    last = s.end;
+    last = end;
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
 }
 
-function liveWords(text: string): ReactNode {
+/** Word by word, so each can rise in on its own. Swears inside a word keep their wash. */
+function liveWords(text: string, swears?: readonly Range[]): ReactNode {
   const tokens = text.match(/\S+\s*|\s+/g) ?? [];
-  return tokens.map((t, i) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: words only append while a segment is partial
-    <span key={i} className="nt-word-new">
-      {t}
-    </span>
-  ));
+  let offset = 0;
+  return tokens.map((t, i) => {
+    const at = offset;
+    offset += t.length;
+    return (
+      // biome-ignore lint/suspicious/noArrayIndexKey: words only append while a segment is partial
+      <span key={i} className="nt-tword">
+        {swears?.length ? swearText(t, swears, at) : t}
+      </span>
+    );
+  });
 }
 
 function markText(

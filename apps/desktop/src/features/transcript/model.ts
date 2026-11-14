@@ -64,15 +64,19 @@ export interface Turn {
 /** A pause this long starts a new turn even when the same person keeps talking. */
 export const TURN_GAP_MS = 90_000;
 
-/** Group consecutive segments by one speaker under one header. */
-export function groupTurns(segments: readonly Segment[]): Turn[] {
+/**
+ * Group consecutive segments by one speaker under one header. With `pendingAlone` (speakers are
+ * told apart live) each line without a speaker yet gets a row of its own, so placing one never
+ * moves the pending lines after it.
+ */
+export function groupTurns(segments: readonly Segment[], pendingAlone = false): Turn[] {
   const turns: Turn[] = [];
   for (const segment of segments) {
     const last = turns[turns.length - 1];
     const sameSpeaker =
       last &&
       last.speakerId === segment.speaker_id &&
-      (segment.speaker_id !== null || last.channel === segment.channel);
+      (segment.speaker_id !== null || (!pendingAlone && last.channel === segment.channel));
     if (last && sameSpeaker && segment.start_ms - last.endMs < TURN_GAP_MS) {
       last.segments.push(segment);
       last.endMs = Math.max(last.endMs, segment.end_ms);
@@ -235,4 +239,31 @@ export function findMatches(turns: readonly Turn[], query: string): FindMatch[] 
     }
   });
   return out;
+}
+
+/** What changed between two renders of a live transcript, for its entrance animations. */
+export interface SegmentChanges {
+  /** Segments never shown before: they rise into place. */
+  added: string[];
+  /** Pending segments whose speaker Cilica just worked out, as they were while pending. */
+  resolved: Segment[];
+}
+
+/**
+ * Compare the segments with the ones shown last time (`known`: id → the segment then). A segment
+ * that had no speaker and now has one is resolved, but only while lines can be pending.
+ */
+export function segmentChanges(
+  known: ReadonlyMap<string, Segment>,
+  segments: readonly Segment[],
+  pendingSpeakers: boolean,
+): SegmentChanges {
+  const added: string[] = [];
+  const resolved: Segment[] = [];
+  for (const s of segments) {
+    const before = known.get(s.id);
+    if (!before) added.push(s.id);
+    else if (pendingSpeakers && !before.speaker_id && s.speaker_id) resolved.push(before);
+  }
+  return { added, resolved };
 }

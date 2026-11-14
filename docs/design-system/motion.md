@@ -22,7 +22,7 @@ Springs keep their velocity when interrupted, so a panel toggled twice reverses 
 | `--dur-instant` | 80ms | Press feedback, menu item highlight |
 | `--dur-fast` | 120ms | Hover colour and wash, tooltip in, all exits |
 | `--dur-base` | 180ms | Fades, focus halo, scrim |
-| `--dur-slow` | 280ms | Words arriving in a note or transcript |
+| `--dur-slow` | 280ms | Words arriving in a note or transcript (in a live transcript they also rise on `smooth`) |
 | `--ease-out` | cubic-bezier(0.22, 1, 0.36, 1) | Every enter and hover |
 | `--ease-in` | cubic-bezier(0.55, 0, 1, 0.45) | Exits only, and only at 120ms or less |
 

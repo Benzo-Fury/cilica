@@ -7,6 +7,7 @@ import {
   matchPeople,
   nextPersonLabel,
   segmentAt,
+  segmentChanges,
   speakerLook,
   speakersLive,
   TURN_GAP_MS,
@@ -214,3 +215,35 @@ describe("nextPersonLabel", () => {
   });
 });
 
+describe("pending rows", () => {
+  it("gives each pending line its own row while speakers are told apart live", () => {
+    const segments = [seg("a", "s1", 0), seg("b", null, 3000), seg("c", null, 6000)];
+    expect(groupTurns(segments, true).map((t) => t.segments.map((s) => s.id))).toEqual([
+      ["a"],
+      ["b"],
+      ["c"],
+    ]);
+    expect(groupTurns(segments).map((t) => t.segments.map((s) => s.id))).toEqual([
+      ["a"],
+      ["b", "c"],
+    ]);
+  });
+});
+
+describe("segment motion", () => {
+  const known = (segments: Segment[]) => new Map(segments.map((s) => [s.id, s]));
+
+  it("finds new lines and pending lines that now have a speaker", () => {
+    const before = [seg("a", "s1", 0), seg("b", null, 3000)];
+    const after = [seg("a", "s1", 0), seg("b", "s1", 3000), seg("c", null, 6000)];
+    const { added, resolved } = segmentChanges(known(before), after, true);
+    expect(added).toEqual(["c"]);
+    expect(resolved.map((s) => [s.id, s.speaker_id])).toEqual([["b", null]]);
+  });
+
+  it("does not treat a speaker change as resolving when lines cannot be pending", () => {
+    const before = [seg("a", null, 0)];
+    const after = [seg("a", "s1", 0)];
+    expect(segmentChanges(known(before), after, false).resolved).toEqual([]);
+  });
+});

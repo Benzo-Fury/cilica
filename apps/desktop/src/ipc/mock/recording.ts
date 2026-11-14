@@ -63,6 +63,8 @@ const SCRIPT: { channel: AudioChannel; text: string }[] = [
   { channel: "mic", text: "What's left on the list before we can freeze?" },
   { channel: "system", text: "Honestly? The empty states are still a bloody mess." },
   { channel: "mic", text: "Oh, for fuck's sake. Again?" },
+  // You again: a line that joins the turn above once Cilica places it.
+  { channel: "mic", text: "Fine, we fix them before Friday." },
   {
     channel: "system",
     text: "Two things: the export to Markdown and the empty states in the sidebar.",
