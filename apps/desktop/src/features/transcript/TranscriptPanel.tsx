@@ -43,7 +43,6 @@ import {
   PageColumn,
   ScrollArea,
   SegmentText,
-  Shimmer,
   SkeletonText,
   TurnTime,
   Utterance,
@@ -99,8 +98,8 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
     return (
       <ScrollArea>
         {live ? (
-          <EmptyState art="transcript" title="Preparing transcription" className="nt-empty-page">
-            <Shimmer>Recording has started. Words appear here within a few seconds.</Shimmer>
+          <EmptyState art="transcript" title="Listening" className="nt-empty-page">
+            Cilica is ready to transcribe. Words appear here as soon as someone speaks.
           </EmptyState>
         ) : isMeeting ? (
           <EmptyState
