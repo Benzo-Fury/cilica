@@ -76,6 +76,7 @@ Every interactive element has rest, hover, pressed, focus-visible and disabled s
 - **Hover**: a wash (`fill-hover`) or colour step fades in `--dur-fast`; icons inside play their one-shot motion; secondary buttons lift 1px; glass shows a pointer-following highlight.
 - **Press**: scale to 0.97 (buttons) or 0.92 (icon buttons) in `--dur-instant`, release on `--spring-snappy`.
 - **Selected**: `fill-press` plus `accent-text` icon; in lists the selection is one shared element that slides.
+- **Cursor**: controls keep the arrow, as on macOS; the hover wash is what says a thing can be clicked, so every clickable control has one. The pointing hand is only for links in text (wikilinks, links in notes, citations, the installer link). Inputs show the I-beam, splitters `col-resize`, drags `grabbing`.
 - **Disabled**: 45% opacity, no hover, no cursor change. Prefer hiding an action over showing it disabled with no explanation.
 - **Loading**: the control keeps its size; its label crossfades to a shimmer label or a 14px spinner. Never shift layout.
 

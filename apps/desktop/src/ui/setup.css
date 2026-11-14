@@ -244,7 +244,6 @@
   align-items: baseline;
 }
 button.nt-setup-step-head {
-  cursor: pointer;
   border-radius: var(--radius-xs);
 }
 button.nt-setup-step-head:hover .nt-setup-step-title {
@@ -284,7 +283,6 @@ button.nt-setup-step-head:hover .nt-setup-step-title {
   background: none;
   color: var(--ink-3);
   font-size: 13px;
-  cursor: pointer;
   padding: 2px var(--space-1);
   border-radius: var(--radius-xs);
   flex: none;
@@ -364,7 +362,6 @@ button.nt-setup-step-head:hover .nt-setup-step-title {
   border: 0;
   color: var(--ink);
   font: inherit;
-  cursor: pointer;
   transition:
     background-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out),
@@ -515,7 +512,6 @@ button.nt-setup-step-head:hover .nt-setup-step-title {
   border: 0;
   color: var(--ink);
   font: inherit;
-  cursor: pointer;
   padding: 10px var(--space-3);
   border-radius: var(--radius-lg);
   display: flex;
@@ -592,7 +588,6 @@ button.nt-setup-step-head:hover .nt-setup-step-title {
   border: 0;
   color: var(--ink);
   font: inherit;
-  cursor: pointer;
   padding: 10px;
   border-radius: var(--radius-lg);
   display: flex;
