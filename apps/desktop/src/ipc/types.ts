@@ -38,6 +38,9 @@ import type {
   OllamaStatus_Serialize,
   Overheard_Serialize,
   Pace_Serialize,
+  Person_Serialize,
+  PersonMeeting_Serialize,
+  PersonVoice_Serialize,
   Proposal_Serialize,
   ProposalKind_Serialize,
   ProviderStatus_Serialize,
@@ -107,7 +110,6 @@ export type {
   PermissionKind,
   PermissionStatus,
   Permissions,
-  Person,
   PromptChip,
   ProposalSource,
   ProposalStatus,
@@ -120,6 +122,7 @@ export type {
   SearchFacets,
   SearchSource,
   SpeakerCount,
+  SpeakerDetection,
   SpeakerModel,
   SpeakerSource,
   SpeakerSuggestion,
@@ -188,6 +191,11 @@ export type SwearJar = SwearJar_Serialize;
 export type SwearPerson = SwearPerson_Serialize;
 export type Segment = Segment_Serialize;
 export type Speaker = Speaker_Serialize;
+export type Person = Person_Serialize;
+export type PersonMeeting = PersonMeeting_Serialize;
+export type PersonVoice = PersonVoice_Serialize;
+export type VoiceShape = NonNullable<PersonVoice["shape"]>;
+export type VoiceSampleShape = VoiceShape["samples"][number];
 export type MeetingDetected = MeetingDetected_Serialize;
 export type ModelDownloadProgress = ModelDownloadProgress_Serialize;
 

@@ -1,68 +1,59 @@
 /**
- * Saved people (spec › Speakers and Saved people): each with their colour, voice samples and
- * meetings, and rename, recolour, merge, forget voice and delete. "You" is always there and can
- * only be renamed, recoloured, merged into or have its voice forgotten. A person's colour shows
- * on their avatar ring in every transcript.
+ * Saved people (spec › Speakers and Saved people): everyone Cilica can name in your meetings.
+ * The list answers "who does Cilica know, and how well?" at a glance; opening someone (here,
+ * or from a `[[link]]`, the graph or Connections) shows their page: the meetings they were in,
+ * how well Cilica knows their voice, and ways to fix their name, colour or voice.
  */
 
-import { Ellipsis, Eraser, Merge, Palette, PenLine, Trash2 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Ellipsis, Eraser, X } from "lucide-react";
 import { useState } from "react";
-import { ShortcutTip } from "@/app/keybinds";
-import { reducedTransition, springs, tweens } from "@/app/motion";
+import { openPerson } from "@/app/router";
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import type { Person } from "@/ipc/types";
 import {
-  Avatar,
   ConfirmDialog,
   Crumb,
   EmptyState,
   IconButton,
-  ListItem,
   Menu,
   MenuContent,
   MenuItem,
-  MenuSeparator,
-  MenuSub,
+  MenuLabel,
   MenuTrigger,
   PageColumn,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  PeopleList,
+  PeopleNone,
+  PersonRow,
   ScrollArea,
+  SearchField,
   SkeletonText,
-  Swatch,
   ViewLayer,
+  VoiceStatus,
+  VoiceStrip,
 } from "@/ui";
-import { InlineName } from "../sidebar/InlineName";
+import { useForgetAllVoices, usePeople, usePersonVoice } from "./hooks";
 import {
-  useDeletePerson,
-  useForgetVoice,
-  useMergePeople,
-  usePeople,
-  useRenamePerson,
-  useSetPersonColor,
-} from "./hooks";
-import { forgetCopy, voiceLine } from "./model";
+  forgetAllCopy,
+  matchesName,
+  metLine,
+  sortPeople,
+  VOICE_STATE_LABEL,
+  voiceState,
+} from "./model";
+import { PersonPage } from "./PersonPage";
 
-const COLORS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
-const COLOR_NAMES = ["Blue", "Teal", "Green", "Ochre", "Rust", "Rose", "Violet", "Slate"];
+export function PeopleView({ personId }: { personId?: string }) {
+  return personId ? <PersonPage personId={personId} /> : <PeopleIndex />;
+}
 
-type Confirm =
-  | { kind: "delete"; person: Person }
-  | { kind: "forget"; person: Person }
-  | { kind: "merge"; source: Person; target: Person }
-  | null;
-
-export function PeopleView() {
-  const reduced = useReducedMotion();
+function PeopleIndex() {
   const { data: people = [], isLoading } = usePeople();
-  const [renaming, setRenaming] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<Confirm>(null);
-  const rename = useRenamePerson();
-  const remove = useDeletePerson();
-  const merge = useMergePeople();
-  const forget = useForgetVoice();
+  const [query, setQuery] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const forgetAll = useForgetAllVoices();
+  const known = people.filter((p) => p.sample_count > 0).length;
+  const shown = sortPeople(people).filter((p) => matchesName(p, query));
+  const copy = forgetAllCopy(known);
 
   return (
     <ViewLayer>
@@ -73,197 +64,100 @@ export function PeopleView() {
             <div>
               <h1 className="t-title">Saved people</h1>
               <p className="t-callout">
-                Cilica recognises these voices in meetings and names them when it's sure. Pick
-                someone for a speaker to teach it their voice. Voiceprints stay on this Mac.
+                Cilica names who's speaking in your meeting transcripts by their voice. Pick who a
+                speaker is once, and it learns their voice and names them on its own from then on.
+                Voiceprints stay on this Mac.
               </p>
             </div>
+            <Menu>
+              <MenuTrigger asChild>
+                <IconButton icon={Ellipsis} label="More for Saved people" />
+              </MenuTrigger>
+              <MenuContent align="end">
+                {known > 0 ? (
+                  <MenuItem icon={Eraser} danger onSelect={() => setConfirming(true)}>
+                    Forget every voice…
+                  </MenuItem>
+                ) : (
+                  <MenuLabel>Cilica doesn't know any voices yet.</MenuLabel>
+                )}
+              </MenuContent>
+            </Menu>
           </header>
           {isLoading ? (
             <SkeletonText lines={4} />
           ) : people.length === 0 ? (
-            <EmptyState
-              art="people"
-              title="No saved people yet"
-              tip={
-                <ShortcutTip action="note.togglePanel">
-                  Flip between a note and its transcript
-                </ShortcutTip>
-              }
-            >
-              Name a speaker in a meeting transcript and choose Save as person. Cilica then suggests
+            <EmptyState art="people" title="No saved people yet">
+              Name a speaker in a meeting transcript and choose Save as person. Cilica then names
               them when it hears their voice again.
             </EmptyState>
           ) : (
-            <div className="nt-list">
-              <AnimatePresence initial={false}>
-                {people.map((person) => (
-                  <motion.div
-                    key={person.id}
-                    layout="position"
-                    initial={false}
-                    exit={{ opacity: 0, x: reduced ? 0 : 8, transition: tweens.exit }}
-                    transition={reduced ? reducedTransition : springs.smooth}
-                  >
-                    <ListItem
-                      className="nt-person-row"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "F2" || e.key === "Enter") {
-                          e.preventDefault();
-                          setRenaming(person.id);
-                        }
-                      }}
-                      heading={
-                        <span className="nt-person-name">
-                          <Avatar name={person.name} color={person.color_index} size="lg" />
-                          {renaming === person.id ? (
-                            <span className="nt-person-rename">
-                              <InlineName
-                                initial={person.name}
-                                placeholder="Name"
-                                label="Person's name"
-                                onCommit={(name) => {
-                                  rename.mutate({ personId: person.id, name });
-                                  setRenaming(null);
-                                }}
-                                onCancel={() => setRenaming(null)}
-                              />
-                            </span>
-                          ) : (
-                            <span className="nt-person-label">
-                              <span>{person.name}</span>
-                              <span className="nt-list-meta">{voiceLine(person)}</span>
-                            </span>
-                          )}
-                        </span>
-                      }
-                      actions={
-                        <>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <IconButton icon={Palette} label="Change colour" />
-                            </PopoverTrigger>
-                            <PopoverContent align="end" label="Colour" className="nt-color-pop">
-                              <div className="nt-popover-title">Colour for {person.name}</div>
-                              <ColorPicker person={person} />
-                            </PopoverContent>
-                          </Popover>
-                          <Menu>
-                            <MenuTrigger asChild>
-                              <IconButton icon={Ellipsis} label={`More for ${person.name}`} />
-                            </MenuTrigger>
-                            <MenuContent>
-                              <MenuItem
-                                icon={PenLine}
-                                shortcut={["F2"]}
-                                onSelect={() => setRenaming(person.id)}
-                              >
-                                Rename
-                              </MenuItem>
-                              {people.length > 1 && !person.is_self && (
-                                <MenuSub label="Merge into" icon={Merge}>
-                                  {people
-                                    .filter((p) => p.id !== person.id)
-                                    .map((target) => (
-                                      <MenuItem
-                                        key={target.id}
-                                        onSelect={() =>
-                                          setConfirm({ kind: "merge", source: person, target })
-                                        }
-                                      >
-                                        {target.name}
-                                      </MenuItem>
-                                    ))}
-                                </MenuSub>
-                              )}
-                              {person.sample_count > 0 && (
-                                <MenuItem
-                                  icon={Eraser}
-                                  onSelect={() => setConfirm({ kind: "forget", person })}
-                                >
-                                  Forget voice
-                                </MenuItem>
-                              )}
-                              {!person.is_self && (
-                                <>
-                                  <MenuSeparator />
-                                  <MenuItem
-                                    icon={Trash2}
-                                    iconMotion="trash"
-                                    danger
-                                    onSelect={() => setConfirm({ kind: "delete", person })}
-                                  >
-                                    Delete
-                                  </MenuItem>
-                                </>
-                              )}
-                            </MenuContent>
-                          </Menu>
-                        </>
-                      }
-                    />
-                  </motion.div>
+            <>
+              {people.length > 3 && (
+                <SearchField
+                  keys={[]}
+                  className="nt-people-find"
+                  value={query}
+                  placeholder="Find a person"
+                  aria-label="Find a person"
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && query) {
+                      e.stopPropagation();
+                      setQuery("");
+                    }
+                    if (e.key === "Enter" && shown[0]) openPerson(shown[0].id);
+                  }}
+                  trailing={
+                    query ? (
+                      <IconButton icon={X} size="sm" label="Clear" onClick={() => setQuery("")} />
+                    ) : (
+                      <span className="nt-people-count">{people.length}</span>
+                    )
+                  }
+                />
+              )}
+              <PeopleList label="Saved people">
+                {shown.map((person, i) => (
+                  <PersonListRow key={person.id} person={person} index={i} />
                 ))}
-              </AnimatePresence>
-            </div>
+              </PeopleList>
+              {shown.length === 0 && <PeopleNone>No one called “{query.trim()}”.</PeopleNone>}
+            </>
           )}
         </PageColumn>
       </ScrollArea>
       <ConfirmDialog
-        open={confirm !== null}
-        onOpenChange={(open) => !open && setConfirm(null)}
-        destructive={confirm?.kind === "delete" || confirm?.kind === "forget"}
-        title={
-          confirm?.kind === "delete"
-            ? `Delete ${confirm.person.name}?`
-            : confirm?.kind === "forget"
-              ? forgetCopy(confirm.person).title
-              : confirm
-                ? `Merge ${confirm.source.name} into ${confirm.target.name}?`
-                : ""
-        }
-        body={
-          confirm?.kind === "delete"
-            ? "Cilica forgets their voice and stops suggesting them. Past meetings keep the speaker's name. This cannot be undone."
-            : confirm?.kind === "forget"
-              ? forgetCopy(confirm.person).body
-              : confirm
-                ? `${confirm.source.name}'s voice samples and meetings move to ${confirm.target.name}, and ${confirm.source.name} is removed. This cannot be undone.`
-                : ""
-        }
-        confirmLabel={
-          confirm?.kind === "delete"
-            ? `Delete ${confirm.person.name}`
-            : confirm?.kind === "forget"
-              ? "Forget voice"
-              : confirm
-                ? `Merge into ${confirm.target.name}`
-                : ""
-        }
-        onConfirm={() => {
-          if (confirm?.kind === "delete") remove.mutate(confirm.person.id);
-          else if (confirm?.kind === "forget") forget.mutate(confirm.person.id);
-          else if (confirm)
-            merge.mutate({ sourceId: confirm.source.id, targetId: confirm.target.id });
-        }}
+        open={confirming}
+        onOpenChange={setConfirming}
+        destructive
+        title={copy.title}
+        body={copy.body}
+        confirmLabel="Forget every voice"
+        onConfirm={() => forgetAll.mutate()}
       />
     </ViewLayer>
   );
 }
 
-function ColorPicker({ person }: { person: Person }) {
-  const setColor = useSetPersonColor();
+function PersonListRow({ person, index }: { person: Person; index: number }) {
+  const { data: voice } = usePersonVoice(person.id, person.sample_count > 0);
+  const state = voiceState(person, voice);
+  const shape = person.sample_count > 0 ? voice?.shape : null;
   return (
-    <div className="nt-swatches" role="radiogroup" aria-label="Speaker colour">
-      {COLORS.map((n) => (
-        <Swatch
-          key={n}
-          color={`var(--speaker-${n})`}
-          label={COLOR_NAMES[n - 1] ?? `Colour ${n}`}
-          selected={person.color_index === n}
-          onSelect={() => setColor.mutate({ personId: person.id, color: n })}
+    <PersonRow
+      color={person.color_index}
+      name={person.name}
+      meta={metLine(person)}
+      index={index}
+      onOpen={() => openPerson(person.id)}
+      strip={
+        <VoiceStrip
+          color={person.color_index}
+          rows={shape ? [shape.mean, ...shape.samples.slice(0, 3).map((s) => s.bins)] : []}
         />
-      ))}
-    </div>
+      }
+      status={<VoiceStatus tone={state}>{VOICE_STATE_LABEL[state]}</VoiceStatus>}
+    />
   );
 }

@@ -9,12 +9,32 @@ export function usePeople() {
   return useQuery({ queryKey: qk.people, queryFn: () => api.listPeople() });
 }
 
+/** What Cilica knows about one person's voice, while `enabled` (their row is open). */
+export function usePersonVoice(personId: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.personVoice(personId),
+    queryFn: () => api.getPersonVoice(personId),
+    enabled,
+  });
+}
+
+/** The meetings a person was in, newest first. */
+export function usePersonMeetings(personId: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.personMeetings(personId),
+    queryFn: () => api.listPersonMeetings(personId),
+    enabled,
+  });
+}
+
 function usePeopleCache() {
   const queryClient = useQueryClient();
-  const replace = (person: Person) =>
+  const replace = (person: Person) => {
     queryClient.setQueryData<Person[]>(qk.people, (list) =>
       list?.map((p) => (p.id === person.id ? person : p)),
     );
+    void queryClient.invalidateQueries({ queryKey: qk.personVoice(person.id) });
+  };
   // Linked speakers show a person's name and colour, so transcripts refresh too.
   const refreshTranscripts = () => {
     void queryClient.invalidateQueries({ queryKey: qk.transcriptPrefix });
@@ -123,6 +143,45 @@ export function useDeletePerson() {
       const name = context?.previous?.find((p) => p.id === personId)?.name ?? "person";
       refreshTranscripts();
       toast(`Deleted ${name}`, { description: "Their past meetings keep the speaker's name." });
+    },
+  });
+}
+
+/** Take one meeting out of a person's voice; Cilica does not learn it back. */
+export function useRemoveVoiceSample() {
+  const { replace } = usePeopleCache();
+  return useMutation({
+    mutationFn: ({ sampleId }: { sampleId: string; title: string }) =>
+      api.removeVoiceSample(sampleId),
+    onError: (error) =>
+      toast.error("Cilica is still learning from that meeting", {
+        description: errorMessage(error),
+      }),
+    onSuccess: (person, { title }) => {
+      replace(person);
+      toast(`Stopped learning from “${title}”`, {
+        description: "The meeting stays, and still names them.",
+      });
+    },
+  });
+}
+
+/** Forget every voice Cilica knows. People and meetings stay. */
+export function useForgetAllVoices() {
+  const { queryClient, refreshTranscripts } = usePeopleCache();
+  return useMutation({
+    mutationFn: () => api.forgetAllVoices(),
+    onError: (error) =>
+      toast.error("The voices were not forgotten", { description: errorMessage(error) }),
+    onSuccess: (people, _v) => {
+      const known = queryClient
+        .getQueryData<Person[]>(qk.people)
+        ?.filter((p) => p.sample_count > 0);
+      queryClient.setQueryData(qk.people, people);
+      void queryClient.invalidateQueries({ queryKey: qk.people });
+      refreshTranscripts();
+      const n = known?.length ?? 0;
+      toast(n === 1 ? "Forgot 1 voice" : `Forgot ${n} voices`);
     },
   });
 }

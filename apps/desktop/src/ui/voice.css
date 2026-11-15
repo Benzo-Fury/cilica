@@ -1,0 +1,564 @@
+/* ───────── Saved people and voiceprints (People.tsx, Voiceprint.tsx) ───────── */
+
+/* ── Voiceprints ── */
+
+/* The strip in each list row. */
+.nt-voice-strip {
+  display: block;
+  width: 132px;
+  height: 26px;
+}
+.nt-voice-ghost {
+  fill: var(--fill-hover);
+}
+.nt-voice-strip rect,
+.nt-voice-bars rect {
+  transition: fill var(--dur-base) var(--ease-out);
+}
+
+/* Bars, and their sweep in from the left. */
+.nt-voice-bars {
+  display: block;
+  width: 100%;
+  transform-origin: 0 50%;
+}
+.nt-voice-sweep {
+  animation: nt-voice-sweep var(--spring-smooth-dur) var(--spring-smooth) var(--delay, 0ms) both;
+}
+@keyframes nt-voice-sweep {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* The average, large. */
+.nt-voice-panel {
+  display: grid;
+  gap: var(--space-2);
+}
+.nt-voice-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1-5) var(--space-3);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-voice-foot b {
+  color: var(--ink-2);
+  font-weight: 550;
+}
+.nt-voice-ramp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: 11px;
+}
+.nt-voice-ramp i {
+  display: block;
+  width: 56px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--c) 10%, var(--bg-sunken)), var(--c));
+}
+
+/* ── How well Cilica knows a voice: a dot and a word ── */
+.nt-vstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.nt-vstatus i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.nt-vstatus-known i {
+  background: var(--success);
+}
+.nt-vstatus-learning i {
+  background: var(--warning);
+}
+.nt-vstatus-unknown {
+  color: var(--ink-3);
+}
+.nt-vstatus-unknown i {
+  box-shadow: inset 0 0 0 1.5px var(--ink-4);
+}
+
+/* ── The list ── */
+.nt-people-find {
+  margin-bottom: var(--space-3);
+}
+.nt-people-count {
+  padding-right: var(--space-1);
+  font: 500 12px / 16px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.nt-people {
+  display: grid;
+  gap: var(--space-0-5);
+}
+.nt-people-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) 132px 116px 16px;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  outline: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+  animation: nt-people-rise var(--spring-smooth-dur) var(--spring-smooth) calc(var(--i, 0) * 28ms)
+    both;
+}
+.nt-people-row:hover {
+  background: var(--fill-hover);
+}
+.nt-people-row:active {
+  background: var(--fill-press);
+  transform: scale(0.995);
+  transition-duration: var(--dur-instant);
+}
+.nt-people-row:focus-visible {
+  box-shadow: var(--focus);
+}
+@keyframes nt-people-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.nt-people-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 3px var(--s);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.nt-people-who {
+  display: grid;
+  min-width: 0;
+}
+.nt-people-who b {
+  font: 550 14px / 20px var(--font-sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-people-who span {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-people-strip {
+  display: flex;
+  opacity: 0.85;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-people-row:hover .nt-people-strip {
+  opacity: 1;
+}
+.nt-people-status {
+  display: flex;
+}
+.nt-people-chev {
+  color: var(--ink-4);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-people-row:hover .nt-people-chev {
+  color: var(--ink-2);
+  transform: translateX(2px);
+}
+.nt-people-none {
+  margin: var(--space-4) 0 0;
+  padding: 0 var(--space-3);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+
+/* ── One person's page ── */
+.nt-who {
+  display: grid;
+  gap: var(--space-6);
+  align-content: start;
+}
+.nt-who-head {
+  display: grid;
+  gap: var(--space-1-5);
+}
+.nt-who-name {
+  width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: transparent;
+  font: 640 28px / 34px var(--font-sans);
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  outline: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.nt-who-name:hover {
+  background: var(--fill-hover);
+}
+.nt-who-name:focus {
+  background: transparent;
+  box-shadow: var(--focus);
+}
+.nt-who-meta {
+  margin: 0;
+  font: 450 13px / 18px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.nt-who-colour {
+  margin-top: var(--space-1-5);
+}
+.nt-who-colour .nt-swatches {
+  gap: var(--space-1-5);
+}
+.nt-who-colour .nt-swatch {
+  width: 18px;
+  height: 18px;
+}
+
+/* "Is this the same person as …?" */
+.nt-who-dup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-top: calc(var(--space-6) * -0.5);
+  padding: 10px 10px 10px 14px;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--bg-sunken);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+}
+.nt-who-dup b {
+  font-weight: 550;
+  color: var(--ink);
+}
+
+/* The voice: an open section, no box. */
+.nt-vsection {
+  display: grid;
+  gap: var(--space-3);
+}
+.nt-vsection-text {
+  margin: calc(var(--space-2) * -1) 0 0;
+  max-width: 64ch;
+  font: 450 13px / 19px var(--font-sans);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.nt-vsection-text b {
+  font-weight: 550;
+  color: var(--ink);
+}
+.nt-vsection-unknown .nt-voice-ramp {
+  visibility: hidden;
+}
+.nt-vsection-action {
+  display: flex;
+}
+.nt-vstats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1-5) var(--space-6);
+  padding-top: var(--space-1);
+}
+.nt-vstat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-vstat b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.nt-vstat-meter {
+  align-self: center;
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--fill-press);
+}
+.nt-vstat-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--c);
+  transform-origin: left;
+  transform: scaleX(var(--p));
+  animation: nt-grow var(--spring-gentle-dur) var(--spring-gentle) 160ms both;
+  transition:
+    transform var(--spring-gentle-dur) var(--spring-gentle),
+    background-color var(--dur-base) var(--ease-out);
+}
+@keyframes nt-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Meetings. */
+.nt-who-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-height: 32px;
+  margin-bottom: var(--space-2);
+}
+.nt-who-section h2 {
+  margin: 0;
+  font: 600 15px / 20px var(--font-sans);
+  letter-spacing: -0.009em;
+  color: var(--ink);
+}
+.nt-who-section-count {
+  margin-left: var(--space-1-5);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.nt-mlist {
+  display: grid;
+  gap: var(--space-0-5);
+}
+.nt-mrow {
+  position: relative;
+}
+.nt-mrow-open {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 72px auto;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-1-5) 44px var(--space-1-5) 10px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: transparent;
+  text-align: left;
+  outline: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-mrow:hover .nt-mrow-open {
+  background: var(--fill-hover);
+}
+.nt-mrow-open:active {
+  background: var(--fill-press);
+  transition-duration: var(--dur-instant);
+}
+.nt-mrow-open:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-mrow-when,
+.nt-mrow-what {
+  display: grid;
+  min-width: 0;
+}
+.nt-mrow-when b {
+  font: 550 12px / 16px var(--font-sans);
+  color: var(--ink);
+}
+.nt-mrow-when span {
+  font: 450 11px / 15px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.nt-mrow-what b {
+  font: 500 13px / 18px var(--font-sans);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-mrow-what span {
+  font: 450 12px / 16px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* How much of the meeting they spoke. */
+.nt-mrow-share {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--fill-press);
+}
+.nt-mrow-share i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--c);
+  transform-origin: left;
+  transform: scaleX(var(--p));
+  animation: nt-grow var(--spring-gentle-dur) var(--spring-gentle) calc(120ms + var(--i, 0) * 30ms)
+    both;
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+.nt-mrow-marks {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 16px;
+}
+.nt-mrow-mark {
+  display: inline-flex;
+  color: var(--c);
+}
+.nt-mrow-mark svg {
+  width: 15px;
+  height: 15px;
+}
+.nt-mrow-warn {
+  color: var(--warning);
+}
+.nt-mrow-tag {
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-hover);
+  font: 550 11px / 14px var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.nt-mrow-ops {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  display: flex;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-mrow:hover .nt-mrow-ops,
+.nt-mrow:focus-within .nt-mrow-ops {
+  opacity: 1;
+}
+.nt-mrow-ops button:hover {
+  color: var(--danger);
+}
+.nt-list-more {
+  justify-self: start;
+  margin-top: var(--space-1);
+  padding: var(--space-1-5) var(--space-2);
+  border: 0;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  background: transparent;
+  font: 500 12px / 16px var(--font-sans);
+  color: var(--ink-2);
+  outline: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-list-more:hover {
+  background: var(--fill-hover);
+  color: var(--ink);
+}
+.nt-list-more:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-mlist-empty {
+  margin: 0;
+  padding: var(--space-3) 2px;
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+
+/* Managing a person. */
+.nt-who-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--line);
+}
+.nt-who-foot-note {
+  flex: 1;
+  min-width: 16ch;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-who-foot > div {
+  display: flex;
+  gap: var(--space-1-5);
+}
+
+@media (max-width: 820px) {
+  .nt-people-row {
+    grid-template-columns: 10px minmax(0, 1fr) 84px auto 16px;
+  }
+  .nt-voice-strip {
+    width: 84px;
+  }
+  .nt-mrow-open {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+  }
+  .nt-mrow-share {
+    display: none;
+  }
+  .nt-mrow-tag {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .nt-people-row {
+    grid-template-columns: 10px minmax(0, 1fr) auto 16px;
+  }
+  .nt-people-strip {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-people-row,
+  .nt-vstat-meter i,
+  .nt-mrow-share i,
+  .nt-voice-sweep {
+    animation: none;
+  }
+  .nt-people-row,
+  .nt-people-chev {
+    transition: background-color var(--dur-fast) linear;
+  }
+  .nt-people-row:hover .nt-people-chev,
+  .nt-people-row:active {
+    transform: none;
+  }
+}

@@ -170,16 +170,24 @@ export const commands = {
 	linkSpeaker: (speakerId: string, personId: string | null) => __TAURI_INVOKE<Speaker_Serialize>("link_speaker", { speakerId, personId }),
 	/**  "This speaker is that one": every line of `from` moves to `into`, which is returned. */
 	mergeSpeakers: (from: string, into: string) => __TAURI_INVOKE<Speaker_Serialize>("merge_speakers", { from, into }),
-	saveSpeakerAsPerson: (speakerId: string, name: string) => __TAURI_INVOKE<Person>("save_speaker_as_person", { speakerId, name }),
+	saveSpeakerAsPerson: (speakerId: string, name: string) => __TAURI_INVOKE<Person_Serialize>("save_speaker_as_person", { speakerId, name }),
 	listSpeakerSuggestions: (noteId: string) => __TAURI_INVOKE<SpeakerSuggestion[]>("list_speaker_suggestions", { noteId }),
-	listPeople: () => __TAURI_INVOKE<Person[]>("list_people"),
-	renamePerson: (personId: string, name: string) => __TAURI_INVOKE<Person>("rename_person", { personId, name }),
-	setPersonColor: (personId: string, colorIndex: number) => __TAURI_INVOKE<Person>("set_person_color", { personId, colorIndex }),
+	listPeople: () => __TAURI_INVOKE<Person_Serialize[]>("list_people"),
+	renamePerson: (personId: string, name: string) => __TAURI_INVOKE<Person_Serialize>("rename_person", { personId, name }),
+	setPersonColor: (personId: string, colorIndex: number) => __TAURI_INVOKE<Person_Serialize>("set_person_color", { personId, colorIndex }),
 	/**  Fold `source` into `target` (voice samples move, speakers relinked). */
-	mergePeople: (sourceId: string, targetId: string) => __TAURI_INVOKE<Person>("merge_people", { sourceId, targetId }),
+	mergePeople: (sourceId: string, targetId: string) => __TAURI_INVOKE<Person_Serialize>("merge_people", { sourceId, targetId }),
 	deletePerson: (personId: string) => __TAURI_INVOKE<null>("delete_person", { personId }),
 	/**  Forget how a person sounds (their voice samples); the person and their meetings stay. */
-	forgetPersonVoice: (personId: string) => __TAURI_INVOKE<Person>("forget_person_voice", { personId }),
+	forgetPersonVoice: (personId: string) => __TAURI_INVOKE<Person_Serialize>("forget_person_voice", { personId }),
+	/**  What Cilica knows about a person's voice, with a coarse picture of it to draw. */
+	getPersonVoice: (personId: string) => __TAURI_INVOKE<PersonVoice_Serialize>("get_person_voice", { personId }),
+	/**  The meetings a person was in, newest first, with how long they spoke and who named them. */
+	listPersonMeetings: (personId: string) => __TAURI_INVOKE<PersonMeeting_Serialize[]>("list_person_meetings", { personId }),
+	/**  Take one meeting out of a person's voice; that meeting is not learnt from again. */
+	removeVoiceSample: (sampleId: string) => __TAURI_INVOKE<Person_Serialize>("remove_voice_sample", { sampleId }),
+	/**  Forget every voice Cilica knows, yours included. People and meetings stay. */
+	forgetAllVoices: () => __TAURI_INVOKE<Person_Serialize[]>("forget_all_voices"),
 	/**  Write the meeting summary again from the transcript. */
 	regenerateSummary: (noteId: string) => __TAURI_INVOKE<null>("regenerate_summary", { noteId }),
 	/**  Newest first. */
@@ -1267,6 +1275,13 @@ export type MoveGroup_Serialize = {
 	category_name: string,
 };
 
+/**  Who put a Saved person's name on a meeting's speaker. */
+export type NamedBy = 
+/**  Someone picked them for the speaker. */
+"you" | 
+/**  Cilica recognised their voice. */
+"cilica";
+
 /**
  *  Something said in a meeting that is close to a search nobody matched: a near spelling, the same
  *  words run together or split apart ("road map" for "roadmap").
@@ -1645,8 +1660,95 @@ export type Permissions = {
 	accessibility: PermissionStatus,
 };
 
-/**  A Saved person: a name and an averaged voiceprint (the voiceprint never crosses IPC). */
-export type Person = {
+/**
+ *  A Saved person: a name and an averaged voiceprint (the voiceprint itself never crosses IPC;
+ *  [`PersonVoice`] carries a coarse picture of it for drawing).
+ */
+export type Person = Person_Serialize | Person_Deserialize;
+
+/**  A meeting a Saved person was in, for their page in Saved people. Newest first. */
+export type PersonMeeting = PersonMeeting_Serialize | PersonMeeting_Deserialize;
+
+/**  A meeting a Saved person was in, for their page in Saved people. Newest first. */
+export type PersonMeeting_Deserialize = {
+	note_id: string,
+	title: string,
+	/**  When it started, or when the note was made. */
+	at: string,
+	/**  Length of the recording, if known. */
+	duration_ms?: number | null,
+	/**  How long they spoke in it. */
+	speech_ms: number,
+	/**  How many lines are theirs. */
+	lines: number,
+	named_by: NamedBy,
+};
+
+/**  A meeting a Saved person was in, for their page in Saved people. Newest first. */
+export type PersonMeeting_Serialize = {
+	note_id: string,
+	title: string,
+	/**  When it started, or when the note was made. */
+	at: string,
+	/**  Length of the recording, if known. */
+	duration_ms: number | null,
+	/**  How long they spoke in it. */
+	speech_ms: number,
+	/**  How many lines are theirs. */
+	lines: number,
+	named_by: NamedBy,
+};
+
+/**  What Cilica knows about a Saved person's voice, for the Saved people page. */
+export type PersonVoice = PersonVoice_Serialize | PersonVoice_Deserialize;
+
+/**  What Cilica knows about a Saved person's voice, for the Saved people page. */
+export type PersonVoice_Deserialize = {
+	person_id: string,
+	/**  Speech their samples were made from, in all. */
+	speech_ms: number,
+	/**
+	 *  How alike their samples are (mean cosine similarity to their voiceprint), 0..=1. `None`
+	 *  with fewer than two samples.
+	 */
+	consistency?: number | null,
+	/**  Speakers Cilica named as them. */
+	named: number,
+	/**  Of those, the ones someone then said were someone else (or no one). */
+	corrected: number,
+	meeting_count: number,
+	/**  When they were last in a meeting. */
+	last_heard?: string | null,
+	/**  `None` until they have a sample. */
+	shape?: VoiceShape_Deserialize | null,
+};
+
+/**  What Cilica knows about a Saved person's voice, for the Saved people page. */
+export type PersonVoice_Serialize = {
+	person_id: string,
+	/**  Speech their samples were made from, in all. */
+	speech_ms: number,
+	/**
+	 *  How alike their samples are (mean cosine similarity to their voiceprint), 0..=1. `None`
+	 *  with fewer than two samples.
+	 */
+	consistency: number | null,
+	/**  Speakers Cilica named as them. */
+	named: number,
+	/**  Of those, the ones someone then said were someone else (or no one). */
+	corrected: number,
+	meeting_count: number,
+	/**  When they were last in a meeting. */
+	last_heard: string | null,
+	/**  `None` until they have a sample. */
+	shape: VoiceShape_Serialize | null,
+};
+
+/**
+ *  A Saved person: a name and an averaged voiceprint (the voiceprint itself never crosses IPC;
+ *  [`PersonVoice`] carries a coarse picture of it for drawing).
+ */
+export type Person_Deserialize = {
 	id: string,
 	name: string,
 	/**  1..=8, maps to the `speaker-N` colour tokens. */
@@ -1657,6 +1759,27 @@ export type Person = {
 	created_at: string,
 	/**  "You": the app's user. Always there; cannot be deleted or merged away. */
 	is_self: boolean,
+	/**  When they were last in a meeting. */
+	last_met?: string | null,
+};
+
+/**
+ *  A Saved person: a name and an averaged voiceprint (the voiceprint itself never crosses IPC;
+ *  [`PersonVoice`] carries a coarse picture of it for drawing).
+ */
+export type Person_Serialize = {
+	id: string,
+	name: string,
+	/**  1..=8, maps to the `speaker-N` colour tokens. */
+	color_index: number,
+	/**  Voice samples Cilica recognises them by (one per speaker you confirmed as them). */
+	sample_count: number,
+	meeting_count: number,
+	created_at: string,
+	/**  "You": the app's user. Always there; cannot be deleted or merged away. */
+	is_self: boolean,
+	/**  When they were last in a meeting. */
+	last_met: string | null,
 };
 
 /**  A suggested prompt shown in the assistant's empty state. */
@@ -2014,7 +2137,10 @@ export type SoundSettings_Serialize = {
 	interface_sounds: boolean,
 };
 
-/**  A speaker within one meeting. "You", "Others" (before diarization) or "Person 2". */
+/**
+ *  A speaker within one meeting: "Person 2" until someone (or Cilica, from their voice) knows
+ *  who they are. Meetings recorded before that also have "You" and "Others".
+ */
 export type Speaker = Speaker_Serialize | Speaker_Deserialize;
 
 export type SpeakerCount = {
@@ -2022,6 +2148,13 @@ export type SpeakerCount = {
 	/**  Meetings this name speaks in. */
 	meetings: number,
 };
+
+/**  Why a meeting's speakers could not be told apart, so its lines have no speaker. */
+export type SpeakerDetection = 
+/**  Speaker labels were off in Settings › Transcription when it was recorded. */
+"off" | 
+/**  The voice model could not be loaded. */
+"unavailable";
 
 /**  A voice model Cilica can tell speakers apart with, on this computer. */
 export type SpeakerModel = {
@@ -2056,7 +2189,10 @@ export type SpeakerSuggestion = {
 	similarity: number | null,
 };
 
-/**  A speaker within one meeting. "You", "Others" (before diarization) or "Person 2". */
+/**
+ *  A speaker within one meeting: "Person 2" until someone (or Cilica, from their voice) knows
+ *  who they are. Meetings recorded before that also have "You" and "Others".
+ */
 export type Speaker_Deserialize = {
 	id: string,
 	note_id: string,
@@ -2065,11 +2201,14 @@ export type Speaker_Deserialize = {
 	person_id?: string | null,
 	/**  1..=8, maps to the `speaker-N` colour tokens. A linked person's colour wins. */
 	color_index: number,
-	/**  True for the mic-channel speaker that is the app's user. */
+	/**  True for the speaker that is the app's user (linked to "You"). */
 	is_self: boolean,
 };
 
-/**  A speaker within one meeting. "You", "Others" (before diarization) or "Person 2". */
+/**
+ *  A speaker within one meeting: "Person 2" until someone (or Cilica, from their voice) knows
+ *  who they are. Meetings recorded before that also have "You" and "Others".
+ */
 export type Speaker_Serialize = {
 	id: string,
 	note_id: string,
@@ -2078,7 +2217,7 @@ export type Speaker_Serialize = {
 	person_id: string | null,
 	/**  1..=8, maps to the `speaker-N` colour tokens. A linked person's colour wins. */
 	color_index: number,
-	/**  True for the mic-channel speaker that is the app's user. */
+	/**  True for the speaker that is the app's user (linked to "You"). */
 	is_self: boolean,
 };
 
@@ -2525,6 +2664,8 @@ export type Transcript_Deserialize = {
 	 *  times then only keep the order, and the transcript hides them.
 	 */
 	timed?: boolean,
+	/**  Set when this meeting's speakers could not be told apart. */
+	speaker_detection?: SpeakerDetection | null,
 };
 
 export type Transcript_Serialize = {
@@ -2542,6 +2683,8 @@ export type Transcript_Serialize = {
 	 *  times then only keep the order, and the transcript hides them.
 	 */
 	timed: boolean,
+	/**  Set when this meeting's speakers could not be told apart. */
+	speaker_detection: SpeakerDetection | null,
 };
 
 export type TranscriptionSettings = TranscriptionSettings_Serialize | TranscriptionSettings_Deserialize;
@@ -2765,6 +2908,71 @@ export type ViewContext_Serialize = {
 	category_id: string | null,
 	search_query: string | null,
 	is_recording: boolean,
+};
+
+/**  One sample: binned like the voiceprint, and placed on a 2D map around it (0, 0). */
+export type VoiceSampleShape = VoiceSampleShape_Serialize | VoiceSampleShape_Deserialize;
+
+/**  One sample: binned like the voiceprint, and placed on a 2D map around it (0, 0). */
+export type VoiceSampleShape_Deserialize = {
+	id: string,
+	bins: (number | null)[],
+	/**  How much it sounds like the voiceprint (cosine similarity), 0..=1. */
+	similarity: number | null,
+	x: number | null,
+	y: number | null,
+	speech_ms: number,
+	/**  The meeting it came from, while that is known. */
+	note_id?: string | null,
+	note_title?: string | null,
+	created_at: string,
+};
+
+/**  One sample: binned like the voiceprint, and placed on a 2D map around it (0, 0). */
+export type VoiceSampleShape_Serialize = {
+	id: string,
+	bins: (number | null)[],
+	/**  How much it sounds like the voiceprint (cosine similarity), 0..=1. */
+	similarity: number | null,
+	x: number | null,
+	y: number | null,
+	speech_ms: number,
+	/**  The meeting it came from, while that is known. */
+	note_id: string | null,
+	note_title: string | null,
+	created_at: string,
+};
+
+/**
+ *  A coarse picture of a voiceprint for drawing: values folded into a few bins and scaled to
+ *  -1..=1. Too coarse to recognise anyone by.
+ */
+export type VoiceShape = VoiceShape_Serialize | VoiceShape_Deserialize;
+
+/**
+ *  A coarse picture of a voiceprint for drawing: values folded into a few bins and scaled to
+ *  -1..=1. Too coarse to recognise anyone by.
+ */
+export type VoiceShape_Deserialize = {
+	/**  The voiceprint, binned. */
+	mean: (number | null)[],
+	/**  How much the samples differ from it in each bin, 0..=1. */
+	spread: (number | null)[],
+	/**  Newest first. */
+	samples: VoiceSampleShape_Deserialize[],
+};
+
+/**
+ *  A coarse picture of a voiceprint for drawing: values folded into a few bins and scaled to
+ *  -1..=1. Too coarse to recognise anyone by.
+ */
+export type VoiceShape_Serialize = {
+	/**  The voiceprint, binned. */
+	mean: (number | null)[],
+	/**  How much the samples differ from it in each bin, 0..=1. */
+	spread: (number | null)[],
+	/**  Newest first. */
+	samples: VoiceSampleShape_Serialize[],
 };
 
 export type WritingHours = {

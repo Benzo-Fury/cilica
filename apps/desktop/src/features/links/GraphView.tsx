@@ -81,7 +81,7 @@ export function GraphView({ focus }: { focus?: string }) {
         if (node.note_id) openNote(node.note_id);
         return;
       case "person":
-        navigate({ name: "people" });
+        navigate({ name: "people", personId: node.key.slice(2) });
         return;
       case "missing":
         create.mutate({ title: node.label, categoryId: null });

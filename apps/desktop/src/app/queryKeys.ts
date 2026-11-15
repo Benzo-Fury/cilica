@@ -25,6 +25,9 @@ export const qk = {
   transcript: (noteId: string) => ["transcript", noteId] as const,
   transcriptPrefix: ["transcript"] as const,
   people: ["people"] as const,
+  /** Under `people`, so whatever refreshes people refreshes their voices too. */
+  personVoice: (personId: string) => ["people", "voice", personId] as const,
+  personMeetings: (personId: string) => ["people", "meetings", personId] as const,
   tasks: ["tasks"] as const,
   proposals: ["proposals"] as const,
   aiActions: ["ai_actions"] as const,

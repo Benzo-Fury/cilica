@@ -550,33 +550,37 @@ function seedDemo(state: MockState, now: number): void {
       meeting_count: 12,
       created_at: ago(now, { days: 120 }),
       is_self: true,
+      last_met: null,
     },
     {
       id: "person_priya",
       name: "Priya Shah",
       color_index: 6,
-      sample_count: 23,
+      sample_count: 15,
       meeting_count: 23,
       created_at: ago(now, { days: 90 }),
       is_self: false,
+      last_met: null,
     },
     {
       id: "person_marco",
       name: "Marco Diaz",
       color_index: 2,
-      sample_count: 9,
+      sample_count: 5,
       meeting_count: 9,
       created_at: ago(now, { days: 60 }),
       is_self: false,
+      last_met: null,
     },
     {
       id: "person_sam",
       name: "Sam Lee",
       color_index: 3,
-      sample_count: 14,
+      sample_count: 8,
       meeting_count: 14,
       created_at: ago(now, { days: 75 }),
       is_self: false,
+      last_met: null,
     },
   ];
 
@@ -765,6 +769,7 @@ function q3Transcript(): Transcript {
     duration_ms: 42 * 60_000,
     has_audio: true,
     timed: true,
+    speaker_detection: null,
     quotes: [
       {
         at_ms: 901_000,
@@ -821,6 +826,7 @@ function pricingTranscript(): Transcript {
     duration_ms: 31 * 60_000,
     has_audio: false,
     timed: true,
+    speaker_detection: null,
     quotes: [
       {
         at_ms: 26_000,

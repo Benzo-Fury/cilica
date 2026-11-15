@@ -24,6 +24,7 @@ import { LAUNCH_SLOWDOWN, useIntroHolding } from "./intro";
 function viewKey(view: View): string {
   // A task report is its own page; the task list is another.
   if (view.name === "tasks") return view.taskRunId ? `tasks:${view.taskRunId}` : "tasks";
+  if (view.name === "people") return view.personId ? `people:${view.personId}` : "people";
   return view.name === "note" ? `note:${view.noteId}` : view.name;
 }
 
@@ -38,7 +39,7 @@ function renderView(view: View): ReactNode {
     case "settings":
       return <SettingsView page={view.page} />;
     case "people":
-      return <PeopleView />;
+      return <PeopleView personId={view.personId} />;
     case "graph":
       return <GraphView focus={view.focus} />;
     case "tasks":

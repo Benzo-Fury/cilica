@@ -407,7 +407,10 @@ describe("speech engines", () => {
     await api().stopRecording();
     await vi.advanceTimersByTimeAsync(30_000);
     const transcript = await api().getTranscript(noteId);
-    expect(transcript.segments.every((s) => s.speaker_id !== null)).toBe(true);
+    // Every voice is a Person, the mic's too: nobody is assumed to be You.
+    expect(transcript.speakers.length).toBeGreaterThan(0);
+    expect(transcript.speakers.every((s) => !s.is_self && /^Person \d+$/.test(s.label))).toBe(true);
+    expect(transcript.speaker_detection).toBeNull();
   });
 
   it("uses the service's labels only where it has them, and none when off", async () => {
@@ -433,6 +436,10 @@ describe("speech engines", () => {
       trigger: "manual",
     });
     expect(off.live_speakers).toBe(false);
+    await vi.advanceTimersByTimeAsync(6_000);
+    const offTranscript = await api().getTranscript(off.note_id as string);
+    expect(offTranscript.speaker_detection).toBe("off");
+    expect(offTranscript.segments.every((s) => s.speaker_id === null)).toBe(true);
   });
 
   it("tests a cloud service with the sample clip, word by word", async () => {
@@ -524,5 +531,36 @@ describe("saved voices", () => {
     expect((await rejection(api().mergePeople(you.id, other.id))).code).toBe("invalid");
     expect((await api().forgetPersonVoice(you.id)).sample_count).toBe(0);
     expect((await api().listPeople()).some((p) => p.is_self)).toBe(true);
+  });
+
+  it("lists a person's meetings, newest first, matching what their voice learnt from", async () => {
+    const priya = (await api().listPeople()).find((p) => p.name === "Priya Shah");
+    if (!priya) throw new Error("expected Priya");
+    const meetings = await api().listPersonMeetings(priya.id);
+    expect(meetings).toHaveLength(priya.meeting_count);
+    expect(meetings[0]?.note_id).toBe("note_q3");
+    expect(priya.last_met).toBe(meetings[0]?.at);
+    const sorted = [...meetings].sort((a, b) => b.at.localeCompare(a.at));
+    expect(meetings.map((m) => m.note_id)).toEqual(sorted.map((m) => m.note_id));
+    const voice = await api().getPersonVoice(priya.id);
+    const learnt = new Set(meetings.filter((m) => m.named_by === "you").map((m) => m.note_id));
+    expect(voice.shape?.samples.every((s) => s.note_id && learnt.has(s.note_id))).toBe(true);
+  });
+
+  it("takes one meeting out of a voice, and forgets every voice", async () => {
+    const someone = (await api().listPeople()).find((p) => !p.is_self && p.sample_count > 1);
+    if (!someone) throw new Error("expected someone with a voice");
+    const before = await api().getPersonVoice(someone.id);
+    const first = before.shape?.samples[0];
+    if (!first) throw new Error("expected samples");
+    const after = await api().removeVoiceSample(first.id);
+    expect(after.sample_count).toBe(someone.sample_count - 1);
+    const voice = await api().getPersonVoice(someone.id);
+    expect(voice.shape?.samples.some((s) => s.id === first.id)).toBe(false);
+    expect((await rejection(api().removeVoiceSample(first.id))).code).toBe("not_found");
+
+    const people = await api().forgetAllVoices();
+    expect(people.every((p) => p.sample_count === 0)).toBe(true);
+    expect((await api().getPersonVoice(someone.id)).shape).toBeNull();
   });
 });

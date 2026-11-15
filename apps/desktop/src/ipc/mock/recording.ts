@@ -21,6 +21,8 @@ import type {
   PermissionKind,
   PermissionStatus,
   Person,
+  PersonMeeting,
+  PersonVoice,
   RecordingState,
   Segment,
   Speaker,
@@ -40,6 +42,7 @@ import type { MockContext } from "./state";
 import { idleRecording } from "./state";
 import { Timers } from "./timers";
 import { appError, clock, iso, newId, notFound, wordChunks } from "./util";
+import { type MockMeeting, mockPersonMeetings, mockPersonVoice } from "./voice";
 
 /** How long after a final line Cilica's speaker detection names who said it. */
 const PENDING_MS = 1_800;
@@ -104,6 +107,41 @@ export function recordingCommands({ state, emit }: MockContext) {
   let startedMs = 0;
   let levels = { mic: 0, system: 0 };
   const downloads = new Map<string, ReturnType<typeof setInterval>>();
+  /** Voice samples taken out one by one, per person (the mock makes samples up from a count). */
+  const removedSamples = new Map<string, Set<string>>();
+  /** A person's meetings: the seeded transcripts they speak in, then a made-up history. */
+  const meetingsOf = (person: Person): PersonMeeting[] => {
+    const real: MockMeeting[] = [];
+    for (const [noteId, transcript] of state.transcripts) {
+      const note = state.notes.get(noteId);
+      if (!note || note.deleted_at) continue;
+      const theirs = new Set(
+        transcript.speakers
+          .filter((s) => s.person_id === person.id || (person.is_self && s.is_self))
+          .map((s) => s.id),
+      );
+      if (!theirs.size) continue;
+      const lines = transcript.segments.filter((g) => g.speaker_id && theirs.has(g.speaker_id));
+      real.push({
+        id: note.id,
+        title: note.title,
+        at: note.started_at ?? note.created_at,
+        duration_ms: transcript.duration_ms ?? null,
+        speech_ms: lines.reduce((a, g) => a + Math.max(0, g.end_ms - g.start_ms), 0),
+        lines: lines.length,
+      });
+    }
+    real.sort((a, b) => b.at.localeCompare(a.at));
+    const removed = removedSamples.get(person.id)?.size ?? 0;
+    return mockPersonMeetings(person, new Date(), real, person.sample_count + removed);
+  };
+  /** A person as listed: meeting count and last met from their meetings. */
+  const withMeetings = (person: Person): Person => {
+    const meetings = meetingsOf(person);
+    person.meeting_count = meetings.length;
+    person.last_met = meetings[0]?.at ?? null;
+    return person;
+  };
   /** Called when a download finishes (download-and-use). */
   const onDownloaded = new Map<string, () => void>();
   /** Cloud speech services with a key in the "keychain". */
@@ -176,24 +214,13 @@ export function recordingCommands({ state, emit }: MockContext) {
         has_audio: true,
         timed: true,
         quotes: [],
+        speaker_detection: null,
       };
       state.transcripts.set(noteId, transcript);
     }
-    for (const [label, isSelf, color] of [
-      ["You", true, 1],
-      ["Others", false, 2],
-    ] as const) {
-      if (!transcript.speakers.some((s) => s.label === label)) {
-        transcript.speakers.push({
-          id: newId("spk"),
-          note_id: noteId,
-          label,
-          person_id: null,
-          color_index: color,
-          is_self: isSelf,
-        });
-      }
-    }
+    // Speakers can't be told apart with labels off: lines get no speaker, and the note says why.
+    transcript.speaker_detection =
+      speakerLabels(state.settings.transcription) === "off" ? "off" : null;
     return transcript;
   };
 
@@ -214,13 +241,13 @@ export function recordingCommands({ state, emit }: MockContext) {
     scriptIndex += 1;
     const transcript = liveTranscript(noteId);
     const labels = speakerLabels(state.settings.transcription);
-    const fallback = transcript.speakers.find(
-      (s) => s.label === (line.channel === "mic" ? "You" : "Others"),
-    );
+    // Every voice is a Person, the mic's too: nobody is assumed to be You.
     const person =
-      labels === "off" || line.channel === "mic"
-        ? fallback
-        : personSpeaker(transcript, (callLines++ % 2) + 1);
+      labels === "off"
+        ? undefined
+        : line.channel === "mic"
+          ? personSpeaker(transcript, 3)
+          : personSpeaker(transcript, (callLines++ % 2) + 1);
     // Cilica's own detection decides a moment after the words; a service labels at once.
     const speaker = labels === "local" ? undefined : person;
     const words = line.text.split(" ");
@@ -498,12 +525,8 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         transcript.duration_ms = Date.now() - startedMs;
       }
       setRecording({ phase: "stopping", auto_stop_at: null });
-      // Lines still pending go to You or Others; speakers left with nothing said are dropped.
+      // Lines still pending keep no speaker; speakers left with nothing said are dropped.
       if (transcript) {
-        const fallback = (channel: AudioChannel) =>
-          transcript.speakers.find((p) => p.label === (channel === "mic" ? "You" : "Others"))?.id ??
-          null;
-        for (const s of transcript.segments) s.speaker_id ??= fallback(s.channel);
         transcript.speakers = transcript.speakers.filter((p) =>
           transcript.segments.some((s) => s.speaker_id === p.id),
         );
@@ -764,6 +787,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
           note_id: noteId,
           speakers: [],
           segments: [],
+          speaker_detection: null,
           duration_ms: null,
           has_audio: false,
           timed: true,
@@ -825,6 +849,7 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         meeting_count: 1,
         created_at: iso(),
         is_self: false,
+        last_met: null,
       };
       state.people.push(person);
       speaker.person_id = person.id;
@@ -857,9 +882,9 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     // ── Saved people ──
 
     listPeople(): Person[] {
-      return [...state.people].sort(
-        (a, b) => Number(b.is_self) - Number(a.is_self) || a.name.localeCompare(b.name),
-      );
+      return state.people
+        .map(withMeetings)
+        .sort((a, b) => Number(b.is_self) - Number(a.is_self) || a.name.localeCompare(b.name));
     },
 
     renamePerson(personId: string, name: string): Person {
@@ -916,7 +941,39 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     forgetPersonVoice(personId: string): Person {
       const person = requirePerson(personId);
       person.sample_count = 0;
+      removedSamples.delete(personId);
       return person;
+    },
+
+    getPersonVoice(personId: string): PersonVoice {
+      const person = withMeetings(requirePerson(personId));
+      return mockPersonVoice(person, new Date(), removedSamples.get(personId), meetingsOf(person));
+    },
+
+    listPersonMeetings(personId: string): PersonMeeting[] {
+      return meetingsOf(requirePerson(personId));
+    },
+
+    removeVoiceSample(sampleId: string): Person {
+      const person = state.people.find((p) =>
+        mockPersonVoice(p, new Date(), removedSamples.get(p.id), meetingsOf(p)).shape?.samples.some(
+          (s) => s.id === sampleId,
+        ),
+      );
+      if (!person) throw appError("not_found", "That voice sample was not found.");
+      const removed = removedSamples.get(person.id) ?? new Set<string>();
+      removed.add(sampleId);
+      removedSamples.set(person.id, removed);
+      person.sample_count = Math.max(0, person.sample_count - 1);
+      return person;
+    },
+
+    forgetAllVoices(): Person[] {
+      for (const p of state.people) p.sample_count = 0;
+      removedSamples.clear();
+      return state.people
+        .map(withMeetings)
+        .sort((a, b) => Number(b.is_self) - Number(a.is_self) || a.name.localeCompare(b.name));
     },
 
     /** Test helper: stop every timer. */

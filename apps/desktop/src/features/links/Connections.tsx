@@ -40,7 +40,7 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
     const node: GraphNode | undefined = byKey.get(key);
     if (!node || key === focusKey) return;
     if (node.kind === "note" && node.note_id) openNote(node.note_id);
-    else if (node.kind === "person") navigate({ name: "people" });
+    else if (node.kind === "person") navigate({ name: "people", personId: node.key.slice(2) });
     else if (node.kind === "missing") create.mutate({ title: node.label, categoryId });
     else if (node.kind === "tag") openGraph(key);
   };

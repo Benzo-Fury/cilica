@@ -1,10 +1,10 @@
-import { FolderPlus, PanelLeft, Search, SquarePen } from "lucide-react";
+import { FolderPlus, PanelLeft, SquarePen } from "lucide-react";
 import { LayoutGroup } from "motion/react";
 import { runAction, useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
 import { usePanels } from "@/features/shell/panels";
 import { isTauri } from "@/ipc/client";
-import { Icon, IconButton, Kbd, TitleBand, TrafficLightsSpace } from "@/ui";
+import { IconButton, SearchButton, TitleBand, TrafficLightsSpace } from "@/ui";
 import { BottomSection } from "./BottomSection";
 import { NoteTree } from "./NoteTree";
 import { useSidebarUi } from "./store";
@@ -49,16 +49,7 @@ export function Sidebar() {
           {/* On Windows the window controls sit top right, so the buttons start at the left. */}
           {!isMac && <span className="nt-band-spacer" data-tauri-drag-region />}
         </TitleBand>
-        <button
-          type="button"
-          className="nt-sidebar-searchbtn"
-          onClick={() => runAction("palette.open")}
-          aria-keyshortcuts={keys.search.join("+")}
-        >
-          <Icon icon={Search} size="sm" />
-          <span>Search</span>
-          <Kbd keys={keys.search} />
-        </button>
+        <SearchButton keys={keys.search} onClick={() => runAction("palette.open")} />
         <nav className="nt-sidebar-scroll" aria-label="Notes">
           <NoteTree />
         </nav>

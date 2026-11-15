@@ -88,7 +88,7 @@ export function useOpenLink(categoryId: string | null = null) {
           openNote(resolved.noteId);
           return;
         case "person":
-          navigate({ name: "people" });
+          navigate({ name: "people", personId: resolved.personId });
           return;
         case "missing":
           if (resolved.title) create.mutate({ title: resolved.title, categoryId });

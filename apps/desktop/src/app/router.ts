@@ -27,7 +27,8 @@ export type View =
     }
   | { name: "trash" }
   | { name: "settings"; page: SettingsPageId }
-  | { name: "people" }
+  /** Saved people, or one person's page. */
+  | { name: "people"; personId?: string }
   /** The link graph. `focus` is a node key to centre on (`n:<note id>`, `t:<tag>`). */
   | { name: "graph"; focus?: string }
   | { name: "tasks"; taskRunId?: string }
@@ -72,6 +73,9 @@ export const openNote = (
 ) => navigate({ name: "note", noteId, ...options });
 export const openGraph = (focus?: string) =>
   navigate(focus ? { name: "graph", focus } : { name: "graph" });
+/** Saved people, or one person's page there. */
+export const openPerson = (personId?: string) =>
+  navigate(personId ? { name: "people", personId } : { name: "people" });
 export const openSettings = (page: SettingsPageId = "general") =>
   navigate({ name: "settings", page });
 
