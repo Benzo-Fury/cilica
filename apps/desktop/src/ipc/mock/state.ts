@@ -126,6 +126,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
     writing: { check_spelling: true },
     keybinds: {},
     launch_at_login: false,
+    safe_for_work: false,
     onboarding_done: onboardingDone,
     updates: { auto_install: true },
   };

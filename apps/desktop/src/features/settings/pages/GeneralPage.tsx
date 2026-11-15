@@ -1,4 +1,5 @@
 import { Keyboard, RefreshCw, RotateCw, Sparkle } from "lucide-react";
+import { isJarFace } from "@/features/home/glance";
 import { useOpenSetup } from "@/features/onboarding/hooks";
 import { useOverlays } from "@/features/shell/overlays";
 import {
@@ -46,6 +47,30 @@ export function GeneralPage() {
               checked={settings.writing.check_spelling}
               onCheckedChange={(check_spelling) =>
                 update((s) => ({ ...s, writing: { ...s.writing, check_spelling } }))
+              }
+            />
+          }
+        />
+      </SettingsGroup>
+      <SettingsGroup title="Language">
+        <SettingsRow
+          id="sfw-label"
+          label="Safe for work"
+          description="Cilica keeps its own words clean and puts the swear jar away. Your notes and transcripts stay as they are."
+          control={
+            <Switch
+              aria-labelledby="sfw-label"
+              checked={settings.safe_for_work}
+              onCheckedChange={(safe_for_work) =>
+                update((s) => ({
+                  ...s,
+                  safe_for_work,
+                  // A kept jar face has nothing to show once the jar is away
+                  appearance:
+                    safe_for_work && isJarFace(s.appearance.home_face)
+                      ? { ...s.appearance, home_face: "random" }
+                      : s.appearance,
+                }))
               }
             />
           }

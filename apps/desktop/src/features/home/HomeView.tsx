@@ -8,7 +8,7 @@ import { Shuffle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ShortcutTip } from "@/app/keybinds";
 import { useNotes } from "@/features/notes/hooks";
-import { useSettings } from "@/features/settings/hooks";
+import { jarOn, useSettings } from "@/features/settings/hooks";
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import { useIntro } from "@/features/shell/intro";
 import { Button, EmptyState, GlanceFooter, ScrollArea, ViewLayer } from "@/ui";
@@ -23,8 +23,11 @@ export function HomeView() {
   const fresh = !isLoading && (notes?.length ?? 0) === 0;
   const glance = useHomeGlance(!isLoading && !fresh);
   const [roll] = useState(Math.random);
-  const faces = availableFaces(glance.data);
   const { data: settings } = useSettings();
+  // Safe for work puts the jar away, even before the glance catches up with the setting
+  const faces = availableFaces(
+    glance.data && !jarOn(settings) ? { ...glance.data, swear_jar: null } : glance.data,
+  );
   const kept = settings?.appearance.home_face;
   const ready = !isLoading && (fresh || (!glance.isPending && kept !== undefined));
   // Settle the face once the data is in; keep it for the rest of this visit.

@@ -116,6 +116,14 @@ export const DATA_PAGES: readonly SettingsPageDef[] = [
   },
 ];
 
+/** The pages to list, without the ones Safe for work puts away. */
+export function shownPages(
+  pages: readonly SettingsPageDef[],
+  sfw: boolean,
+): readonly SettingsPageDef[] {
+  return sfw ? pages.filter((p) => p.id !== "swear_jar") : pages;
+}
+
 /** Every settings page, for the command palette and lookups. */
 export const ALL_SETTINGS_PAGES: readonly SettingsPageDef[] = [...SETTINGS_PAGES, ...DATA_PAGES];
 

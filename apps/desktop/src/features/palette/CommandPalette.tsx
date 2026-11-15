@@ -58,7 +58,8 @@ import { isMac } from "@/app/platform";
 import { navigate, openNote, openSettings } from "@/app/router";
 import { askCilica, useAssistantStore } from "@/features/assistant/store";
 import { useCategories, useNotes } from "@/features/notes/hooks";
-import { ALL_SETTINGS_PAGES } from "@/features/settings/pages";
+import { useSafeForWork } from "@/features/settings/hooks";
+import { ALL_SETTINGS_PAGES, shownPages } from "@/features/settings/pages";
 import { useOverlays } from "@/features/shell/overlays";
 import { usePanels } from "@/features/shell/panels";
 import { useTasks } from "@/features/tasks/hooks";
@@ -154,6 +155,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
   const { data: notes = [] } = useNotes();
   const { data: categories = [] } = useCategories();
   const { data: tasks = [] } = useTasks();
+  const sfw = useSafeForWork();
   const vocabulary = useSearchVocabulary();
   const q = query.trim();
 
@@ -214,7 +216,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       );
   const pages = details
     ? []
-    : ALL_SETTINGS_PAGES.filter(
+    : shownPages(ALL_SETTINGS_PAGES, sfw).filter(
         (p) => !q || matches(`Settings ${p.label} ${p.keywords.join(" ")}`, q),
       );
 

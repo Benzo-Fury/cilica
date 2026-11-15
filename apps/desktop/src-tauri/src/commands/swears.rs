@@ -25,12 +25,13 @@ pub async fn list_swear_words() -> AppResult<Vec<SwearWord>> {
     Ok(Swears::words())
 }
 
-/// A swear typed into a note. Counted only while the jar and "Notes you write" are on.
+/// A swear typed into a note. Counted only while the jar and "Notes you write" are on and Safe for
+/// work is off.
 #[tauri::command]
 #[specta::specta]
 pub async fn add_swear_coin(core: State<'_, Core>, note_id: Option<Id>, word: String) -> AppResult<()> {
-    let prefs = core.db.get_settings().await?.swear_jar;
-    if !prefs.enabled || !prefs.notes {
+    let settings = core.db.get_settings().await?;
+    if !settings.swear_jar_on() || !settings.swear_jar.notes {
         return Ok(());
     }
     core.db.add_swear_coin(note_id, &word, now()).await?;

@@ -410,8 +410,19 @@ pub struct Settings {
     /// Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R").
     pub keybinds: BTreeMap<String, String>,
     pub launch_at_login: bool,
+    /// Keep Cilica's own words clean: its quips lose the swearing and the swear jar goes away
+    /// entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
+    pub safe_for_work: bool,
     pub onboarding_done: bool,
     pub updates: UpdateSettings,
+}
+
+impl Settings {
+    /// Whether the swear jar counts and shows itself: on in Settings › Swear jar, and not hidden by
+    /// Safe for work.
+    pub fn swear_jar_on(&self) -> bool {
+        self.swear_jar.enabled && !self.safe_for_work
+    }
 }
 
 #[cfg(test)]
@@ -433,6 +444,20 @@ mod tests {
         let face: HomeFace = serde_json::from_str("\"word\"").unwrap();
         assert_eq!(face, HomeFace::Tics);
         assert_eq!(serde_json::to_string(&HomeFace::Tics).unwrap(), "\"tics\"");
+    }
+
+    #[test]
+    fn settings_saved_before_safe_for_work_existed_keep_swearing() {
+        let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
+        assert!(!settings.safe_for_work);
+        assert!(settings.swear_jar_on());
+    }
+
+    #[test]
+    fn safe_for_work_puts_the_swear_jar_away() {
+        let settings = Settings { safe_for_work: true, ..Settings::default() };
+        assert!(settings.swear_jar.enabled);
+        assert!(!settings.swear_jar_on());
     }
 
     #[test]

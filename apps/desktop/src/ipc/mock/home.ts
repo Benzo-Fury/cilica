@@ -196,9 +196,10 @@ export function homeCommands({ state }: MockContext) {
         slow_decision: slowDecision(decided),
         monologue: m,
         undos: undosSince(state, since),
-        swear_jar: state.settings.swear_jar.enabled
-          ? swearJar(state, state.settings.swear_jar)
-          : null,
+        swear_jar:
+          state.settings.swear_jar.enabled && !state.settings.safe_for_work
+            ? swearJar(state, state.settings.swear_jar)
+            : null,
       };
     },
   };

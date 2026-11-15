@@ -1,4 +1,5 @@
 import { THEMES, themeLook, themeOption } from "@/app/theme/themes";
+import { isJarFace } from "@/features/home/glance";
 import { HomeFacePreview } from "@/features/home/HomeFacePreview";
 import type { HomeFace, NoteFont } from "@/ipc/types";
 import {
@@ -127,8 +128,10 @@ export function AppearancePage() {
           control={
             <SelectMenu
               label="When no note is open"
-              value={a.home_face}
-              options={HOME_FACES}
+              value={settings.safe_for_work && isJarFace(a.home_face) ? "random" : a.home_face}
+              options={
+                settings.safe_for_work ? HOME_FACES.filter((f) => !isJarFace(f.value)) : HOME_FACES
+              }
               onChange={(home_face) => patch("appearance", { home_face })}
             />
           }

@@ -410,14 +410,14 @@ impl Db {
         })
     }
 
-    /// This week's swear jar, in local time, when Settings has it on.
+    /// This week's swear jar, in local time, when Settings has it on and Safe for work is off.
     async fn glance_swear_jar(&self) -> StoreResult<Option<SwearJar>> {
-        let prefs = self.get_settings().await?.swear_jar;
-        if !prefs.enabled {
+        let settings = self.get_settings().await?;
+        if !settings.swear_jar_on() {
             return Ok(None);
         }
         let start = crate::week_start(cilica_domain::chrono::Local::now());
-        Ok(Some(self.swear_jar(start, &prefs).await?))
+        Ok(Some(self.swear_jar(start, &settings.swear_jar).await?))
     }
 
         /// Every meeting with a known length, oldest first: (id, title, held at, length).

@@ -50,6 +50,9 @@ export function availableFaces(glance: HomeGlance | undefined): GlanceFace[] {
 export const JAR_FACES = ["swear_jar", "whos_paying", "clean_week"] as const;
 export type JarFace = (typeof JAR_FACES)[number];
 
+export const isJarFace = (face: string): face is JarFace =>
+  (JAR_FACES as readonly string[]).includes(face);
+
 /** Thursday to Sunday: late enough in the week for a clean jar to mean something. */
 const LATE_WEEK = new Set([4, 5, 6, 0]);
 

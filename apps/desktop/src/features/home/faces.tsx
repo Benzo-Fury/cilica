@@ -10,7 +10,7 @@ import type { HomeGlance, NoteLine, Pace, Silence, TalkShare, WritingHours } fro
 
 type Data<K extends keyof HomeGlance> = NonNullable<HomeGlance[K]>;
 
-import { useSettings } from "@/features/settings/hooks";
+import { useSafeForWork, useSettings } from "@/features/settings/hooks";
 import { money, relativeDate } from "@/lib/format";
 import {
   Avatar,
@@ -244,6 +244,7 @@ function MonologueFace({ m }: { m: Data<"monologue"> }) {
 
 function BareNoteFace({ note }: { note: Data<"bare_note"> }) {
   const title = note.title.replace(/[.!?…]+$/, "");
+  const sfw = useSafeForWork();
   return (
     <div className="nt-glance">
       <BareNoteCard
@@ -252,7 +253,8 @@ function BareNoteFace({ note }: { note: Data<"bare_note"> }) {
         onOpen={() => openNote(note.note_id)}
       />
       <p className="nt-glance-line">
-        “{title}.” That's the whole <b className="nt-glance-hot">fucking</b> note.
+        “{title}.” That's the whole <b className="nt-glance-hot">{sfw ? "entire" : "fucking"}</b>{" "}
+        note.
       </p>
     </div>
   );
@@ -311,6 +313,7 @@ function ghostwriterQuip(pct: number): string {
 
 function UndosFace({ u }: { u: Data<"undos"> }) {
   const latest = u.latest;
+  const sfw = useSafeForWork();
   return (
     <div className="nt-glance">
       {latest && (
@@ -320,7 +323,7 @@ function UndosFace({ u }: { u: Data<"undos"> }) {
         You undid Cilica's edits <b className="nt-glance-hot">{u.count} times</b> this week
       </p>
       <span className="nt-glance-caption">
-        That's {numberWord(u.count)} polite ways of saying piss off.
+        That's {numberWord(u.count)} polite ways of saying {sfw ? "no thanks" : "piss off"}.
       </span>
     </div>
   );

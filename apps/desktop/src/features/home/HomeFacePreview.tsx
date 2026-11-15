@@ -4,10 +4,11 @@
  */
 import { useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
+import { useSafeForWork } from "@/features/settings/hooks";
 import type { HomeFace } from "@/ipc/types";
 import { ScaledPreview } from "@/ui";
 import { FaceView } from "./faces";
-import { type GlanceFace, JAR_FACES, type JarFace, jarFaceReady, useHomeGlance } from "./glance";
+import { type GlanceFace, isJarFace, jarFaceReady, useHomeGlance } from "./glance";
 import { sampleJar, withSamples } from "./sample";
 
 const CYCLE: GlanceFace[] = [
@@ -48,13 +49,18 @@ export function HomeFacePreview({ kept }: { kept: HomeFace }) {
   const { data } = useHomeGlance(true);
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
+  const sfw = useSafeForWork();
+  // Safe for work puts the jar away: its faces drop out of the cycle
+  const cycle = sfw ? CYCLE.filter((f) => !isJarFace(f)) : CYCLE;
+  const keptFace = sfw && isJarFace(kept) ? "random" : kept;
   useEffect(() => {
-    if (kept !== "random" || reduced) return;
+    if (keptFace !== "random" || reduced) return;
     const t = setInterval(() => setStep((s) => s + 1), CYCLE_MS);
     return () => clearInterval(t);
-  }, [kept, reduced]);
+  }, [keptFace, reduced]);
 
-  const face: GlanceFace = kept === "random" ? (CYCLE[step % CYCLE.length] ?? "doodle") : kept;
+  const face: GlanceFace =
+    keptFace === "random" ? (cycle[step % cycle.length] ?? "doodle") : keptFace;
   const samples = withSamples(data);
   const sampled = samples.sampled;
   const real = face === "doodle" || !sampledFor(face, data);
@@ -67,7 +73,7 @@ export function HomeFacePreview({ kept }: { kept: HomeFace }) {
         }
       : samples.glance;
   const caption =
-    kept === "random"
+    keptFace === "random"
       ? `A different one each time you open Home.${sampled ? " Some here are samples until there is enough to show." : ""}`
       : real
         ? "This week's numbers."
@@ -85,9 +91,6 @@ export function HomeFacePreview({ kept }: { kept: HomeFace }) {
     </ScaledPreview>
   );
 }
-
-const isJarFace = (face: GlanceFace): face is JarFace =>
-  (JAR_FACES as readonly string[]).includes(face);
 
 /** Whether this face has no real numbers yet. */
 function sampledFor(face: GlanceFace, real: ReturnType<typeof useHomeGlance>["data"]): boolean {

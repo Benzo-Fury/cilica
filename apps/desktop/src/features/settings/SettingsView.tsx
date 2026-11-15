@@ -7,7 +7,7 @@ import { navigate, openSettings, type SettingsPageId, useRouter } from "@/app/ro
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import { Crumb, Row, SkeletonText, ViewLayer } from "@/ui";
 import { useSettings } from "./hooks";
-import { ALL_SETTINGS_PAGES, DATA_PAGES, SETTINGS_PAGES, settingsPage } from "./pages";
+import { ALL_SETTINGS_PAGES, DATA_PAGES, SETTINGS_PAGES, settingsPage, shownPages } from "./pages";
 
 /** Pages that used to sit in the sidebar and are reached from here now. */
 const MORE = [
@@ -19,7 +19,9 @@ export function SettingsView({ page }: { page: SettingsPageId }) {
   const reduced = useReducedMotion();
   const back = useRouter((s) => s.back);
   const { data: settings } = useSettings();
-  const def = settingsPage(page);
+  const sfw = settings?.safe_for_work ?? false;
+  // A page Safe for work puts away opens General instead
+  const def = settingsPage(shownPages([settingsPage(page)], sfw).length ? page : "general");
   const Page = def.component;
   const order = ALL_SETTINGS_PAGES.findIndex((p) => p.id === page);
   useEscapeLayer(true, back);
@@ -38,7 +40,7 @@ export function SettingsView({ page }: { page: SettingsPageId }) {
                 icon={p.icon}
                 label={p.label}
                 title={p.label}
-                current={p.id === page}
+                current={p.id === def.id}
                 pillId="settings-pill"
                 onClick={() => openSettings(p.id)}
                 onKeyDown={(e) => {
@@ -50,7 +52,7 @@ export function SettingsView({ page }: { page: SettingsPageId }) {
               />
             ))}
             <div className="nt-settings-nav-label">Your data</div>
-            {DATA_PAGES.map((p) => (
+            {shownPages(DATA_PAGES, sfw).map((p) => (
               <Row
                 key={p.id}
                 role="link"
@@ -58,7 +60,7 @@ export function SettingsView({ page }: { page: SettingsPageId }) {
                 icon={p.icon}
                 label={p.label}
                 title={p.label}
-                current={p.id === page}
+                current={p.id === def.id}
                 pillId="settings-pill"
                 onClick={() => openSettings(p.id)}
                 onKeyDown={(e) => {

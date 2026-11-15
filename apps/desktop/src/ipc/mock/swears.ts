@@ -212,7 +212,7 @@ export function swearCommands({ state, emit }: MockContext) {
     },
     addSwearCoin(noteId: string | null, word: string): null {
       const prefs = state.settings.swear_jar;
-      if (!prefs.enabled || !prefs.notes) return null;
+      if (!prefs.enabled || state.settings.safe_for_work || !prefs.notes) return null;
       const c = matcher.canonical(word);
       if (!c) throw appError("invalid", `“${word}” is not a word the swear jar counts.`);
       state.swearCoins.push({ id: newId("coin"), note_id: noteId, word: c.root, at: iso() });

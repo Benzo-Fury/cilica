@@ -608,6 +608,7 @@ export function mergeSettings(current: Settings, input: SettingsInput): Settings
     writing: pick(current.writing, input.writing),
     keybinds: input.keybinds ? { ...input.keybinds } : { ...current.keybinds },
     launch_at_login: input.launch_at_login ?? current.launch_at_login,
+    safe_for_work: input.safe_for_work ?? current.safe_for_work,
     onboarding_done: input.onboarding_done ?? current.onboarding_done,
     updates: pick(current.updates, input.updates),
   };

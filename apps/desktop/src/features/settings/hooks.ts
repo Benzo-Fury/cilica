@@ -9,6 +9,20 @@ export function useSettings() {
   return useQuery({ queryKey: qk.settings, queryFn: () => api.getSettings(), staleTime: Infinity });
 }
 
+/** True when Settings › General asks Cilica to keep its own words clean. */
+export function useSafeForWork(): boolean {
+  const { data } = useSettings();
+  return data?.safe_for_work ?? false;
+}
+
+/**
+ * Whether the swear jar counts and shows itself: on in Settings › Swear jar and not put away by
+ * Safe for work. Mirrors `Settings::swear_jar_on` in Rust.
+ */
+export function jarOn(settings: Settings | undefined): boolean {
+  return Boolean(settings?.swear_jar.enabled && !settings.safe_for_work);
+}
+
 export function useAppInfo() {
   return useQuery({ queryKey: qk.appInfo, queryFn: () => api.getAppInfo(), staleTime: Infinity });
 }

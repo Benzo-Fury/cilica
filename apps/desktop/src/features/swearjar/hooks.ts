@@ -8,7 +8,7 @@ import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
 import type { OnWordEnd } from "@/features/note/editor/swearWatch";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
-import { useSettings } from "@/features/settings/hooks";
+import { jarOn, useSettings } from "@/features/settings/hooks";
 import { api, errorMessage } from "@/ipc/client";
 import type { Segment } from "@/ipc/types";
 import { playSound, soundAllowed } from "@/lib/sound";
@@ -90,7 +90,8 @@ function useClink(): () => void {
 export function useSwearJarWatcher() {
   const queryClient = useQueryClient();
   const { data: settings } = useSettings();
-  const prefs = settings?.swear_jar;
+  // Safe for work puts the jar away: the watcher acts as if it were switched off
+  const prefs = jarOn(settings) ? settings?.swear_jar : undefined;
   const jar = useSwearJar(Boolean(prefs?.enabled));
   const matcher = useSwearMatcher();
   const onLand = useClink();
@@ -158,8 +159,9 @@ export function useSwearTyping(noteId: string): OnWordEnd {
   const { data: settings } = useSettings();
   const matcher = useSwearMatcher();
   const onLand = useClink();
-  const ref = useRef({ noteId, prefs: settings?.swear_jar, matcher });
-  ref.current = { noteId, prefs: settings?.swear_jar, matcher };
+  const prefs = jarOn(settings) ? settings?.swear_jar : undefined;
+  const ref = useRef({ noteId, prefs, matcher });
+  ref.current = { noteId, prefs, matcher };
   return useCallback(
     (word, rect) => {
       const { noteId: id, prefs, matcher: m } = ref.current;

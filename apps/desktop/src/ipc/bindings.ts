@@ -248,7 +248,10 @@ export const commands = {
 	getSwearJar: () => __TAURI_INVOKE<SwearJar_Serialize>("get_swear_jar"),
 	/**  Every word the jar listens for, so the note editor can spot one as it is typed. */
 	listSwearWords: () => __TAURI_INVOKE<SwearWord[]>("list_swear_words"),
-	/**  A swear typed into a note. Counted only while the jar and "Notes you write" are on. */
+	/**
+	 *  A swear typed into a note. Counted only while the jar and "Notes you write" are on and Safe for
+	 *  work is off.
+	 */
 	addSwearCoin: (noteId: string | null, word: string) => __TAURI_INVOKE<null>("add_swear_coin", { noteId, word }),
 	/**  Empty this week's jar. Past weeks keep their coins. */
 	emptySwearJar: () => __TAURI_INVOKE<null>("empty_swear_jar"),
@@ -2055,6 +2058,11 @@ export type Settings_Deserialize = {
 	/**  Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R"). */
 	keybinds?: { [key in string]: string },
 	launch_at_login?: boolean,
+	/**
+	 *  Keep Cilica's own words clean: its quips lose the swearing and the swear jar goes away
+	 *  entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
+	 */
+	safe_for_work?: boolean,
 	onboarding_done?: boolean,
 	updates?: UpdateSettings_Deserialize,
 };
@@ -2071,6 +2079,11 @@ export type Settings_Serialize = {
 	/**  Overrides of the default keybinds: action id → accelerator ("Mod+Shift+R"). */
 	keybinds: { [key in string]: string },
 	launch_at_login: boolean,
+	/**
+	 *  Keep Cilica's own words clean: its quips lose the swearing and the swear jar goes away
+	 *  entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
+	 */
+	safe_for_work: boolean,
 	onboarding_done: boolean,
 	updates: UpdateSettings_Serialize,
 };
