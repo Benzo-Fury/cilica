@@ -26,7 +26,8 @@ pub struct Segment {
     pub is_final: bool,
 }
 
-/// A speaker within one meeting. "You", "Others" (before diarization) or "Person 2".
+/// A speaker within one meeting: "Person 2" until someone (or Cilica, from their voice) knows
+/// who they are. Meetings recorded before that also have "You" and "Others".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct Speaker {
     pub id: Id,
@@ -36,8 +37,18 @@ pub struct Speaker {
     pub person_id: Option<Id>,
     /// 1..=8, maps to the `speaker-N` colour tokens. A linked person's colour wins.
     pub color_index: u8,
-    /// True for the mic-channel speaker that is the app's user.
+    /// True for the speaker that is the app's user (linked to "You").
     pub is_self: bool,
+}
+
+/// Why a meeting's speakers could not be told apart, so its lines have no speaker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SpeakerDetection {
+    /// Speaker labels were off in Settings › Transcription when it was recorded.
+    Off,
+    /// The voice model could not be loaded.
+    Unavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -56,6 +67,9 @@ pub struct Transcript {
     /// times then only keep the order, and the transcript hides them.
     #[serde(default = "timed_default")]
     pub timed: bool,
+    /// Set when this meeting's speakers could not be told apart.
+    #[serde(default)]
+    pub speaker_detection: Option<SpeakerDetection>,
 }
 
 fn timed_default() -> bool {
@@ -79,7 +93,8 @@ pub struct SpeakerSuggestion {
     pub similarity: f32,
 }
 
-/// A Saved person: a name and an averaged voiceprint (the voiceprint never crosses IPC).
+/// A Saved person: a name and an averaged voiceprint (the voiceprint itself never crosses IPC;
+/// [`PersonVoice`] carries a coarse picture of it for drawing).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct Person {
     pub id: Id,
@@ -92,4 +107,80 @@ pub struct Person {
     pub created_at: Timestamp,
     /// "You": the app's user. Always there; cannot be deleted or merged away.
     pub is_self: bool,
+    /// When they were last in a meeting.
+    pub last_met: Option<Timestamp>,
+}
+
+/// Who put a Saved person's name on a meeting's speaker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum NamedBy {
+    /// Someone picked them for the speaker.
+    You,
+    /// Cilica recognised their voice.
+    Cilica,
+}
+
+/// A meeting a Saved person was in, for their page in Saved people. Newest first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct PersonMeeting {
+    pub note_id: Id,
+    pub title: String,
+    /// When it started, or when the note was made.
+    pub at: Timestamp,
+    /// Length of the recording, if known.
+    pub duration_ms: Option<u32>,
+    /// How long they spoke in it.
+    pub speech_ms: u32,
+    /// How many lines are theirs.
+    pub lines: u32,
+    pub named_by: NamedBy,
+}
+
+/// What Cilica knows about a Saved person's voice, for the Saved people page.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct PersonVoice {
+    pub person_id: Id,
+    /// Speech their samples were made from, in all.
+    pub speech_ms: u32,
+    /// How alike their samples are (mean cosine similarity to their voiceprint), 0..=1. `None`
+    /// with fewer than two samples.
+    pub consistency: Option<f32>,
+    /// Speakers Cilica named as them.
+    pub named: u32,
+    /// Of those, the ones someone then said were someone else (or no one).
+    pub corrected: u32,
+    pub meeting_count: u32,
+    /// When they were last in a meeting.
+    pub last_heard: Option<Timestamp>,
+    /// `None` until they have a sample.
+    pub shape: Option<VoiceShape>,
+}
+
+/// A coarse picture of a voiceprint for drawing: values folded into a few bins and scaled to
+/// -1..=1. Too coarse to recognise anyone by.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct VoiceShape {
+    /// The voiceprint, binned.
+    pub mean: Vec<f32>,
+    /// How much the samples differ from it in each bin, 0..=1.
+    pub spread: Vec<f32>,
+    /// Newest first.
+    pub samples: Vec<VoiceSampleShape>,
+}
+
+/// One sample: binned like the voiceprint, and placed on a 2D map around it (0, 0).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct VoiceSampleShape {
+    pub id: Id,
+    pub bins: Vec<f32>,
+    /// How much it sounds like the voiceprint (cosine similarity), 0..=1.
+    pub similarity: f32,
+    pub x: f32,
+    pub y: f32,
+    pub speech_ms: u32,
+    /// The meeting it came from, while that is known.
+    pub note_id: Option<Id>,
+    pub note_title: Option<String>,
+    pub created_at: Timestamp,
 }

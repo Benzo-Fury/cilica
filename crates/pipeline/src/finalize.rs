@@ -119,10 +119,6 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
     let Ok(settings) = inner.db.get_settings().await else { return };
     let finals: Vec<Segment> = inner.db.list_segments(note_id).await.unwrap_or_default().into_iter().filter(|s| s.is_final).collect();
     let offset = job.sidecar.offset_ms;
-    let (you, others) = match inner.db.ensure_channel_speakers(note_id).await {
-        Ok((y, o)) => (y.id, o.id),
-        Err(_) => return,
-    };
     let speech = inner.speech.clone();
     let result = tokio::task::spawn_blocking(move || -> AppResult<Vec<Segment>> {
         // Never send a whole interrupted recording to a cloud service unasked: use the local
@@ -131,7 +127,8 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
         local.transcription.engine = cilica_domain::SttEngine::WhisperLocal;
         let engine = speech.transcriber(&local)?;
         let mut out = Vec::new();
-        for (index, channel, speaker) in [(0, AudioChannel::Mic, you), (1, AudioChannel::System, others)] {
+        // Speakers were told apart live only; the rest has no one Cilica can tell.
+        for (index, channel) in [(0, AudioChannel::Mic), (1, AudioChannel::System)] {
             let done_ms = finals.iter().filter(|s| s.channel == channel).map(|s| s.end_ms).max().unwrap_or(0).saturating_sub(offset);
             let audio = read_wav_channel_16k(&wav, index).map_err(AppError::from)?;
             let from = (done_ms as usize * SAMPLE_RATE as usize / 1000).min(audio.len());
@@ -142,7 +139,7 @@ async fn recover_capture(inner: &Arc<Inner>, job: &Job) {
                 out.push(Segment {
                     id: cilica_domain::new_id(),
                     note_id,
-                    speaker_id: Some(speaker),
+                    speaker_id: None,
                     channel,
                     start_ms: u.start_ms + done_ms + offset,
                     end_ms: u.end_ms + done_ms + offset,
@@ -190,10 +187,6 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
     }
     let note_id = job.sidecar.note_id;
     let offset = job.sidecar.offset_ms;
-    let (you, others) = match inner.db.ensure_channel_speakers(note_id).await {
-        Ok((y, o)) => (y.id, o.id),
-        Err(_) => return false,
-    };
     let live = inner.db.list_segments(note_id).await.unwrap_or_default();
     let speech = inner.speech.clone();
     let started = std::time::Instant::now();
@@ -201,13 +194,14 @@ async fn refine(inner: &Arc<Inner>, job: &Job) -> bool {
         let Some(engine) = speech.refiner(&settings) else { return Ok(None) };
         let language = settings.transcription.language.clone();
         let mut segments = Vec::new();
-        for (index, channel, speaker) in [(0, AudioChannel::Mic, you), (1, AudioChannel::System, others)] {
+        // Speakers were told apart live only; the rest has no one Cilica can tell.
+        for (index, channel) in [(0, AudioChannel::Mic), (1, AudioChannel::System)] {
             let audio = read_wav_channel_16k(&wav, index).map_err(AppError::from)?;
             for u in engine.transcribe_recording(&audio, language.as_deref()).map_err(AppError::from)? {
                 segments.push(Segment {
                     id: cilica_domain::new_id(),
                     note_id,
-                    speaker_id: Some(speaker),
+                    speaker_id: None,
                     channel,
                     start_ms: u.start_ms + offset,
                     end_ms: u.end_ms + offset,
@@ -391,10 +385,9 @@ pub(crate) fn person_color(n: usize) -> u8 {
     (n % 8) as u8 + 1
 }
 
-/// Link "You", name the speakers whose voice Cilica recognised during the meeting, and suggest
-/// names it is less sure of.
+/// Name the speakers whose voice Cilica recognised during the meeting, and suggest names it is
+/// less sure of. No one is "You" unless their voice is yours or someone said so.
 async fn known_voices(inner: &Arc<Inner>, note_id: Id) -> AppResult<()> {
-    inner.db.link_self_speakers(note_id).await?;
     let recognise_on = inner.db.get_settings().await.map(|s| s.transcription.recognise_voices).unwrap_or(true);
     if !recognise_on {
         return Ok(());
@@ -430,8 +423,9 @@ async fn name_known_voices(inner: &Arc<Inner>, note_id: Id) -> AppResult<()> {
     }
     matches.sort_by(|a, b| b.0.total_cmp(&a.0));
     for (_, speaker, person) in matches {
-        if taken.insert(person) {
-            inner.db.assign_speaker(speaker, person).await?;
+        // A speaker someone chose for keeps their choice, and the person stays free for others.
+        if !taken.contains(&person) && inner.db.assign_speaker(speaker, person).await? {
+            taken.insert(person);
         }
     }
     Ok(())

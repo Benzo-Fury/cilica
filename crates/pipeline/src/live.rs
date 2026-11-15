@@ -27,7 +27,7 @@ use crossbeam_channel::{Receiver, Sender};
 use cilica_audio::{CaptureConfig, CaptureEvent, CaptureSession, CaptureSummary, SourceKind};
 use cilica_diarize::online::{Label, Span};
 use cilica_domain::{
-    AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, SpeakerSource, ToastAction, ToastKind,
+    AppError, AppEvent, AppResult, AudioChannel, DataScope, Events, Id, Segment, Settings, SpeakerDetection, SpeakerSource, ToastAction, ToastKind,
     ToastRequest, new_id,
 };
 use cilica_store::{Db, NewSpeaker, OTHERS_LABEL};
@@ -54,7 +54,7 @@ enum SpeakerUpdate {
     Spans(Vec<Span>),
     /// Speakers found to be someone already heard: (from, into).
     Merged(Vec<(usize, usize)>),
-    /// It could not run: lines fall back to "You" (mic) and "Others" (call).
+    /// It could not run: lines have no speaker, and the note says why.
     Unavailable,
 }
 
@@ -66,8 +66,6 @@ pub(crate) struct LiveParams {
     pub speech: Arc<dyn SpeechBackend>,
     pub settings: Settings,
     pub note_id: Id,
-    pub you: Id,
-    pub others: Id,
     pub offset_ms: u32,
     pub files: RecordingFiles,
     pub mute_start_ms: u32,
@@ -132,15 +130,14 @@ impl LiveSession {
 
         let t = &p.settings.transcription;
         let labels = t.speaker_labels();
-        // Saved voices are recognised live for every speaker someone labelled.
-        let tap = (t.recognise_voices && labels != SpeakerSource::Off).then(|| Arc::new(VoiceTap::default()));
-        let recogniser = tap.clone().map(|tap| Recogniser::start(p.db.clone(), p.events.clone(), p.speech.clone(), p.note_id, tap, &rt));
+        // Every speaker someone labelled gets a voiceprint (so confirming who they are teaches),
+        // and with Recognise saved voices on, Saved people are named from it live.
+        let tap = (labels != SpeakerSource::Off).then(|| Arc::new(VoiceTap::default()));
+        let recogniser = tap.clone().map(|tap| Recogniser::start(p.db.clone(), p.events.clone(), p.speech.clone(), p.note_id, tap, t.recognise_voices, &rt));
         let persister = rt.spawn(persist(Persist {
             db: p.db.clone(),
             events: p.events.clone(),
             note_id: p.note_id,
-            you: p.you,
-            others: p.others,
             offset_ms: p.offset_ms,
             labels,
             recogniser,
@@ -428,7 +425,7 @@ fn spawn_speakers(
                                     &events,
                                     ToastKind::Error,
                                     "Speakers not labelled",
-                                    format!("{message} This meeting's transcript shows You and Others instead."),
+                                    format!("{message} Speakers in this meeting won't be told apart."),
                                     None,
                                 );
                             }
@@ -489,32 +486,25 @@ fn label_channel(mut d: cilica_diarize::online::OnlineDiarizer, channel: AudioCh
 
 /// The people told apart on each channel, by channel and label ("1" from a service, "local 0"
 /// from Cilica), as the note's speakers. Labels are per stream, so "1" on the mic is not "1" on
-/// the call. The first voice on the microphone is "You"; everyone else is "Person N", numbered
-/// after the ones the note has.
+/// the call. Every voice, on the mic too, is "Person N", numbered after the ones the note has,
+/// until someone (or Cilica, from a voice it knows) says who they are: no one is assumed to be
+/// "You".
 struct LiveSpeakers {
     by_label: HashMap<(AudioChannel, String), Id>,
     next: usize,
-    mic_has_you: bool,
 }
 
 impl LiveSpeakers {
     async fn new(db: &Db, note_id: Id) -> Self {
         let existing = db.list_speakers(note_id).await.map(|all| all.iter().filter(|s| !s.is_self && s.label != OTHERS_LABEL).count()).unwrap_or(0);
-        Self { by_label: HashMap::new(), next: existing + 1, mic_has_you: false }
+        Self { by_label: HashMap::new(), next: existing + 1 }
     }
 
     /// The note's speaker for this label, created the first time it is heard.
-    async fn speaker(&mut self, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, label: &str, you: Id) -> Option<Id> {
+    async fn speaker(&mut self, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, label: &str) -> Option<Id> {
         let key = (channel, label.to_string());
         if let Some(id) = self.by_label.get(&key) {
             return Some(*id);
-        }
-        // The first voice on the microphone is you; any other is someone in the room (or audio
-        // from another device).
-        if channel == AudioChannel::Mic && !self.mic_has_you {
-            self.mic_has_you = true;
-            self.by_label.insert(key, you);
-            return Some(you);
         }
         let n = self.next;
         let new = NewSpeaker { label: format!("Person {n}"), color_index: crate::finalize::person_color(n), is_self: false, embedding: None };
@@ -533,7 +523,7 @@ impl LiveSpeakers {
     }
 
     /// Cilica found that `from` is someone already heard as `into`: their lines move to one
-    /// speaker ("You" or a named one is kept over a "Person N").
+    /// speaker (a named one is kept over a "Person N").
     async fn merge(&mut self, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, from: &str, into: &str) {
         let (from_key, into_key) = ((channel, from.to_string()), (channel, into.to_string()));
         let Some(gone) = self.by_label.remove(&from_key) else { return };
@@ -654,8 +644,6 @@ struct Persist {
     db: Db,
     events: Events,
     note_id: Id,
-    you: Id,
-    others: Id,
     offset_ms: u32,
     labels: SpeakerSource,
     recogniser: Option<Recogniser>,
@@ -673,15 +661,19 @@ struct Waiting {
 /// Store and emit segments as they arrive. Partials are upserted in place by id; a final
 /// replaces its partial; an empty final or echo retracts it. Each line goes to the person who
 /// said it: as labelled by the service, or as Cilica tells from the voices (stored without a
-/// speaker, "Pending", until it is sure); otherwise "You" (mic) or "Others" (call).
+/// speaker, "Pending", until it is sure). A line no one could be found for keeps no speaker;
+/// when speakers cannot be told apart at all, the note records why.
 async fn persist(p: Persist) {
-    let Persist { db, events, note_id, you, others, offset_ms, labels, mut recogniser, mut rx } = p;
+    let Persist { db, events, note_id, offset_ms, labels, mut recogniser, mut rx } = p;
+    let detection = (labels == SpeakerSource::Off).then_some(SpeakerDetection::Off);
+    if let Err(error) = db.set_speaker_detection(note_id, detection).await {
+        tracing::warn!(%error, "could not note whether speakers are told apart");
+    }
     let mut live_speakers = LiveSpeakers::new(&db, note_id).await;
     let mut tracks: HashMap<AudioChannel, Track> = HashMap::new();
     let mut waiting: Vec<Waiting> = Vec::new();
     let mut ids: HashMap<(AudioChannel, u64), Id> = HashMap::new();
     let mut echo = EchoFilter::default();
-    let fallback = |channel: AudioChannel| if channel == AudioChannel::Mic { you } else { others };
     let retract = async |db: &Db, id: Id| {
         if let Err(error) = db.delete_segment(id).await {
             tracing::warn!(%error, "could not remove a transcript segment");
@@ -701,7 +693,13 @@ async fn persist(p: Persist) {
                 let track = tracks.entry(channel).or_default();
                 match update {
                     SpeakerUpdate::Spans(spans) => track.add(spans),
-                    SpeakerUpdate::Unavailable => track.unavailable = true,
+                    SpeakerUpdate::Unavailable => {
+                        track.unavailable = true;
+                        if let Err(error) = db.set_speaker_detection(note_id, Some(SpeakerDetection::Unavailable)).await {
+                            tracing::warn!(%error, "could not note that speakers are not told apart");
+                        }
+                        events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Transcript], note_id: Some(note_id) });
+                    }
                     SpeakerUpdate::Merged(merges) => {
                         for (from, into) in merges {
                             track.alias.insert(from, into);
@@ -717,12 +715,10 @@ async fn persist(p: Persist) {
                         continue;
                     }
                     let decision = tracks.get(&channel).map(|t| t.decide(w.start_ms, w.end_ms, false)).unwrap_or(Decision::Wait);
-                    match settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await {
+                    match settle(decision, &mut live_speakers, &db, &events, note_id, channel).await {
                         Some(speaker) => {
-                            let segment = Segment { speaker_id: Some(speaker.unwrap_or(fallback(channel))), ..w.segment };
-                            if let (Some(r), Some(id)) = (recogniser.as_mut(), speaker)
-                                && id != you
-                            {
+                            let segment = Segment { speaker_id: speaker, ..w.segment };
+                            if let (Some(r), Some(id)) = (recogniser.as_mut(), speaker) {
                                 r.heard(id, channel, w.start_ms, w.end_ms);
                             }
                             store(&db, segment).await;
@@ -768,22 +764,22 @@ async fn persist(p: Persist) {
                 None => {}
             }
         }
-        // Who said it: `Some(None)` is the channel's fallback, `None` is not known yet.
+        // Who said it: `Some(None)` is no one Cilica can tell, `None` is not known yet.
         let speaker: Option<Option<Id>> = match labels {
             SpeakerSource::Off => Some(None),
             SpeakerSource::Service => match u.speaker.as_deref() {
                 None => Some(None),
-                Some(label) => Some(live_speakers.speaker(&db, &events, note_id, channel, label, you).await),
+                Some(label) => Some(live_speakers.speaker(&db, &events, note_id, channel, label).await),
             },
             SpeakerSource::Local => {
                 let decision = tracks.get(&channel).map(|t| t.decide(u.start_ms, u.end_ms, false)).unwrap_or(Decision::Wait);
-                settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await
+                settle(decision, &mut live_speakers, &db, &events, note_id, channel).await
             }
         };
         let segment = Segment {
             id,
             note_id,
-            speaker_id: speaker.map(|s| s.unwrap_or(fallback(channel))),
+            speaker_id: speaker.flatten(),
             channel,
             start_ms,
             end_ms,
@@ -797,7 +793,6 @@ async fn persist(p: Persist) {
         // A finished line by someone told apart: listen for a voice Cilica knows.
         if is_final
             && let Some(Some(speaker_id)) = speaker
-            && speaker_id != you
             && let Some(r) = recogniser.as_mut()
         {
             r.heard(speaker_id, channel, u.start_ms, u.end_ms);
@@ -807,8 +802,8 @@ async fn persist(p: Persist) {
     for w in waiting {
         let channel = w.segment.channel;
         let decision = tracks.get(&channel).map(|t| t.decide(w.start_ms, w.end_ms, true)).unwrap_or(Decision::Fallback);
-        let speaker = settle(decision, &mut live_speakers, &db, &events, note_id, channel, you).await.flatten();
-        store(&db, Segment { speaker_id: Some(speaker.unwrap_or(fallback(channel))), ..w.segment }).await;
+        let speaker = settle(decision, &mut live_speakers, &db, &events, note_id, channel).await.flatten();
+        store(&db, Segment { speaker_id: speaker, ..w.segment }).await;
     }
     if let Some(r) = recogniser {
         r.finish().await;
@@ -820,13 +815,13 @@ fn local_label(c: usize) -> String {
     format!("local {c}")
 }
 
-/// Turn a decision into a speaker: `Some(Some(id))` a person, `Some(None)` the channel's
-/// fallback, `None` still pending.
-async fn settle(decision: Decision, live: &mut LiveSpeakers, db: &Db, events: &Events, note_id: Id, channel: AudioChannel, you: Id) -> Option<Option<Id>> {
+/// Turn a decision into a speaker: `Some(Some(id))` a person, `Some(None)` no one Cilica can
+/// tell, `None` still pending.
+async fn settle(decision: Decision, live: &mut LiveSpeakers, db: &Db, events: &Events, note_id: Id, channel: AudioChannel) -> Option<Option<Id>> {
     match decision {
         Decision::Wait => None,
         Decision::Fallback => Some(None),
-        Decision::Speaker(c) => Some(live.speaker(db, events, note_id, channel, &local_label(c), you).await),
+        Decision::Speaker(c) => Some(live.speaker(db, events, note_id, channel, &local_label(c)).await),
     }
 }
 

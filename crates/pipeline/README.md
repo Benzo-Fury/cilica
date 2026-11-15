@@ -42,10 +42,15 @@ summarizer: SummarizerProvider, ServiceConfig, tokio Handle)`, cheap to clone:
   `OnlineDiarizer`), and a segment is stored without a speaker ("Pending" in the UI) until
   detection has decided the stretch it covers (about 3 s behind the audio), then re-emitted
   with the speaker who talks most during it (or the speaker just before or after, within 2 s;
-  after 10 s more, the nearest one). The first voice on the mic is "You", others "Person N".
-  Speakers found to be one person are joined (`Db::merge_speakers`). If the voice model cannot
-  be loaded, lines fall back to "You" and "Others" with a toast. **The service**: its labels,
-  as above. **Off**: mic segments are "You", system segments "Others". A retracted partial or a
+  after 10 s more, the nearest one). Every voice is "Person N", the mic's too: nobody is assumed to be "You".
+  Speakers found to be one person are joined (`Db::merge_speakers`). Every labelled speaker
+  gets a voiceprint as they talk (`recognise.rs`: drafts at 3, 8 and 15 s, then the average of
+  20 s windows, plus the rest at the end), stored with `Db::set_speaker_embedding`, which also
+  keeps a confirmed speaker's sample up to date; Saved people are named from it when
+  recognition is on. If the voice model cannot
+  be loaded, lines have no speaker, the note records why (`speaker_detection`) and a toast says
+  so. **The service**: its labels, as above (unlabelled lines have no speaker). **Off**: no line
+  has a speaker and the note records why. A retracted partial or a
   mic segment found to be echo of the call is deleted and announced with `DataChanged
   { Transcript }`.
 - `DataChanged` when the note is created, when capture ends (meeting times), when the audio is

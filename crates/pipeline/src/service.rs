@@ -276,7 +276,8 @@ impl RecordingService {
         let (previous_audio, previous_ms) = inner.db.get_note_audio(note_id).await?;
         let offset_ms = if created { 0 } else { inner.db.get_transcript(note_id).await?.duration_ms.unwrap_or(0).max(previous_ms.unwrap_or(0)) };
         let previous_audio = previous_audio.filter(|rel| inner.config.data_dir.join(rel).exists());
-        let (you, others) = inner.db.ensure_channel_speakers(note_id).await?;
+        // "You" is always among the Saved people, for picking or recognising.
+        inner.db.ensure_self_person().await?;
 
         let epoch = {
             let mut sh = lock(&inner.shared);
@@ -313,8 +314,6 @@ impl RecordingService {
                 speech: inner.speech.clone(),
                 settings: settings.clone(),
                 note_id,
-                you: you.id,
-                others: others.id,
                 offset_ms,
                 files: files.clone(),
                 mute_start_ms: inner.config.mute_start_ms,

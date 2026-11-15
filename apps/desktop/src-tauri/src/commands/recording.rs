@@ -442,6 +442,20 @@ pub async fn set_person_color(core: State<'_, Core>, person_id: Id, color_index:
     Ok(person)
 }
 
+/// What Cilica knows about a person's voice, with a coarse picture of it to draw.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_person_voice(core: State<'_, Core>, person_id: Id) -> AppResult<PersonVoice> {
+    Ok(core.db.person_voice(person_id).await?)
+}
+
+/// The meetings a person was in, newest first, with how long they spoke and who named them.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_person_meetings(core: State<'_, Core>, person_id: Id) -> AppResult<Vec<PersonMeeting>> {
+    Ok(core.db.person_meetings(person_id).await?)
+}
+
 /// Forget how a person sounds (their voice samples); the person and their meetings stay.
 #[tauri::command]
 #[specta::specta]
@@ -449,6 +463,24 @@ pub async fn forget_person_voice(core: State<'_, Core>, person_id: Id) -> AppRes
     let person = core.db.forget_voice(person_id).await?;
     people_changed(&core);
     Ok(person)
+}
+
+/// Take one meeting out of a person's voice; that meeting is not learnt from again.
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_voice_sample(core: State<'_, Core>, sample_id: Id) -> AppResult<Person> {
+    let person = core.db.remove_voice_sample(sample_id).await?;
+    people_changed(&core);
+    Ok(person)
+}
+
+/// Forget every voice Cilica knows, yours included. People and meetings stay.
+#[tauri::command]
+#[specta::specta]
+pub async fn forget_all_voices(core: State<'_, Core>) -> AppResult<Vec<Person>> {
+    let people = core.db.forget_all_voices().await?;
+    people_changed(&core);
+    Ok(people)
 }
 
 /// Fold `source` into `target` (voice samples move, speakers relinked).

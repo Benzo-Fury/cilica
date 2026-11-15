@@ -367,10 +367,12 @@ async fn whole_meeting_from_fixtures() {
             RecordingPhase::Idle
         ]
     );
-    // Segments: final only, on the right channel and speaker, near the truth.
+    // Segments: final only, on the right channel, near the truth. The fake has no voice model, so
+    // nobody is told apart: no line has a speaker (nobody is assumed to be You), and the note
+    // says why.
     let transcript = h.db.get_transcript(note_id).await.unwrap();
-    let you = transcript.speakers.iter().find(|s| s.is_self).unwrap();
-    let others = transcript.speakers.iter().find(|s| s.label == "Others").unwrap();
+    assert_eq!(transcript.speaker_detection, Some(SpeakerDetection::Unavailable));
+    assert!(transcript.speakers.is_empty(), "{:?}", transcript.speakers);
     assert!(transcript.segments.iter().all(|s| s.is_final));
     for t in truth() {
         let seg = transcript
@@ -379,7 +381,7 @@ async fn whole_meeting_from_fixtures() {
             .find(|s| s.text.contains(&t.text))
             .unwrap_or_else(|| panic!("missing {:?} in {:#?}", t.text, transcript.segments));
         assert_eq!(seg.channel, t.channel(), "{}", t.text);
-        assert_eq!(seg.speaker_id, Some(if t.channel() == AudioChannel::Mic { you.id } else { others.id }));
+        assert_eq!(seg.speaker_id, None);
         assert!(seg.start_ms.abs_diff(t.start_ms) < 700, "{} starts at {} not {}", t.text, seg.start_ms, t.start_ms);
     }
     // Echo cancellation: the mic hears the call at -16 dB, yet no mic segment carries call text.
@@ -482,8 +484,8 @@ async fn a_refused_key_is_reported_once_for_both_channels() {
     assert!(stopped[0].description.as_deref().unwrap_or_default().contains("Soniox"));
 }
 
-/// A service that labels speakers: each label becomes a person, live; the first voice on the mic
-/// is "You", unlabelled call audio stays "Others".
+/// A service that labels speakers: each label becomes a person, live, the mic's too (nobody is
+/// assumed to be "You"); unlabelled call audio has no speaker.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn live_speaker_labels_become_people() {
     let speech = FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() };
@@ -506,15 +508,16 @@ async fn live_speaker_labels_become_people() {
         transcript.speakers.iter().find(|p| Some(p.id) == segment.speaker_id).map(|p| p.label.clone()).unwrap_or_default()
     };
     // Numbers follow the order voices are first heard, across both channels.
-    let (call1, call2, room) = (who("Hello everyone."), who("Hi there."), who("Morning! Coffee?"));
-    let mut people = vec![call1.clone(), call2.clone(), room.clone()];
+    let (call1, call2, room, mic) = (who("Hello everyone."), who("Hi there."), who("Morning! Coffee?"), who("Morning all."));
+    let mut people = vec![call1.clone(), call2.clone(), room.clone(), mic.clone()];
     people.sort();
-    assert_eq!(people, vec!["Person 1", "Person 2", "Person 3"], "three different people");
+    assert_eq!(people, vec!["Person 1", "Person 2", "Person 3", "Person 4"], "four different people");
     assert_eq!(who("Shall we start?"), call1, "the same label is the same person");
-    assert_eq!(who("Mm."), "Others");
-    // The first voice on the mic is you; labels are per channel, so mic "1" is not call "1".
-    assert_eq!(who("Morning all."), "You");
-    assert_eq!(who("Yes please."), "You");
+    assert_eq!(who("Mm."), "", "no label, no speaker");
+    // Labels are per channel, so mic "1" is not call "1".
+    assert_eq!(who("Yes please."), mic);
+    assert!(transcript.speakers.iter().all(|s| !s.is_self && s.person_id.is_none()), "nobody is You until someone says so");
+    assert_eq!(transcript.speaker_detection, None);
 }
 
 /// Who labels speakers: the service only where it can, otherwise this computer; off in Settings,
@@ -543,15 +546,15 @@ async fn live_speakers_follow_the_setting_and_the_service() {
     tokio::time::sleep(Duration::from_millis(1_500)).await;
     h.svc.stop().await.unwrap();
     h.wait_idle(Duration::from_secs(20)).await;
-    // Off: the service's labels are ignored; the mic is You and the call is Others.
+    // Off: the service's labels are ignored; no line has a speaker, and the note says why.
     let transcript = h.db.get_transcript(state.note_id.unwrap()).await.unwrap();
-    let labels: std::collections::BTreeSet<&str> =
-        transcript.segments.iter().filter_map(|s| transcript.speakers.iter().find(|p| Some(p.id) == s.speaker_id)).map(|p| p.label.as_str()).collect();
-    assert_eq!(labels.into_iter().collect::<Vec<_>>(), ["Others", "You"]);
+    assert!(!transcript.segments.is_empty());
+    assert!(transcript.segments.iter().all(|s| s.speaker_id.is_none()));
+    assert_eq!(transcript.speaker_detection, Some(SpeakerDetection::Off));
 }
 
-/// Cilica tells speakers apart, but its voice model cannot be had (offline on first use): every
-/// line falls back to You and Others, once, with a note saying so, and none is left pending.
+/// Cilica tells speakers apart, but its voice model cannot be had (offline on first use): no line
+/// has a speaker, the note says why, one toast says so, and none is left pending.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn without_the_voice_model_lines_fall_back() {
     let h = harness(FakeAudio::meeting(3.0), FakeSpeech { engine: Arc::new(LabellingTranscriber), ..FakeSpeech::scripted() }).await;
@@ -562,11 +565,8 @@ async fn without_the_voice_model_lines_fall_back() {
     h.wait_idle(Duration::from_secs(20)).await;
     let transcript = h.db.get_transcript(state.note_id.unwrap()).await.unwrap();
     assert!(!transcript.segments.is_empty());
-    for s in &transcript.segments {
-        let who = transcript.speakers.iter().find(|p| Some(p.id) == s.speaker_id).map(|p| p.label.as_str());
-        let expected = if s.channel == AudioChannel::Mic { "You" } else { "Others" };
-        assert_eq!(who, Some(expected), "{s:?}");
-    }
+    assert!(transcript.segments.iter().all(|s| s.speaker_id.is_none() && s.is_final), "{:#?}", transcript.segments);
+    assert_eq!(transcript.speaker_detection, Some(SpeakerDetection::Unavailable));
     assert_eq!(h.toasts().iter().filter(|t| t.title == "Speakers not labelled").count(), 1);
 }
 
@@ -828,9 +828,12 @@ async fn whole_meeting_with_real_models() {
     let mic: Vec<&Segment> = transcript.segments.iter().filter(|s| s.channel == AudioChannel::Mic).collect();
     assert_eq!(mic.len(), 2, "{mic:#?}");
 
-    // Two people on the call, each turn given to the right one.
-    let call: Vec<&Speaker> = transcript.speakers.iter().filter(|s| s.label.starts_with("Person")).collect();
+    // Two people on the call, each turn given to the right one. The mic voice is a Person too,
+    // never assumed to be You.
+    let on_call = |sp: &&Speaker| transcript.segments.iter().any(|s| s.channel == AudioChannel::System && s.speaker_id == Some(sp.id));
+    let call: Vec<&Speaker> = transcript.speakers.iter().filter(on_call).collect();
     assert_eq!(call.len(), 2, "{:#?}", transcript.speakers);
+    assert!(transcript.speakers.iter().all(|s| !s.is_self), "{:#?}", transcript.speakers);
     let speaker_of = |t: &Turn| {
         transcript.segments.iter().filter(|s| s.channel == AudioChannel::System && s.start_ms < t.end_ms && s.end_ms > t.start_ms).map(|s| s.speaker_id).collect::<Vec<_>>()
     };
