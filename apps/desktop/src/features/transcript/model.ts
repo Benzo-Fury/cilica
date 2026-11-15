@@ -96,6 +96,52 @@ export function groupTurns(segments: readonly Segment[], pendingAlone = false): 
   return turns;
 }
 
+/** One voice heard in a meeting, for the speakers list. */
+export interface RosterEntry {
+  /** The speaker's id, or the channel ("You" / "Others") when speakers are not told apart. */
+  key: string;
+  speakerId: string | null;
+  channel: Segment["channel"];
+  /** The turn they first speak in. */
+  firstTurn: number;
+  /** Their part of the talking, 0 to 1. */
+  share: number;
+}
+
+/**
+ * Everyone heard, in the order they first spoke, with how much of the talking was theirs. Lines
+ * with no speaker (not decided yet, or nobody could be told apart) are nobody.
+ */
+export function speakerRoster(turns: readonly Turn[]): RosterEntry[] {
+  const byKey = new Map<string, RosterEntry & { spoken: number }>();
+  let total = 0;
+  turns.forEach((turn, index) => {
+    if (!turn.speakerId) return;
+    const key = turn.speakerId ?? turn.channel;
+    let entry = byKey.get(key);
+    if (!entry) {
+      entry = {
+        key,
+        speakerId: turn.speakerId,
+        channel: turn.channel,
+        firstTurn: index,
+        share: 0,
+        spoken: 0,
+      };
+      byKey.set(key, entry);
+    }
+    for (const s of turn.segments) {
+      const length = Math.max(0, s.end_ms - s.start_ms);
+      entry.spoken += length;
+      total += length;
+    }
+  });
+  return [...byKey.values()].map(({ spoken, ...entry }) => ({
+    ...entry,
+    share: total > 0 ? spoken / total : 0,
+  }));
+}
+
 export interface SpeakerLook {
   name: string;
   color: number;
@@ -103,7 +149,12 @@ export interface SpeakerLook {
   unnamed: boolean;
   /** Cilica has not decided who said it yet. */
   pending?: boolean;
+  /** Nobody could be told apart for it: shown with no avatar or name. */
+  anonymous?: boolean;
 }
+
+/** A line nobody could be told apart for. */
+export const ANONYMOUS_LOOK: SpeakerLook = { name: "", color: 1, unnamed: false, anonymous: true };
 
 /** A line whose speaker Cilica is still working out. */
 export const PENDING_LOOK: SpeakerLook = {
@@ -116,17 +167,12 @@ export const PENDING_LOOK: SpeakerLook = {
 const GENERIC = /^(speaker|person)\s+\d+$/i;
 const GENERIC_NUMBER = /^(?:speaker|person)\s+(\d+)$/i;
 
-/** How a speaker appears: a linked person's name and colour win over the meeting's label. */
-export function speakerLook(
-  speaker: Speaker | undefined,
-  people: readonly Person[],
-  channel: Segment["channel"] = "system",
-): SpeakerLook {
-  if (!speaker) {
-    return channel === "mic"
-      ? { name: "You", color: 1, unnamed: false }
-      : { name: "Others", color: 2, unnamed: false };
-  }
+/**
+ * How a speaker appears: a linked person's name and colour win over the meeting's label. No
+ * speaker is nobody Cilica could tell apart: no badge, never assumed to be You.
+ */
+export function speakerLook(speaker: Speaker | undefined, people: readonly Person[]): SpeakerLook {
+  if (!speaker) return ANONYMOUS_LOOK;
   const person = speaker.person_id ? people.find((p) => p.id === speaker.person_id) : undefined;
   if (person) return { name: person.name, color: person.color_index, unnamed: false };
   return {

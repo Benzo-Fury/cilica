@@ -4,12 +4,13 @@
  * avatar ring. Live words rise into place grey with a 2px blur clearing, then settle to ink. A
  * line Cilica moves from "Pending" to its speaker glides there word by word (`useTranscriptFlip`).
  */
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { cn } from "./cn";
 import { Icon } from "./Icon";
+import { IconButton } from "./IconButton";
 import { useSpecular } from "./useSpecular";
 
 export function Utterance({
@@ -218,5 +219,43 @@ export function InlinePrompt({ children, actions }: { children: ReactNode; actio
       <span>{children}</span>
       {actions}
     </motion.span>
+  );
+}
+
+/**
+ * A quiet grey notice at the top of a transcript (why its speakers are not labelled, say), with
+ * an optional action and a dismiss button. It rises in on `smooth` and fades out quickly.
+ */
+export function TranscriptNotice({
+  icon,
+  title,
+  children,
+  action,
+  onDismiss,
+}: {
+  icon: Parameters<typeof Icon>[0]["icon"];
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+  onDismiss: () => void;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.div
+      className="nt-transcript-notice"
+      role="note"
+      initial={{ opacity: 0, y: reduced ? 0 : -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: tweens.exit }}
+      transition={reduced ? reducedTransition : springs.smooth}
+    >
+      <Icon icon={icon} size="sm" className="nt-transcript-notice-icon" />
+      <div className="nt-transcript-notice-body">
+        <span className="nt-transcript-notice-title">{title}</span>
+        <span className="nt-transcript-notice-text">{children}</span>
+        {action && <div className="nt-transcript-notice-action">{action}</div>}
+      </div>
+      <IconButton icon={X} iconMotion="x" size="sm" label="Dismiss" onClick={onDismiss} />
+    </motion.div>
   );
 }

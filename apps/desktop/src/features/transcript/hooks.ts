@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
 import { api, errorMessage, isTauri } from "@/ipc/client";
@@ -58,6 +59,20 @@ export const useDeclinedSuggestions = create<{
   declined: new Set(),
   decline: (key) => set((s) => ({ declined: new Set([...s.declined, key]) })),
 }));
+
+/** Meetings whose "speakers not labelled" notice was dismissed, remembered between launches. */
+export const useDismissedNotices = create<{
+  dismissed: Record<string, true>;
+  dismiss: (noteId: string) => void;
+}>()(
+  persist(
+    (set) => ({
+      dismissed: {},
+      dismiss: (noteId) => set((s) => ({ dismissed: { ...s.dismissed, [noteId]: true } })),
+    }),
+    { name: "cilica.transcript.notices", partialize: ({ dismissed }) => ({ dismissed }) },
+  ),
+);
 
 function useSpeakerCache(noteId: string) {
   const queryClient = useQueryClient();

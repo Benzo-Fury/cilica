@@ -9,6 +9,7 @@ import {
   segmentAt,
   segmentChanges,
   speakerLook,
+  speakerRoster,
   speakersLive,
   TURN_GAP_MS,
   upsertSegment,
@@ -37,6 +38,7 @@ const empty = (): Transcript => ({
   segments: [],
   duration_ms: null,
   has_audio: false,
+  speaker_detection: null,
   timed: true,
   quotes: [],
 });
@@ -90,6 +92,32 @@ describe("groupTurns", () => {
   });
 });
 
+describe("speakerRoster", () => {
+  it("lists each voice once, in order of first words, with their share of the talking", () => {
+    const turns = groupTurns([
+      seg("1", "p1", 0),
+      seg("2", "you", 3000),
+      seg("3", "p1", 6000),
+      seg("4", "p1", 9000),
+    ]);
+    const roster = speakerRoster(turns);
+    expect(roster.map((r) => r.key)).toEqual(["p1", "you"]);
+    expect(roster[0]).toMatchObject({ firstTurn: 0, share: 0.75 });
+    expect(roster[1]).toMatchObject({ firstTurn: 1, share: 0.25 });
+  });
+
+  it("leaves lines with no speaker out, live or not", () => {
+    const turns = groupTurns(
+      [{ ...seg("1", null, 0), channel: "mic" }, seg("2", null, 3000), seg("3", "p1", 6000)],
+      true,
+    );
+    expect(speakerRoster(turns).map((r) => r.key)).toEqual(["p1"]);
+    expect(speakerRoster(groupTurns(turns.flatMap((t) => t.segments))).map((r) => r.key)).toEqual([
+      "p1",
+    ]);
+  });
+});
+
 describe("speakerLook", () => {
   const people: Person[] = [
     {
@@ -100,6 +128,7 @@ describe("speakerLook", () => {
       meeting_count: 1,
       created_at: "",
       is_self: false,
+      last_met: null,
     },
   ];
   const speaker = (patch: Partial<Speaker>): Speaker => ({
@@ -123,7 +152,10 @@ describe("speakerLook", () => {
   it("marks generic labels as unnamed, never the user", () => {
     expect(speakerLook(speaker({}), people).unnamed).toBe(true);
     expect(speakerLook(speaker({ label: "You", is_self: true }), people).unnamed).toBe(false);
-    expect(speakerLook(undefined, people, "mic").name).toBe("You");
+  });
+
+  it("shows no speaker as nobody, never You", () => {
+    expect(speakerLook(undefined, people)).toMatchObject({ name: "", anonymous: true });
   });
 });
 
@@ -170,6 +202,7 @@ describe("matchPeople", () => {
     meeting_count: 0,
     created_at: "2026-01-01T00:00:00Z",
     is_self: false,
+    last_met: null,
   });
   const people = [person("me", "You"), person("w", "Will Worral"), person("l", "Lucile Chartier")];
 

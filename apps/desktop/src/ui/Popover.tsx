@@ -14,6 +14,7 @@ export function PopoverContent({
   side = "bottom",
   className,
   onOpenAutoFocus,
+  onCloseAutoFocus,
   label,
 }: {
   children: ReactNode;
@@ -21,6 +22,7 @@ export function PopoverContent({
   side?: "top" | "bottom" | "left" | "right";
   className?: string;
   onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   label?: string;
 }) {
   return (
@@ -32,6 +34,7 @@ export function PopoverContent({
         collisionPadding={8}
         aria-label={label}
         onOpenAutoFocus={onOpenAutoFocus}
+        onCloseAutoFocus={onCloseAutoFocus}
         className={cn("nt-menu nt-glass-strong nt-menu-layer nt-popover", className)}
         style={{ "--origin": "var(--radix-popover-content-transform-origin)" } as CSSProperties}
       >

@@ -6,7 +6,7 @@
  * Turns are windowed, so an hour-long meeting scrolls as smoothly as a short one.
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AudioLines, ChevronDown, ChevronUp, Mic, Search, Settings2, X } from "lucide-react";
+import { AudioLines, ChevronDown, ChevronUp, Mic, Settings2, UsersRound, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import {
   type KeyboardEvent,
@@ -23,35 +23,41 @@ import { formatAccelerator, ShortcutTip, useAction, useShortcut } from "@/app/ke
 import { isMac } from "@/app/platform";
 import { openSettings } from "@/app/router";
 import { useBandSlot } from "@/features/note/bandSlot";
-import { useNote } from "@/features/notes/hooks";
 import { usePeople } from "@/features/people/hooks";
 import { isLive, useRecordingState, useToggleRecording } from "@/features/recorder/hooks";
 import { useSwearMarks } from "@/features/swearjar/hooks";
-import type { Person, Quote, Segment, Speaker, SpeakerSuggestion } from "@/ipc/types";
-import { clock, plural } from "@/lib/format";
+import type {
+  Person,
+  Quote,
+  Segment,
+  Speaker,
+  SpeakerDetection,
+  SpeakerSuggestion,
+} from "@/ipc/types";
+import { clock } from "@/lib/format";
 import {
   Avatar,
-  AvatarStack,
   Button,
   Chip,
   EmptyState,
-  Field,
   IconButton,
   InlinePrompt,
   JumpChip,
-  Kbd,
   PageColumn,
   ScrollArea,
+  SearchField,
   SegmentText,
   SkeletonText,
+  TranscriptNotice,
   TurnTime,
   Utterance,
   useTranscriptFlip,
 } from "@/ui";
-import { BandPlayer, type RecordingDetails } from "./BandPlayer";
+import { BandPlayer } from "./BandPlayer";
 import {
   useAudioSource,
   useDeclinedSuggestions,
+  useDismissedNotices,
   useSpeakerActions,
   useSpeakerSuggestions,
   useTranscript,
@@ -64,11 +70,13 @@ import {
   type SpeakerLook,
   segmentAt,
   speakerLook,
+  speakerRoster,
   speakersLive,
   type Turn,
   turnIndexAt,
 } from "./model";
 import { SpeakerMenu } from "./SpeakerMenu";
+import { type SpeakerEntry, SpeakersPopover } from "./SpeakersPopover";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useSegmentMotion } from "./useSegmentMotion";
 
@@ -159,6 +167,7 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
       live={live}
       idle={recording.phase === "idle"}
       pendingSpeakers={pendingSpeakers}
+      detection={transcript.speaker_detection}
       atMs={atMs}
     />
   );
@@ -177,6 +186,7 @@ function TranscriptBody({
   live,
   idle,
   pendingSpeakers,
+  detection,
   atMs,
 }: {
   noteId: string;
@@ -189,8 +199,10 @@ function TranscriptBody({
   durationMs: number;
   live: boolean;
   idle: boolean;
-  /** Speakers are told apart live: a line without one is "Pending", not You or Others. */
+  /** Speakers are told apart live: a line without one is "Pending" until it is placed. */
   pendingSpeakers: boolean;
+  /** Why this meeting's speakers could not be told apart, if they could not. */
+  detection: SpeakerDetection | null;
   atMs?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -207,6 +219,8 @@ function TranscriptBody({
   const turns = useMemo(() => groupTurns(segments, pendingSpeakers), [segments, pendingSpeakers]);
   const speakerById = useMemo(() => new Map(speakers.map((s) => [s.id, s])), [speakers]);
   const findKeys = useShortcut("note.find");
+  const noticeDismissed = useDismissedNotices((s) => Boolean(s.dismissed[noteId]));
+  const dismissNotice = useDismissedNotices((s) => s.dismiss);
 
   // ── Suggestions ("Is Person 2 Sam?") ──
   const hasUnnamed = speakers.some((s) => speakerLook(s, people).unnamed);
@@ -236,42 +250,6 @@ function TranscriptBody({
       : null;
   const showBar = Boolean(playable && src);
   const bandSlot = useBandSlot((s) => s.el);
-  const { data: note } = useNote(noteId);
-  const details = useMemo<RecordingDetails>(() => {
-    const spoken = new Map<string, number>();
-    let total = 0;
-    let system = false;
-    for (const seg of segments) {
-      if (seg.channel !== "mic") system = true;
-      if (!seg.speaker_id) continue;
-      const length = Math.max(0, seg.end_ms - seg.start_ms);
-      spoken.set(seg.speaker_id, (spoken.get(seg.speaker_id) ?? 0) + length);
-      total += length;
-    }
-    return {
-      recordedAt: note?.started_at ?? note?.created_at ?? null,
-      durationMs,
-      speakers: speakers
-        .map((s) => {
-          const look = speakerLook(s, people);
-          return {
-            name: look.name,
-            color: look.color,
-            share: total > 0 ? (spoken.get(s.id) ?? 0) / total : 0,
-          };
-        })
-        .filter((s) => s.share > 0),
-      source: system ? `Microphone and ${note?.meeting_app ?? "call audio"}` : "Microphone",
-    };
-  }, [
-    segments,
-    speakers,
-    people,
-    durationMs,
-    note?.started_at,
-    note?.created_at,
-    note?.meeting_app,
-  ]);
 
   // ── Find ──
   const matches = useMemo(() => findMatches(turns, query), [turns, query]);
@@ -392,13 +370,17 @@ function TranscriptBody({
     }
   };
 
-  // Pending lines are nobody yet.
-  const placed = pendingSpeakers ? turns.filter((t) => t.speakerId) : turns;
-  const speakerCount = new Set(placed.map((t) => t.speakerId ?? t.channel)).size;
-  const stack = [...new Set(placed.map((t) => t.speakerId))]
-    .map((id) => speakerLook(id ? speakerById.get(id) : undefined, people))
-    .slice(0, 3)
-    .map((l) => ({ name: l.name, color: l.color }));
+  // Everyone heard; pending lines are nobody yet.
+  const roster = useMemo<SpeakerEntry[]>(
+    () =>
+      speakerRoster(turns).map((r) => ({
+        key: r.key,
+        firstTurn: r.firstTurn,
+        share: r.share,
+        look: speakerLook(r.speakerId ? speakerById.get(r.speakerId) : undefined, people),
+      })),
+    [turns, speakerById, people],
+  );
 
   const seekTo =
     playable && src
@@ -422,14 +404,16 @@ function TranscriptBody({
         onKeyDown={(e) => ["ArrowUp", "PageUp", "Home"].includes(e.key) && pauseFollowing()}
       >
         <PageColumn className="nt-transcript-page">
+          <AnimatePresence initial={false}>
+            {detection && !noticeDismissed && (
+              <DetectionNotice detection={detection} onDismiss={() => dismissNotice(noteId)} />
+            )}
+          </AnimatePresence>
           <div className="nt-transcript-head">
-            <Field
+            <SearchField
               ref={findRef}
-              icon={Search}
-              size="sm"
+              keys={findKeys}
               className="nt-grow"
-              fieldClassName="nt-field-quiet"
-              type="search"
               value={query}
               placeholder="Find in transcript"
               aria-label="Find in transcript"
@@ -468,15 +452,11 @@ function TranscriptBody({
                       onClick={() => setQuery("")}
                     />
                   </>
-                ) : (
-                  <Kbd keys={findKeys} />
-                )
+                ) : undefined
               }
             />
-            {speakerCount > 0 && (
-              <Chip leading={<AvatarStack people={stack} />}>
-                {plural(speakerCount, "speaker")}
-              </Chip>
+            {roster.length > 0 && (
+              <SpeakersPopover speakers={roster} live={live} onPick={scrollToTurn} />
             )}
             {live && <Chip icon={AudioLines}>Live</Chip>}
           </div>
@@ -504,9 +484,9 @@ function TranscriptBody({
                     turn={turn}
                     speaker={speaker}
                     look={
-                      !turn.speakerId && pendingSpeakers
+                      !turn.speakerId && pendingSpeakers && !detection
                         ? PENDING_LOOK
-                        : speakerLook(speaker, people, turn.channel)
+                        : speakerLook(speaker, people)
                     }
                     people={people}
                     speakers={speakers}
@@ -534,7 +514,7 @@ function TranscriptBody({
                 const index = turnIndexAt(turns, quote.at_ms);
                 const turn = turns[index];
                 const speaker = turn?.speakerId ? speakerById.get(turn.speakerId) : undefined;
-                const look = speakerLook(speaker, people, turn?.channel);
+                const look = speakerLook(speaker, people);
                 return (
                   <button
                     key={`${quote.at_ms}-${quote.text}`}
@@ -551,7 +531,7 @@ function TranscriptBody({
                   >
                     <span className="nt-quote-text">“{quote.text}”</span>
                     <span className="nt-quote-by">
-                      {look.name}
+                      {look.anonymous ? null : look.name}
                       <time>{clock(quote.at_ms)}</time>
                     </span>
                   </button>
@@ -583,12 +563,7 @@ function TranscriptBody({
             playing={player.playing}
             positionMs={player.positionMs}
             durationMs={player.durationMs}
-            rate={player.rate}
             onToggle={player.toggle}
-            onSeek={player.seek}
-            onSkip={player.skip}
-            onRate={player.cycleRate}
-            details={details}
           />,
           bandSlot,
         )}
@@ -643,9 +618,15 @@ const TurnRow = memo(function TurnRow({
       hit={hit}
       motion={rowMotion}
       className={look.pending ? "nt-utt-pending" : undefined}
-      avatar={<Avatar name={look.name} color={look.color} pending={look.pending} />}
+      avatar={
+        look.anonymous ? (
+          <span className="nt-utt-noavatar" aria-hidden />
+        ) : (
+          <Avatar name={look.name} color={look.color} pending={look.pending} />
+        )
+      }
       name={
-        speaker ? (
+        look.anonymous ? null : speaker ? (
           <SpeakerMenu
             noteId={noteId}
             speaker={speaker}
@@ -710,3 +691,36 @@ const TurnRow = memo(function TurnRow({
     </Utterance>
   );
 });
+
+/** Why this meeting's lines have no speakers, and how to label them next time. */
+function DetectionNotice({
+  detection,
+  onDismiss,
+}: {
+  detection: SpeakerDetection;
+  onDismiss: () => void;
+}) {
+  const off = detection === "off";
+  return (
+    <TranscriptNotice
+      icon={UsersRound}
+      title={off ? "Speakers aren't labelled in this meeting" : "Speakers couldn't be told apart"}
+      onDismiss={onDismiss}
+      action={
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={Settings2}
+          iconMotion="gear"
+          onClick={() => openSettings("transcription")}
+        >
+          Open transcription settings
+        </Button>
+      }
+    >
+      {off
+        ? "Speaker labels were off when this was recorded, so Cilica didn't tell voices apart. Turn them on in Settings, Transcription to label everyone in your next meeting."
+        : "Cilica's voice model couldn't be loaded while this was recorded. Check the voice models in Settings, Transcription, and your next meeting is labelled by speaker."}
+    </TranscriptNotice>
+  );
+}

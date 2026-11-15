@@ -300,7 +300,7 @@ function SpeakersGroup({
             ? "Needs speakers to be labelled."
             : recognise
               ? "Names speakers who sound like someone in Saved people, including you, and asks when it's less sure. Pick the right person to teach it. Voiceprints stay on this computer; some places require people's consent before you keep one."
-              : "Off: speakers stay Person 1, Person 2 and so on until you name them."
+              : "Off: speakers stay Person 1, Person 2 and so on until you name them. Naming someone while recording still teaches Cilica their voice."
         }
         control={
           <Switch
