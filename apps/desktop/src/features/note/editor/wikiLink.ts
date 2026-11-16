@@ -5,10 +5,13 @@
  * Markdown serializer escapes the brackets and the link is lost on the first save). It shows the
  * shown text, or the title, styled by what it points at: a note, a saved person, or a note not
  * created yet. Typing `]]` or pasting turns the text into a link; Backspace right after a link
- * turns it back into text to edit.
+ * turns it back into text to edit. The left arrow into a link from its right (or the right arrow
+ * from its left) opens it up as raw `[[…]]` text with the caret inside; moving the caret out
+ * of that text turns it back into a link.
  */
 import { InputRule, mergeAttributes, Node, PasteRule } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { splitWiki } from "@/lib/links";
 
 export interface WikiLinkAttrs {
@@ -56,6 +59,10 @@ export function wikiLabel({ target, alias }: Pick<WikiLinkAttrs, "target" | "ali
 const LINK = /^(!?)\[\[([^[\]\n]+?)\]\]/;
 const LINK_AT_END = /(!?)\[\[([^[\]\n]+?)\]\]$/;
 const LINK_GLOBAL = /(!?)\[\[([^[\]\n]+?)\]\]/g;
+const LINK_EXACT = /^(!?)\[\[([^[\]\n]+?)\]\]$/;
+
+/** The range of a link opened up by the arrow keys, until the caret leaves it. */
+const expandedKey = new PluginKey<{ from: number; to: number } | null>("wikiLinkExpanded");
 
 export const WikiLink = Node.create<WikiLinkOptions>({
   name: "wikiLink",
@@ -153,8 +160,60 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     ];
   },
 
+  addProseMirrorPlugins() {
+    const type = this.type;
+    return [
+      new Plugin<{ from: number; to: number } | null>({
+        key: expandedKey,
+        state: {
+          init: () => null,
+          apply: (tr, value) => {
+            const meta = tr.getMeta(expandedKey) as { from: number; to: number } | null | undefined;
+            if (meta !== undefined) return meta;
+            if (!value) return null;
+            const from = tr.mapping.map(value.from, -1);
+            const to = tr.mapping.map(value.to, 1);
+            return from < to ? { from, to } : null;
+          },
+        },
+        // Once the caret is outside the opened text, turn it back into a link if it still is one.
+        appendTransaction: (_trs, _old, state) => {
+          const range = expandedKey.getState(state);
+          if (!range) return null;
+          const { from, to } = state.selection;
+          if (from > range.from && to < range.to) return null;
+          const tr = state.tr.setMeta(expandedKey, null);
+          const text = state.doc.textBetween(range.from, range.to, "\n");
+          const m = LINK_EXACT.exec(text);
+          if (m) {
+            tr.replaceWith(range.from, range.to, type.create(wikiAttrs(m[2] ?? "", m[1] === "!")));
+          }
+          return tr;
+        },
+      }),
+    ];
+  },
+
   addKeyboardShortcuts() {
+    const expand = (side: "before" | "after") => {
+      const { state, view } = this.editor;
+      const { selection } = state;
+      if (!selection.empty) return false;
+      const node = side === "before" ? selection.$from.nodeBefore : selection.$from.nodeAfter;
+      if (node?.type !== this.type) return false;
+      const text = wikiMarkdown(node.attrs as WikiLinkAttrs);
+      const from = side === "before" ? selection.from - node.nodeSize : selection.from;
+      const tr = state.tr.replaceWith(from, from + node.nodeSize, state.schema.text(text));
+      // Land just inside the brackets: before `]]` from the right, after `[[` from the left.
+      const caret = side === "before" ? from + text.length - 2 : from + text.indexOf("[[") + 2;
+      tr.setSelection(TextSelection.create(tr.doc, caret));
+      tr.setMeta(expandedKey, { from, to: from + text.length });
+      view.dispatch(tr);
+      return true;
+    };
     return {
+      ArrowLeft: () => expand("before"),
+      ArrowRight: () => expand("after"),
       // Backspace right after a link opens it back up as text, minus its last bracket.
       Backspace: () => {
         const { selection } = this.editor.state;
