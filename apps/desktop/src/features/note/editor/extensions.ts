@@ -1,7 +1,7 @@
 /**
  * The note editor's schema. Markdown is the stored format, so every node and mark here must
  * round-trip through @tiptap/markdown (see markdown.test.ts): headings 1–6, bold, italic,
- * strikethrough, inline code, links, images, quotes, rules, bullet / numbered / task lists,
+ * strikethrough, superscript `^x^`, subscript `~x~`, inline code, links, images, quotes, rules, bullet / numbered / task lists,
  * tables, fenced code blocks with syntax colouring, and Obsidian's `[[links]]` and `#tags`.
  */
 import type { AnyExtension } from "@tiptap/core";
@@ -16,6 +16,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { FindInNote } from "./findInNote";
 import { MarkdownPaste, TaskShortcut } from "./markdownInput";
+import { Subscript, Superscript } from "./scripts";
 import { StreamHighlight } from "./streamHighlight";
 import { type OnWordEnd, SwearWatch } from "./swearWatch";
 import { Tags } from "./tags";
@@ -52,6 +53,8 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
       defaultLanguage: null,
       HTMLAttributes: { spellcheck: "false" },
     }),
+    Superscript,
+    Subscript,
     Image.configure({ inline: false, allowBase64: true }),
     TaskList,
     TaskItem.configure({ nested: true }),

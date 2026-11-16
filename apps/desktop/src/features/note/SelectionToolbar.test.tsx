@@ -29,13 +29,13 @@ afterEach(() => {
   editor = null;
 });
 
-function setup() {
+function setup(content = "Thsi is wrnog") {
   const element = document.createElement("div");
   document.body.append(element);
   editor = new Editor({
     element,
     extensions: noteExtensions(),
-    content: "Thsi is wrnog",
+    content,
     contentType: "markdown",
   });
   const e = editor;
@@ -49,7 +49,9 @@ function setup() {
   act(() => void fireEvent.focus(e.view.dom));
   const selectFirstWord = () =>
     act(() => void e.chain().focus().setTextSelection({ from: 1, to: 5 }).run());
-  return { dom: e.view.dom, selectFirstWord };
+  const select = (from: number, to: number) =>
+    act(() => void e.chain().focus().setTextSelection({ from, to }).run());
+  return { e, dom: e.view.dom, selectFirstWord, select };
 }
 
 const toolbar = () => screen.queryByRole("toolbar");
@@ -59,6 +61,21 @@ describe("SelectionToolbar", () => {
     const { selectFirstWord } = setup();
     selectFirstWord();
     expect(toolbar()).toBeInTheDocument();
+  });
+
+  it("applies superscript and subscript, one replacing the other", () => {
+    const { e, select } = setup("H2O and x2");
+    select(2, 3);
+    fireEvent.click(screen.getByRole("button", { name: "Subscript" }));
+    select(10, 11);
+    fireEvent.click(screen.getByRole("button", { name: "Superscript" }));
+    expect(e.getMarkdown().trim()).toBe("H~2~O and x^2^");
+    expect(screen.getByRole("button", { name: "Superscript" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Subscript" }));
+    expect(e.getMarkdown().trim()).toBe("H~2~O and x~2~");
   });
 
   it("stays hidden when a right-click selected the word, until the next click or key", () => {

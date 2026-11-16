@@ -1,7 +1,7 @@
 /**
  * The formatting toolbar that appears over selected text in a note: bold, italic,
- * strikethrough, inline code, headings, quote and link. Everything it offers round-trips
- * through Markdown. It waits until the mouse is released, hides on Esc, and follows the
+ * strikethrough, superscript, subscript, inline code, headings, quote and link. Everything
+ * it offers round-trips through Markdown. It waits until the mouse is released, hides on Esc, and follows the
  * selection as the page scrolls. A right-click selects the word under it for the system menu
  * (spelling suggestions, Look Up), so that selection never brings the bar up.
  */
@@ -17,6 +17,8 @@ import {
   Link,
   type LucideIcon,
   Strikethrough,
+  Subscript,
+  Superscript,
   TextQuote,
   Unlink,
 } from "lucide-react";
@@ -69,6 +71,26 @@ const MARKS: Action[] = [
     active: (e) => e.isActive("strike"),
     can: (e) => e.can().toggleStrike(),
     run: (e) => e.chain().focus().toggleStrike().run(),
+  },
+  {
+    id: "superscript",
+    icon: Superscript,
+    label: "Superscript",
+    keys: "Mod+.",
+    active: (e) => e.isActive("superscript"),
+    // A dry run cannot see the swap, so either mark fitting here is enough.
+    can: (e) => e.can().toggleSuperscript() || e.can().toggleSubscript(),
+    run: (e) => e.chain().focus().unsetSubscript().toggleSuperscript().run(),
+  },
+  {
+    // ⌘, opens Settings.
+    id: "subscript",
+    icon: Subscript,
+    label: "Subscript",
+    keys: "Mod+Shift+,",
+    active: (e) => e.isActive("subscript"),
+    can: (e) => e.can().toggleSubscript() || e.can().toggleSuperscript(),
+    run: (e) => e.chain().focus().unsetSuperscript().toggleSubscript().run(),
   },
   {
     // ⌘E belongs to Notes ⇄ Transcript, so no shortcut is advertised here.

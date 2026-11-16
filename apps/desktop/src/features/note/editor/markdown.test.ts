@@ -28,6 +28,8 @@ const EXACT = [
   "A [link](https://example.com) here.",
   "Line one\n\n---\n\nAfter rule",
   "~~struck~~ text",
+  "E = mc^2^ and H~2~O, then ~~struck~~.",
+  "Note<sup>a footnote</sup> and x~i\\~j~ with **bold^2^**",
   "**Bold with a [link](https://cilica.app) inside** and plain",
   "##### Fifth level\n\n###### Sixth level",
   "![Whiteboard](https://example.com/board.png)",
@@ -78,6 +80,96 @@ describe("editor Markdown round-trip", () => {
 
   it("normalises trailing whitespace and blank lines", () => {
     expect(normalizeMarkdown("\n\nA  \n\n\n\nB\n\n")).toBe("A\n\nB");
+  });
+});
+
+describe("superscript and subscript", () => {
+  function marksOf(markdown: string): Array<[string, string[]]> {
+    const editor = new Editor({
+      extensions: noteExtensions(),
+      content: markdown,
+      contentType: "markdown",
+    });
+    const out: Array<[string, string[]]> = [];
+    editor.state.doc.descendants((node) => {
+      if (node.isText) out.push([node.text ?? "", node.marks.map((m) => m.type.name)]);
+    });
+    editor.destroy();
+    return out;
+  }
+
+  it("reads ^sup^ and ~sub~ as marks, and ~~ as strikethrough", () => {
+    expect(marksOf("x^2^ H~2~O ~~gone~~")).toEqual([
+      ["x", []],
+      ["2", ["superscript"]],
+      [" H", []],
+      ["2", ["subscript"]],
+      ["O ", []],
+      ["gone", ["strike"]],
+    ]);
+  });
+
+  it("leaves markers with spaces inside as plain text", () => {
+    expect(marksOf("about ~5 minutes, maybe ~10 ^ ok ^")).toEqual([
+      ["about ~5 minutes, maybe ~10 ^ ok ^", []],
+    ]);
+  });
+
+  it("applies ^…^ and ~…~ as you type, and leaves ~~ to strikethrough", () => {
+    const element = document.createElement("div");
+    const editor = new Editor({ element, extensions: noteExtensions() });
+    const type = (text: string) => {
+      for (const ch of text) {
+        const { from, to } = editor.state.selection;
+        const handled = editor.view.someProp("handleTextInput", (f) =>
+          f(editor.view, from, to, ch, () => editor.state.tr.insertText(ch, from, to)),
+        );
+        if (!handled) editor.view.dispatch(editor.state.tr.insertText(ch, from, to));
+      }
+    };
+    type("mc^2^ and H~2~O and ~~gone~~");
+    expect(normalizeMarkdown(editor.getMarkdown())).toBe("mc^2^ and H~2~O and ~~gone~~");
+    editor.destroy();
+  });
+
+  it("ends at its closing marker: typing after a run, or after deleting it, is plain", () => {
+    const editor = new Editor({
+      element: document.createElement("div"),
+      extensions: noteExtensions(),
+      content: "x^ab^ and H~2~",
+      contentType: "markdown",
+    });
+    const typeAt = (pos: number, text: string) =>
+      editor.chain().setTextSelection(pos).insertContent(text).run();
+    typeAt(4, "Q");
+    editor.commands.deleteRange({ from: 2, to: 4 });
+    typeAt(2, "zz");
+    expect(normalizeMarkdown(editor.getMarkdown())).toBe("xzzQ and H~2~");
+    // The shortcut still turns it on for what you type next.
+    editor.chain().setTextSelection(3).run();
+    editor.view.dom.dispatchEvent(
+      new KeyboardEvent("keydown", { key: ".", ctrlKey: true, bubbles: true }),
+    );
+    editor.view.dispatch(editor.state.tr.insertText("3"));
+    expect(normalizeMarkdown(editor.getMarkdown())).toBe("xz^3^zQ and H~2~");
+    editor.destroy();
+  });
+
+  it("reads Pandoc's escaped spaces", () => {
+    expect(marksOf("x^a\\ b^")).toEqual([
+      ["x", []],
+      ["a b", ["superscript"]],
+    ]);
+  });
+
+  it("writes a run with a space or caret as HTML, which reads back the same", () => {
+    const editor = new Editor({ extensions: noteExtensions(), content: "a b^c" });
+    editor.chain().selectAll().toggleSuperscript().run();
+    expect(normalizeMarkdown(editor.getMarkdown())).toBe("<sup>a b^c</sup>");
+    editor.chain().selectAll().toggleSubscript().run();
+    expect(normalizeMarkdown(editor.getMarkdown())).toBe("<sub>a b^c</sub>");
+    editor.destroy();
+    expect(marksOf("<sub>a b^c</sub>")).toEqual([["a b^c", ["subscript"]]]);
   });
 });
 
