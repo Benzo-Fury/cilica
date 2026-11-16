@@ -1,6 +1,7 @@
 /**
  * The list that opens when you type `[[` in a note: matching notes, saved people, and a way to
- * link a note that does not exist yet. ↑↓ to move, Enter or Tab to link, Esc to close.
+ * link a note that does not exist yet. It stays open after a `|`, matching on the part before it
+ * and keeping what you type after it as the link's shown text. ↑↓ to move, Enter or Tab to link, Esc to close.
  */
 import type { Editor } from "@tiptap/core";
 import type { EditorView } from "@tiptap/pm/view";
@@ -62,7 +63,12 @@ export function LinkSuggest({
       .focus()
       .insertWikiLink(
         { from: open.state.from, to: open.state.to },
-        { target: item.title, alias: null, embed: open.state.embed },
+        {
+          target: item.title,
+          // Text typed after `|` is what the link shows; a bare `|` shows the title.
+          alias: open.state.alias?.trim() ? open.state.alias : null,
+          embed: open.state.embed,
+        },
       )
       .run();
     setOpen(null);

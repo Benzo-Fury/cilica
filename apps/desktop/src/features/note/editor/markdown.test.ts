@@ -158,6 +158,30 @@ describe("wiki links in the editor", () => {
     expect(normalizeMarkdown(editor.getMarkdown())).toBe("Talk to [[Priya]]");
     editor.destroy();
   });
+
+  it("keeps suggesting after | and matches on the part before it", () => {
+    const changes: ({ query: string; alias: string | null } | null)[] = [];
+    let handlers: SuggestHandlers | null = null;
+    const editor = new Editor({
+      extensions: noteExtensions({ suggest: () => handlers }),
+      content: "",
+      contentType: "markdown",
+    });
+    handlers = {
+      onChange: (state) => {
+        changes.push(state ? { query: state.query, alias: state.alias } : null);
+      },
+      onKey: () => false,
+    };
+    editor.commands.setTextSelection(1);
+    editor.commands.insertContent("See [[Pri|");
+    expect(changes.at(-1)).toEqual({ query: "Pri", alias: "" });
+    editor.commands.insertContent("her");
+    expect(changes.at(-1)).toEqual({ query: "Pri", alias: "her" });
+    editor.commands.insertContent("|");
+    expect(changes.at(-1)).toBe(null);
+    editor.destroy();
+  });
 });
 
 describe("find in note", () => {

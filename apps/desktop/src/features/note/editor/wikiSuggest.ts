@@ -1,6 +1,6 @@
 /**
  * Typing `[[` in a note suggests notes to link. This plugin only tracks the query (the text after
- * `[[` up to the caret) and hands keys to whoever renders the list (`LinkSuggest`); picking an
+ * `[[` up to the caret, or up to a `|` when you go on to type what the link shows) and hands keys to whoever renders the list (`LinkSuggest`); picking an
  * entry calls `insertWikiLink`.
  */
 import { Extension } from "@tiptap/core";
@@ -12,7 +12,10 @@ export interface SuggestState {
   /** Where `[[` (or `![[`) starts and where the caret is. */
   from: number;
   to: number;
+  /** What to link: the text after `[[`, up to a `|`. */
   query: string;
+  /** What the link shows, typed after a `|`; null until a `|` is typed. */
+  alias: string | null;
   embed: boolean;
 }
 
@@ -30,7 +33,7 @@ interface PluginState {
 
 export const suggestKey = new PluginKey<PluginState>("wikiSuggest");
 
-const QUERY = /(!?)\[\[([^[\]|#\n]{0,80})$/;
+const QUERY = /(!?)\[\[([^[\]|#\n]{0,80})(?:\|([^[\]|\n]{0,80}))?$/;
 
 function find(state: EditorState): SuggestState | null {
   const { selection } = state;
@@ -44,6 +47,7 @@ function find(state: EditorState): SuggestState | null {
     from: selection.from - m[0].length,
     to: selection.from,
     query: m[2] ?? "",
+    alias: m[3] ?? null,
     embed: m[1] === "!",
   };
 }
@@ -117,7 +121,8 @@ export const WikiSuggest = Extension.create<{
                   last &&
                   open.from === last.from &&
                   open.to === last.to &&
-                  open.query === last.query);
+                  open.query === last.query &&
+                  open.alias === last.alias);
               if (same) return;
               last = open;
               handlers()?.onChange(open, view);
