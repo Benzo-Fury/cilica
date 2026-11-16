@@ -1,7 +1,10 @@
-import type { LucideIcon } from "lucide-react";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { Check, type LucideIcon, X } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode, Ref } from "react";
+import { reducedTransition, springs, tweens } from "@/app/motion";
 import { cn } from "./cn";
 import { Icon } from "./Icon";
+import { Tooltip } from "./Tooltip";
 
 export type ChipTone = "neutral" | "accent" | "rec" | "success" | "warning" | "danger";
 
@@ -68,4 +71,86 @@ export function RecDot({ size = "md", still = false }: { size?: "sm" | "md"; sti
 /** A count badge for sidebar rows ("1 proposal"). */
 export function CountBadge({ children }: { children: ReactNode }) {
   return <span className="nt-chip nt-chip-accent nt-chip-badge">{children}</span>;
+}
+
+export interface SuggestionChipProps {
+  /** The one icon, before the label. */
+  icon?: LucideIcon;
+  children: ReactNode;
+  /** Why it is suggested, shown on hover. */
+  hint?: ReactNode;
+  acceptLabel: string;
+  dismissLabel: string;
+  onAccept: () => void;
+  onDismiss: () => void;
+  disabled?: boolean;
+  /** `AnimatePresence mode="popLayout"` measures the chip through this. */
+  ref?: Ref<HTMLSpanElement>;
+}
+
+/**
+ * A suggestion waiting for a yes or no: a dashed chip with Accept and Dismiss. Springs in, fades
+ * out (wrap a list of them in `AnimatePresence`).
+ */
+export function SuggestionChip({
+  icon,
+  children,
+  hint,
+  acceptLabel,
+  dismissLabel,
+  onAccept,
+  onDismiss,
+  disabled,
+  ref,
+}: SuggestionChipProps) {
+  const reduced = useReducedMotion();
+  const label = (
+    <span className="nt-chip-suggest-label">
+      {icon && <Icon icon={icon} size="sm" />}
+      <span className="nt-chip-suggest-text">{children}</span>
+    </span>
+  );
+  return (
+    <motion.span
+      ref={ref}
+      layout={!reduced}
+      className="nt-chip nt-chip-suggest"
+      initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1, transition: reduced ? reducedTransition : springs.snappy }}
+      exit={{ opacity: 0, scale: reduced ? 1 : 0.96, transition: tweens.exit }}
+    >
+      {hint ? (
+        <Tooltip label={<span className="nt-tip-text">{hint}</span>}>
+          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: the hint must be reachable by keyboard */}
+          <span tabIndex={0} className="nt-chip-suggest-focus">
+            {label}
+          </span>
+        </Tooltip>
+      ) : (
+        label
+      )}
+      <Tooltip label={acceptLabel}>
+        <button
+          type="button"
+          className="nt-chip-suggest-act nt-anim"
+          aria-label={acceptLabel}
+          disabled={disabled}
+          onClick={onAccept}
+        >
+          <Icon icon={Check} size="sm" />
+        </button>
+      </Tooltip>
+      <Tooltip label={dismissLabel}>
+        <button
+          type="button"
+          className="nt-chip-suggest-act nt-anim"
+          aria-label={dismissLabel}
+          disabled={disabled}
+          onClick={onDismiss}
+        >
+          <Icon icon={X} size="sm" />
+        </button>
+      </Tooltip>
+    </motion.span>
+  );
 }

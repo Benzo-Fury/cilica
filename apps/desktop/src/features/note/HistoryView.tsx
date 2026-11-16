@@ -12,6 +12,7 @@ import { reducedTransition, springs, tweens } from "@/app/motion";
 import { api, errorMessage } from "@/ipc/client";
 import type { Note, NoteVersion } from "@/ipc/types";
 import { dayAndTime, relativeDate } from "@/lib/format";
+import { bodyOf } from "@/lib/properties";
 import { diffStats, documentRows, proseDiff } from "@/lib/proseDiff";
 import { toast } from "@/lib/toast";
 import { Button, DiffCard, EmptyState, Icon, ListItem, ProseDiffRows, SkeletonText } from "@/ui";
@@ -43,7 +44,8 @@ export function HistoryView({
   const current = normalizeMarkdown(currentBody);
   // A readable prose diff (headings, lists and tasks in the note's own shape, no Markdown marks).
   const rows = useMemo(
-    () => (selected ? documentRows(proseDiff(normalizeMarkdown(selected.body_md), current)) : []),
+    () =>
+      selected ? documentRows(proseDiff(normalizeMarkdown(bodyOf(selected.body_md)), current)) : [],
     [selected, current],
   );
   const { added, removed } = diffStats(rows);

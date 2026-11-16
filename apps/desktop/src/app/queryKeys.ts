@@ -62,6 +62,7 @@ export const qk = {
   linkGraph: (focus: string | null, depth: number) =>
     ["links", "graph", focus ?? "all", depth] as const,
   backlinks: (noteId: string) => ["links", "backlinks", noteId] as const,
+  linkSuggestions: (noteId: string) => ["links", "suggestions", noteId] as const,
   imports: ["imports"] as const,
   importDetect: (provider: string) => ["imports", "detect", provider] as const,
   importDetectAll: ["imports", "detect_all"] as const,

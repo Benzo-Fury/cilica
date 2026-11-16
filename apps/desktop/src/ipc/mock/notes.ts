@@ -1,4 +1,5 @@
 /** Notes, categories, versions, Trash, search, settings and app info. */
+
 import type {
   AppInfo,
   Author,
@@ -11,6 +12,7 @@ import type {
   Settings,
   SettingsInput,
 } from "@/ipc/types";
+import { noteAliases, withKeptProperties } from "@/lib/properties";
 import { relinkAfterRename } from "./links";
 import type { MockContext, MockState } from "./state";
 import {
@@ -27,8 +29,8 @@ import {
 // ───────── Shared helpers (also used by recording, assistant and tasks) ─────────
 
 export function summaryOf(note: Note): NoteSummary {
-  const { body_md: _body, started_at: _s, ended_at: _e, ...rest } = note;
-  return rest;
+  const { body_md: body, started_at: _s, ended_at: _e, ...rest } = note;
+  return { ...rest, aliases: noteAliases(body) };
 }
 
 export function requireNote(state: MockState, noteId: string): Note {
@@ -98,6 +100,7 @@ export function writeBody(
   bodyMd: string,
   aiActionId: string | null,
 ): void {
+  bodyMd = withKeptProperties(note.body_md, bodyMd);
   if (note.body_md.trim() && note.body_md !== bodyMd) snapshot(state, note, "user");
   note.body_md = bodyMd;
   note.updated_at = iso();
@@ -177,8 +180,9 @@ export function notesCommands(ctx: MockContext) {
       return summaryOf(note);
     },
 
-    updateNoteBody(noteId: string, bodyMd: string): NoteSummary {
+    updateNoteBody(noteId: string, incoming: string): NoteSummary {
       const note = requireLiveNote(state, noteId);
+      const bodyMd = withKeptProperties(note.body_md, incoming);
       if (note.body_md === bodyMd) return summaryOf(note);
       const last = state.versions
         .filter((v) => v.note_id === noteId)

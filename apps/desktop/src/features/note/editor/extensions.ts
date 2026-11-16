@@ -15,6 +15,11 @@ import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { FindInNote } from "./findInNote";
+import {
+  type InlineLinkHandlers,
+  InlineLinkHintExtension,
+  type InlineLinkMatcher,
+} from "./inlineLinkHint";
 import { MarkdownPaste, TaskShortcut } from "./markdownInput";
 import { Subscript, Superscript } from "./scripts";
 import { StreamHighlight } from "./streamHighlight";
@@ -33,6 +38,8 @@ export interface NoteExtensionOptions {
   /** Who renders `[[` suggestions. */
   suggest?: () => SuggestHandlers | null;
   onOpenTag?: (tag: string) => void;
+  /** Offer to link a note title as soon as you finish typing it. Off without a matcher. */
+  linkHint?: { match: InlineLinkMatcher; handlers: () => InlineLinkHandlers | null };
 }
 
 export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension[] {
@@ -69,5 +76,9 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
     WikiLink.configure(options.links ?? {}),
     WikiSuggest.configure({ handlers: options.suggest ?? (() => null) }),
     Tags.configure({ onOpen: options.onOpenTag ?? null }),
+    InlineLinkHintExtension.configure({
+      match: options.linkHint?.match ?? null,
+      handlers: options.linkHint?.handlers ?? (() => null),
+    }),
   ];
 }

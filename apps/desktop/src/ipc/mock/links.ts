@@ -4,6 +4,7 @@ import type {
   GraphEdgeKind,
   GraphNode,
   LinkGraph,
+  LinkSuggestion,
   Mention,
   Note,
   NoteSummary,
@@ -16,6 +17,17 @@ import {
   plainLine,
   rewriteWikiLinks,
 } from "@/lib/links";
+import {
+  ALIASES,
+  bodyOf,
+  joinProperties,
+  linkTarget,
+  listProperty,
+  RELATED,
+  setListProperty,
+  splitProperties,
+  UNRELATED,
+} from "@/lib/properties";
 import { requireLiveNote, requireNote, summaryOf } from "./notes";
 import type { MockContext, MockState } from "./state";
 import { appError, iso } from "./util";
@@ -300,6 +312,24 @@ export function padGraph(graph: LinkGraph, count: number): LinkGraph {
 }
 
 export function linksCommands({ state }: MockContext) {
+  const suggestionTitle = (noteId: string, targetNoteId: string) => {
+    if (noteId === targetNoteId) throw appError("invalid", "A note cannot link to itself.");
+    const title = requireNote(state, targetNoteId).title.trim();
+    if (!title)
+      throw appError(
+        "invalid",
+        "That note has no title yet, so there is nothing to link to. Give it a title first.",
+      );
+    return title;
+  };
+  const editProperties = (noteId: string, edit: (yaml: string) => string): NoteSummary => {
+    const note = requireLiveNote(state, noteId);
+    const { yaml, body } = splitProperties(note.body_md);
+    const next = joinProperties(edit(yaml ?? ""), body);
+    note.body_md = splitProperties(next).yaml?.trim() ? next : body;
+    note.updated_at = iso();
+    return summaryOf(note);
+  };
   return {
     getLinkGraph(focus: string | null, depth: number): LinkGraph {
       const graph = buildGraph(state);
@@ -338,6 +368,105 @@ export function linksCommands({ state }: MockContext) {
         }
       }
       return { linked: linked.slice(0, 50), unlinked: unlinked.slice(0, 50) };
+    },
+
+    getLinkSuggestions(noteId: string): LinkSuggestion[] {
+      const note = requireNote(state, noteId);
+      const notes = liveNewestFirst(state);
+      const ownKey = linkKey(note.title);
+      const owners = new Map<string, Note>();
+      for (const n of notes)
+        if (linkKey(n.title) && !owners.has(linkKey(n.title))) owners.set(linkKey(n.title), n);
+      const refs = parseRefs(note.body_md).filter((r) => r.kind !== "tag");
+      const skip = new Set([ownKey, ...refs.map((r) => r.key)]);
+      const yaml = splitProperties(note.body_md).yaml ?? "";
+      for (const v of listProperty(yaml, UNRELATED)) skip.add(linkKey(linkTarget(v)));
+      const open = (n: Note) => {
+        const key = linkKey(n.title);
+        return n.id !== noteId && !skip.has(key) && owners.get(key)?.id === n.id;
+      };
+      const inbound = new Map<string, number>();
+      for (const n of notes)
+        for (const r of parseRefs(n.body_md))
+          if (r.kind !== "tag") inbound.set(r.key, (inbound.get(r.key) ?? 0) + 1);
+      const hub = (n: Note) => Math.min(inbound.get(linkKey(n.title)) ?? 0, 20);
+      const found = new Map<string, LinkSuggestion & { score: number }>();
+      const offer = (s: LinkSuggestion & { score: number }) => {
+        const had = found.get(s.note.id);
+        if (!had || had.score < s.score) found.set(s.note.id, s);
+      };
+      const body = bodyOf(note.body_md);
+      for (const n of notes) {
+        if (!open(n)) continue;
+        const nYaml = splitProperties(n.body_md).yaml ?? "";
+        for (const name of [n.title, ...listProperty(nYaml, ALIASES)]) {
+          if (name.trim().length < 3) continue;
+          const hit = findUnlinked(body, name.trim());
+          if (hit) {
+            offer({
+              note: { id: n.id, title: n.title },
+              reason: "mentioned",
+              excerpt: excerpt(hit.line),
+              shared: [],
+              score: 100 + hub(n),
+            });
+            break;
+          }
+        }
+      }
+      if (owners.get(ownKey)?.id === noteId) {
+        for (const n of notes) {
+          if (!open(n) || !parseRefs(n.body_md).some((r) => r.kind !== "tag" && r.key === ownKey))
+            continue;
+          offer({
+            note: { id: n.id, title: n.title },
+            reason: "links_here",
+            excerpt: excerpt(linkingLine(n.body_md, ownKey) ?? ""),
+            shared: [],
+            score: 50 + hub(n),
+          });
+        }
+      }
+      const mine = new Set(refs.map((r) => r.key));
+      for (const n of notes) {
+        if (!open(n)) continue;
+        const shared = parseRefs(n.body_md).filter((r) => r.kind !== "tag" && mine.has(r.key));
+        if (shared.length < 2) continue;
+        offer({
+          note: { id: n.id, title: n.title },
+          reason: "shares_links",
+          excerpt: "",
+          shared: shared.slice(0, 3).map((r) => r.target),
+          score: 20 + 5 * Math.min(shared.length, 10) + hub(n),
+        });
+      }
+      return [...found.values()]
+        .sort((a, b) => b.score - a.score || a.note.title.localeCompare(b.note.title))
+        .slice(0, 3)
+        .map(({ score: _score, ...s }) => s);
+    },
+
+    acceptLinkSuggestion(noteId: string, targetNoteId: string): NoteSummary {
+      const title = suggestionTitle(noteId, targetNoteId);
+      return editProperties(noteId, (yaml) => {
+        const key = linkKey(title);
+        const related = listProperty(yaml, RELATED);
+        if (!related.some((v) => linkKey(linkTarget(v)) === key)) related.push(`[[${title}]]`);
+        const unrelated = listProperty(yaml, UNRELATED).filter(
+          (v) => linkKey(linkTarget(v)) !== key,
+        );
+        return setListProperty(setListProperty(yaml, RELATED, related), UNRELATED, unrelated);
+      });
+    },
+
+    dismissLinkSuggestion(noteId: string, targetNoteId: string): NoteSummary {
+      const title = suggestionTitle(noteId, targetNoteId);
+      return editProperties(noteId, (yaml) => {
+        const unrelated = listProperty(yaml, UNRELATED);
+        if (!unrelated.some((v) => linkKey(linkTarget(v)) === linkKey(title)))
+          unrelated.push(title);
+        return setListProperty(yaml, UNRELATED, unrelated);
+      });
     },
 
     linkMention(sourceNoteId: string, targetNoteId: string): NoteSummary {

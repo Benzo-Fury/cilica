@@ -87,6 +87,71 @@
   line-height: 16px;
 }
 
+/* ───────── Link a title you just typed ───────── */
+/* A small pill under the words, offered and gone again while you type. Pointer-only: the caret
+   never leaves the editor. */
+.nt-link-hint {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  max-width: min(320px, calc(100vw - var(--space-8)));
+  height: 26px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font: 500 12px / 16px var(--font-sans);
+  white-space: nowrap;
+  cursor: default;
+  transform-origin: top left;
+  animation: nt-link-hint-in var(--spring-snappy-dur) var(--spring-snappy) both;
+}
+.nt-link-hint .lucide {
+  flex: none;
+  color: var(--accent-text);
+}
+.nt-link-hint:hover {
+  color: var(--ink);
+}
+.nt-link-hint-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-link-hint-title {
+  color: var(--ink);
+  font-weight: 600;
+}
+@keyframes nt-link-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes nt-link-hint-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-link-hint {
+    animation: nt-link-hint-fade var(--dur-fast) linear both;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nt-link-hint {
+    background: var(--bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* ───────── The graph ───────── */
 .nt-graph {
   --graph-bg: var(--bg-canvas);
@@ -375,4 +440,44 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* Beside the note: with Cilica out of the way (panel shut, or the floating bar) and room to
+   spare, Connections leaves the foot of the note for a column on its right that stays in view
+   while the note scrolls. Narrower canvases keep it under the note. */
+.nt-note-shell {
+  container: note-shell / inline-size;
+}
+@container note-shell (min-width: 960px) {
+  .nt-note-shell[data-aside] > .nt-page {
+    --aside-width: 260px;
+    /* Extra room on the left keeps the word count (bottom left of the canvas) off the text. */
+    --gutter-start: calc(var(--space-16) + var(--space-6));
+    max-width: calc(var(--size-measure) + var(--aside-width) + var(--gutter-start));
+    padding-left: var(--gutter-start);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--aside-width);
+    column-gap: var(--space-10);
+    align-items: start;
+  }
+  .nt-note-shell[data-aside] .nt-connections {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--space-5);
+    max-height: calc(100dvh - var(--size-titlebar) - var(--space-5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    margin-top: 0;
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-6);
+    border-top: 0;
+  }
+  .nt-note-shell[data-aside] .nt-connections-graph {
+    height: 220px;
+  }
+  .nt-note-shell[data-aside] .nt-backlink-title {
+    font-size: 13px;
+  }
 }

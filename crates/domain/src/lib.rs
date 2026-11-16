@@ -13,6 +13,7 @@ mod graph;
 mod home;
 mod import;
 mod note;
+pub mod properties;
 mod recording;
 mod settings;
 mod swears;

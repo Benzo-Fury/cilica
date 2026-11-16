@@ -1126,6 +1126,31 @@ export type LinkGraph_Serialize = {
 	focus: number | null,
 };
 
+/**  Why a link to another note is suggested. */
+export type LinkReason = 
+/**  This note names the other note's title (or one of its aliases) without linking it. */
+"mentioned" | 
+/**  The other note links here, but this note does not link back. */
+"links_here" | 
+/**  Both notes link to the same notes. */
+"shares_links";
+
+/**
+ *  A note this one could link to. Approving it adds the link to the note's hidden `related`
+ *  property; dismissing it adds the title to `unrelated`, so it is not suggested again.
+ */
+export type LinkSuggestion = {
+	note: NoteRef,
+	reason: LinkReason,
+	/**
+	 *  `mentioned`: the line it is named on. `links_here`: the line in the other note that links
+	 *  here. Plain text; empty for `shares_links`.
+	 */
+	excerpt: string,
+	/**  `shares_links`: titles both notes link to (at most 3). */
+	shared: string[],
+};
+
 /**  A local model Cilica can pull into Ollama (Settings › Cilica › Local model). */
 export type LocalLlmModel = {
 	/**  Ollama tag, e.g. `qwen3:8b`. */
@@ -1481,6 +1506,8 @@ export type NoteSummary = NoteSummary_Serialize | NoteSummary_Deserialize;
 export type NoteSummary_Deserialize = {
 	id: string,
 	title: string,
+	/**  Other names for the note, from its `aliases` property, as written. */
+	aliases: string[],
 	snippet: string,
 	category_id?: string | null,
 	kind: NoteKind,
@@ -1495,6 +1522,8 @@ export type NoteSummary_Deserialize = {
 export type NoteSummary_Serialize = {
 	id: string,
 	title: string,
+	/**  Other names for the note, from its `aliases` property, as written. */
+	aliases: string[],
 	snippet: string,
 	category_id: string | null,
 	kind: NoteKind,

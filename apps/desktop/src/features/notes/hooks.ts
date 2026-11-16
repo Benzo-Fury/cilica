@@ -9,13 +9,14 @@ import { navigate, openNote, useRouter } from "@/app/router";
 import { api, errorMessage } from "@/ipc/client";
 import type { Category, Note, NoteSummary } from "@/ipc/types";
 import { displayTitle } from "@/lib/format";
+import { noteAliases } from "@/lib/properties";
 import { toast } from "@/lib/toast";
 import { byPosition } from "./positions";
 import { countNotes } from "./selection";
 
 export function toSummary(note: Note): NoteSummary {
-  const { body_md: _body, started_at: _s, ended_at: _e, ...summary } = note;
-  return summary;
+  const { body_md: body, started_at: _s, ended_at: _e, ...summary } = note;
+  return { ...summary, aliases: noteAliases(body) };
 }
 
 export function useNotes() {

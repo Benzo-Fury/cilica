@@ -172,6 +172,60 @@ mark {
 .nt-chip:focus-visible {
   box-shadow: var(--focus);
 }
+/* A suggestion waiting for a yes or no: dashed like a link to a note not created yet. */
+.nt-chip-suggest {
+  gap: 0;
+  padding: 0 var(--space-0-5) 0 0;
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px dashed var(--line-strong);
+  box-sizing: border-box;
+}
+.nt-chip-suggest-focus {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: var(--radius-pill);
+}
+.nt-chip-suggest-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.nt-chip-suggest-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 var(--space-1) 0 var(--space-2);
+}
+.nt-chip-suggest-text {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nt-chip-suggest-act {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.nt-chip-suggest-act:hover {
+  background: var(--fill-press);
+  color: var(--ink);
+}
+.nt-chip-suggest-act:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.nt-chip-suggest-act:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .nt-chip-badge {
   height: 20px;
   padding: 0 var(--space-1-5);
@@ -1313,6 +1367,8 @@ mark {
   font: 450 13px / 18px var(--font-sans);
 }
 .nt-note-meta {
+  /* A leaving suggestion pill pops out of the row (popLayout) and is placed against it. */
+  position: relative;
   align-items: center;
 }
 

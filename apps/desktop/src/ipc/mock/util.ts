@@ -1,5 +1,7 @@
 /** Small helpers shared by the mock backend. */
+
 import type { AppError, ErrorCode } from "@/ipc/types";
+import { bodyOf } from "@/lib/properties";
 
 let counter = 0;
 
@@ -100,7 +102,7 @@ export function stripMarkdown(md: string): string {
 
 /** First non-heading line of text, as plain text, for the sidebar snippet. */
 export function snippetFrom(md: string): string {
-  for (const raw of md.split("\n")) {
+  for (const raw of bodyOf(md).split("\n")) {
     const line = raw.trim();
     if (!line || /^#{1,6}\s/.test(line) || /^```/.test(line) || /^\|?\s*:?-{3,}/.test(line))
       continue;

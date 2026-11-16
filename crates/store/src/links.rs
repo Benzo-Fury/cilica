@@ -12,7 +12,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use cilica_domain::{Author, Backlinks, GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, Id, LinkGraph, Mention, NoteKind, NoteRef, NoteSummary};
+use cilica_domain::{Author, Backlinks, GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, Id, LinkGraph, LinkReason, LinkSuggestion, Mention, NoteKind, NoteRef, NoteSummary, properties};
 use sqlx::Row;
 
 use crate::notes::strip_markdown_line;
@@ -564,7 +564,12 @@ impl Db {
                     .await?;
             }
             // Only if the body is still the one read (a save in between leaves it stale).
-            sqlx::query("UPDATE notes SET links_indexed = 1 WHERE id = ? AND body_md = ?").bind(&id).bind(&body).execute(&mut *tx).await?;
+            sqlx::query("UPDATE notes SET links_indexed = 1, aliases = ? WHERE id = ? AND body_md = ?")
+                .bind(crate::notes::aliases_column(&body))
+                .bind(&id)
+                .bind(&body)
+                .execute(&mut *tx)
+                .await?;
         }
         tx.commit().await?;
         Ok(stale.len() as u32)
@@ -792,6 +797,197 @@ impl Db {
             }
         }
         Ok(changed)
+    }
+}
+
+// ── Suggested links ─────────────────────────────────────────────────────────
+
+/// Most suggestions shown at once: a few strong ones keep the pills meaningful.
+pub const MAX_SUGGESTIONS: usize = 3;
+/// A title or alias shorter than this is too likely to match by accident.
+const MIN_MENTION_CHARS: usize = 3;
+
+struct Candidate {
+    note: NoteRef,
+    reason: LinkReason,
+    excerpt: String,
+    shared: Vec<String>,
+    score: u32,
+}
+
+impl Db {
+    /// Notes this one could link to, best first: notes it names without linking (by title or
+    /// alias), notes that link here without a link back, and notes that link to two or more of the
+    /// same notes. Notes it already links to (in the text or its `related` property) and titles in
+    /// its `unrelated` property are left out. Notes many others link to rank higher, so links lean
+    /// towards general topic notes. Runs when asked (opening a note), never in the background.
+    pub async fn link_suggestions(&self, id: Id) -> StoreResult<Vec<LinkSuggestion>> {
+        self.refresh_link_index().await?;
+        let note = self.get_note(id).await?;
+        let own_key = link_key(&note.title);
+        let notes = self.graph_notes().await?;
+
+        // What not to suggest: this note, what it links to, and what the user turned down.
+        let mut skip: HashSet<String> = HashSet::from([own_key.clone()]);
+        let linked = sqlx::query("SELECT target_key FROM note_links WHERE note_id = ? AND kind IN ('link','embed')").bind(codec::id(id)).fetch_all(self.pool()).await?;
+        for row in &linked {
+            skip.insert(row.try_get("target_key")?);
+        }
+        if let Some(yaml) = properties::split(&note.body_md).0 {
+            skip.extend(properties::list(yaml, properties::UNRELATED).iter().map(|v| link_key(properties::link_target(v))));
+        }
+
+        // A title used twice links to the newest note (notes come newest first).
+        let mut owners: HashMap<&str, &GraphNote> = HashMap::new();
+        for n in &notes {
+            if !n.key.is_empty() {
+                owners.entry(n.key.as_str()).or_insert(n);
+            }
+        }
+        let open = |key: &str| -> Option<&GraphNote> { owners.get(key).copied().filter(|n| n.id != id && !skip.contains(key)) };
+
+        // How many notes link to each title: the "general topic" boost.
+        let inbound: HashMap<String, u32> = sqlx::query(
+            "SELECT l.target_key, COUNT(DISTINCT l.note_id) AS n FROM note_links l JOIN notes s ON s.id = l.note_id \
+             WHERE l.kind IN ('link','embed') AND s.deleted_at IS NULL GROUP BY l.target_key",
+        )
+        .fetch_all(self.pool())
+        .await?
+        .iter()
+        .map(|r| Ok((r.try_get::<String, _>("target_key")?, u32::try_from(r.try_get::<i64, _>("n")?).unwrap_or(0))))
+        .collect::<StoreResult<_>>()?;
+        let hub = |key: &str| inbound.get(key).copied().unwrap_or(0).min(20);
+
+        let mut found: HashMap<Id, Candidate> = HashMap::new();
+        let mut offer = |c: Candidate| match found.get(&c.note.id) {
+            Some(have) if have.score >= c.score => {}
+            _ => {
+                found.insert(c.note.id, c);
+            }
+        };
+
+        // 1. Named in this note without a link, by title or by alias.
+        let body = properties::body(&note.body_md);
+        let lowered = body.to_lowercase();
+        let mut names: Vec<(&GraphNote, String)> = notes.iter().filter(|n| owners.get(n.key.as_str()).is_some_and(|o| o.id == n.id)).map(|n| (n, n.title.clone())).collect();
+        let aliased = sqlx::query("SELECT id, aliases FROM notes WHERE deleted_at IS NULL AND aliases != ''").fetch_all(self.pool()).await?;
+        let by_id: HashMap<Id, &GraphNote> = notes.iter().map(|n| (n.id, n)).collect();
+        for row in &aliased {
+            let Some(&n) = codec::parse_id(&row.try_get::<String, _>("id")?).ok().and_then(|nid| by_id.get(&nid)) else { continue };
+            let aliases: String = row.try_get("aliases")?;
+            names.extend(aliases.lines().filter(|a| !a.is_empty()).map(|a| (n, a.to_string())));
+        }
+        for (n, name) in names {
+            if open(&n.key).is_none_or(|o| o.id != n.id) || name.trim().chars().count() < MIN_MENTION_CHARS || !lowered.contains(&name.trim().to_lowercase()) {
+                continue;
+            }
+            if let Some((_, _, line)) = find_unlinked(body, name.trim()) {
+                offer(Candidate { note: NoteRef { id: n.id, title: n.title.clone() }, reason: LinkReason::Mentioned, excerpt: excerpt(&line), shared: Vec::new(), score: 100 + hub(&n.key) });
+            }
+        }
+
+        // 2. Links here, with no link back.
+        if owners.get(own_key.as_str()).is_some_and(|o| o.id == id) {
+            let rows = sqlx::query(
+                "SELECT DISTINCT n.id, n.body_md FROM note_links l JOIN notes n ON n.id = l.note_id \
+                 WHERE l.target_key = ? AND l.kind IN ('link','embed') AND n.deleted_at IS NULL AND n.id != ?",
+            )
+            .bind(&own_key)
+            .bind(codec::id(id))
+            .fetch_all(self.pool())
+            .await?;
+            for row in &rows {
+                let Some(&n) = codec::parse_id(&row.try_get::<String, _>("id")?).ok().and_then(|nid| by_id.get(&nid)) else { continue };
+                if open(&n.key).is_none_or(|o| o.id != n.id) {
+                    continue;
+                }
+                let text: String = row.try_get("body_md")?;
+                let line = linking_line(&text, &own_key).map(|l| excerpt(&l)).unwrap_or_default();
+                offer(Candidate { note: NoteRef { id: n.id, title: n.title.clone() }, reason: LinkReason::LinksHere, excerpt: line, shared: Vec::new(), score: 50 + hub(&n.key) });
+            }
+        }
+
+        // 3. Links to two or more of the same notes.
+        let rows = sqlx::query(
+            "SELECT o.note_id, o.target FROM note_links m JOIN note_links o ON o.target_key = m.target_key AND o.note_id != m.note_id \
+             JOIN notes n ON n.id = o.note_id \
+             WHERE m.note_id = ? AND m.kind IN ('link','embed') AND o.kind IN ('link','embed') AND n.deleted_at IS NULL",
+        )
+        .bind(codec::id(id))
+        .fetch_all(self.pool())
+        .await?;
+        let mut shared: HashMap<Id, Vec<String>> = HashMap::new();
+        for row in &rows {
+            let nid = codec::parse_id(&row.try_get::<String, _>("note_id")?)?;
+            shared.entry(nid).or_default().push(row.try_get("target")?);
+        }
+        for (nid, mut targets) in shared {
+            let Some(&n) = by_id.get(&nid) else { continue };
+            if targets.len() < 2 || open(&n.key).is_none_or(|o| o.id != n.id) {
+                continue;
+            }
+            let score = 20 + 5 * u32::try_from(targets.len()).unwrap_or(0).min(10) + hub(&n.key);
+            targets.truncate(3);
+            offer(Candidate { note: NoteRef { id: n.id, title: n.title.clone() }, reason: LinkReason::SharesLinks, excerpt: String::new(), shared: targets, score });
+        }
+
+        let mut list: Vec<Candidate> = found.into_values().collect();
+        list.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.note.title.to_lowercase().cmp(&b.note.title.to_lowercase())));
+        Ok(list
+            .into_iter()
+            .take(MAX_SUGGESTIONS)
+            .map(|c| LinkSuggestion { note: c.note, reason: c.reason, excerpt: c.excerpt, shared: c.shared })
+            .collect())
+    }
+
+    /// Approve a suggested link: add `[[target]]` to the note's hidden `related` property (and take
+    /// it off `unrelated`). The visible text is untouched.
+    pub async fn accept_link_suggestion(&self, source: Id, target: Id) -> StoreResult<NoteSummary> {
+        let title = self.suggestion_title(source, target).await?;
+        self.edit_properties(source, |yaml| {
+            let key = link_key(&title);
+            let mut related = properties::list(yaml, properties::RELATED);
+            if !related.iter().any(|v| link_key(properties::link_target(v)) == key) {
+                related.push(format!("[[{title}]]"));
+            }
+            let unrelated: Vec<String> = properties::list(yaml, properties::UNRELATED).into_iter().filter(|v| link_key(properties::link_target(v)) != key).collect();
+            properties::set_list(&properties::set_list(yaml, properties::RELATED, &related), properties::UNRELATED, &unrelated)
+        })
+        .await
+    }
+
+    /// Turn a suggestion down: add the title to the note's `unrelated` property, so it is not
+    /// suggested again. Plain text, not a link, so it never shows in the graph.
+    pub async fn dismiss_link_suggestion(&self, source: Id, target: Id) -> StoreResult<NoteSummary> {
+        let title = self.suggestion_title(source, target).await?;
+        self.edit_properties(source, |yaml| {
+            let key = link_key(&title);
+            let mut unrelated = properties::list(yaml, properties::UNRELATED);
+            if !unrelated.iter().any(|v| link_key(properties::link_target(v)) == key) {
+                unrelated.push(title.clone());
+            }
+            properties::set_list(yaml, properties::UNRELATED, &unrelated)
+        })
+        .await
+    }
+
+    async fn suggestion_title(&self, source: Id, target: Id) -> StoreResult<String> {
+        if source == target {
+            return Err(StoreError::Invalid("A note cannot link to itself.".into()));
+        }
+        let title = self.get_note_summary(target).await?.title.trim().to_string();
+        if title.is_empty() {
+            return Err(StoreError::Invalid("That note has no title yet, so there is nothing to link to. Give it a title first.".into()));
+        }
+        Ok(title)
+    }
+
+    /// Rewrite a note's property block, keeping its text exactly as it is.
+    async fn edit_properties(&self, id: Id, edit: impl FnOnce(&str) -> String) -> StoreResult<NoteSummary> {
+        let note = self.get_note(id).await?;
+        let (yaml, body) = properties::split(&note.body_md);
+        let next = edit(yaml.unwrap_or(""));
+        self.set_note_body(id, &properties::join(&next, body), Author::User, None).await
     }
 }
 
@@ -1061,6 +1257,69 @@ mod tests {
         db.rename_note(third, "Third").await.unwrap();
         assert!(db.relink_after_rename(plan, "Plan", "Q3 plan").await.unwrap().is_empty());
     }
+
+    #[tokio::test]
+    async fn note_list_carries_aliases_and_follows_edits() {
+        let db = db().await;
+        let sso = note(&db, "Single sign-on", "---\naliases: [SSO, \" Login \", sso]\n---\n\nHow login works.").await;
+        let aliases = |db: &Db| {
+            let db = db.clone();
+            async move { db.list_notes().await.unwrap().into_iter().find(|n| n.id == sso).unwrap().aliases }
+        };
+        assert_eq!(aliases(&db).await, ["SSO", "Login"], "trimmed, repeats dropped");
+        db.set_note_body(sso, "---\naliases:\n  - Sign in\n---\nText", Author::User, None).await.unwrap();
+        assert_eq!(aliases(&db).await, ["Sign in"]);
+        assert!(db.get_note_summary(sso).await.unwrap().aliases == ["Sign in"]);
+        db.set_note_body(sso, "---\ndescription: Login\n---\nNo aliases now", Author::User, None).await.unwrap();
+        assert!(aliases(&db).await.is_empty());
+
+        // Notes written before the column existed are filled in on the next list.
+        sqlx::query("UPDATE notes SET aliases = '', links_indexed = 0").execute(db.pool()).await.unwrap();
+        sqlx::query("UPDATE notes SET body_md = ? WHERE id = ?").bind("---\naliases: [SSO]\n---\n").bind(codec::id(sso)).execute(db.pool()).await.unwrap();
+        sqlx::query("UPDATE notes SET aliases = '' WHERE id = ?").bind(codec::id(sso)).execute(db.pool()).await.unwrap();
+        assert_eq!(aliases(&db).await, ["SSO"]);
+    }
+
+    #[tokio::test]
+    async fn suggests_mentions_backlinks_and_shared_links() {
+        let db = db().await;
+        let pricing = note(&db, "Pricing", "").await;
+        let sso = note(&db, "Single sign-on", "---\naliases: [SSO]\n---\n\nHow login works.").await;
+        let roadmap = note(&db, "Roadmap", "").await;
+        let cousin = note(&db, "Cousin", "[[Roadmap]] and [[Pricing]] and [[Elsewhere]]").await;
+        let fan = note(&db, "Fan", "I link to [[Sync]].").await;
+        let sync = note(&db, "Sync", "Talked pricing and SSO. See [[Roadmap]] and [[Elsewhere]].").await;
+        let got = db.link_suggestions(sync).await.unwrap();
+        let ids: Vec<Id> = got.iter().map(|s| s.note.id).collect();
+        assert_eq!(got.len(), MAX_SUGGESTIONS);
+        assert!(ids.contains(&pricing) && ids.contains(&sso), "named by title and by alias first: {got:?}");
+        assert_eq!(got.iter().find(|s| s.note.id == sso).unwrap().excerpt, "Talked pricing and SSO. See Roadmap and Elsewhere.");
+        assert!(!ids.contains(&roadmap), "already linked");
+        assert!(ids.contains(&fan) || ids.contains(&cousin));
+
+        // Approving puts the link in the hidden property, not the text; it counts as a link.
+        db.accept_link_suggestion(sync, pricing).await.unwrap();
+        let body = db.get_note(sync).await.unwrap().body_md;
+        assert_eq!(body, "---\nrelated:\n  - \"[[Pricing]]\"\n---\n\nTalked pricing and SSO. See [[Roadmap]] and [[Elsewhere]].");
+        assert!(db.backlinks(pricing).await.unwrap().linked.iter().any(|m| m.note.id == sync));
+        // Dismissing hides it for good, without making a link.
+        db.dismiss_link_suggestion(sync, sso).await.unwrap();
+        let ids: Vec<Id> = db.link_suggestions(sync).await.unwrap().iter().map(|s| s.note.id).collect();
+        assert!(!ids.contains(&pricing) && !ids.contains(&sso));
+        assert!(ids.contains(&fan) && ids.contains(&cousin));
+        assert!(db.backlinks(sso).await.unwrap().linked.is_empty());
+
+        // The editor saves without the block: it is kept. Snippet and search skip it.
+        let summary = db.set_note_body(sync, "Rewritten text", Author::User, None).await.unwrap();
+        assert_eq!(summary.snippet, "Rewritten text");
+        let body = db.get_note(sync).await.unwrap().body_md;
+        assert!(body.starts_with("---\nrelated:") && body.contains("unrelated:\n  - \"Single sign-on\"") && body.ends_with("\n---\n\nRewritten text"));
+        assert!(db.backlinks(pricing).await.unwrap().linked.iter().any(|m| m.note.id == sync), "the approved link survives the edit");
+        // An empty block clears them.
+        db.set_note_body(sync, "---\n---\nRewritten text", Author::User, None).await.unwrap();
+        assert_eq!(db.get_note(sync).await.unwrap().body_md, "Rewritten text");
+    }
+
     /// `cargo test -p cilica-store --release links::tests::scale -- --ignored --nocapture`
     #[tokio::test]
     #[ignore = "timing, run by hand"]

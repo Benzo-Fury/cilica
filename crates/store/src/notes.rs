@@ -14,7 +14,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
 use cilica_domain::chrono::TimeDelta;
-use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteQuery, NoteSummary, NoteVersion, SearchHit, Timestamp, new_id, now};
+use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteQuery, NoteSummary, NoteVersion, SearchHit, Timestamp, new_id, now, properties};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, Sqlite, SqliteExecutor, Transaction};
 
@@ -64,7 +64,7 @@ macro_rules! note_columns {
 }
 macro_rules! summary_columns {
     () => {
-        "id, title, snippet, category_id, kind, meeting_app, position, created_at, updated_at, deleted_at"
+        "id, title, aliases, snippet, category_id, kind, meeting_app, position, created_at, updated_at, deleted_at"
     };
 }
 macro_rules! version_columns {
@@ -83,6 +83,8 @@ impl Db {
 
     /// Notes not in Trash. Contract.
     pub async fn list_notes(&self) -> StoreResult<Vec<NoteSummary>> {
+        // Fills in aliases for notes written before they were stored (usually nothing to do).
+        self.refresh_link_index().await?;
         let rows = sqlx::query(concat!("SELECT ", summary_columns!(), " FROM notes WHERE deleted_at IS NULL ORDER BY position ASC, created_at DESC"))
             .fetch_all(self.pool())
             .await?;
@@ -119,12 +121,13 @@ impl Db {
         let title = single_line(&new.title);
         let snippet = snippet_from_markdown(&new.body_md);
         sqlx::query(
-            "INSERT INTO notes (id, title, body_md, snippet, category_id, kind, meeting_app, started_at, position, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO notes (id, title, body_md, aliases, snippet, category_id, kind, meeting_app, started_at, position, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(codec::id(id))
         .bind(&title)
         .bind(&new.body_md)
+        .bind(aliases_column(&new.body_md))
         .bind(&snippet)
         .bind(codec::opt_id(new.category_id))
         .bind(kind_to_sql(new.kind))
@@ -175,7 +178,8 @@ impl Db {
     pub async fn set_note_body(&self, id: Id, body_md: &str, author: Author, ai_action_id: Option<Id>) -> StoreResult<NoteSummary> {
         let mut tx = self.begin_write().await?;
         let current = fetch_note(&mut *tx, id).await?;
-        if current.body_md == body_md {
+        let body_md = &with_kept_properties(&current.body_md, body_md);
+        if current.body_md == *body_md {
             let summary = fetch_summary(&mut *tx, id).await?;
             tx.commit().await?;
             return Ok(summary);
@@ -202,8 +206,9 @@ impl Db {
             NoteKind::Meeting if current.snippet.trim().is_empty() => snippet_from_markdown(body_md),
             NoteKind::Meeting => current.snippet.clone(),
         };
-        sqlx::query("UPDATE notes SET body_md = ?, snippet = ?, updated_at = ? WHERE id = ?")
+        sqlx::query("UPDATE notes SET body_md = ?, aliases = ?, snippet = ?, updated_at = ? WHERE id = ?")
             .bind(body_md)
+            .bind(aliases_column(body_md))
             .bind(&snippet)
             .bind(codec::ts(at))
             .bind(codec::id(id))
@@ -638,9 +643,10 @@ impl Db {
                 NoteKind::Manual => snippet_from_markdown(&version.body_md),
                 NoteKind::Meeting => current.snippet.clone(),
             };
-            sqlx::query("UPDATE notes SET title = ?, body_md = ?, snippet = ?, updated_at = ? WHERE id = ?")
+            sqlx::query("UPDATE notes SET title = ?, body_md = ?, aliases = ?, snippet = ?, updated_at = ? WHERE id = ?")
                 .bind(&version.title)
                 .bind(&version.body_md)
+                .bind(aliases_column(&version.body_md))
                 .bind(&snippet)
                 .bind(codec::ts(at))
                 .bind(codec::id(current.id))
@@ -964,10 +970,17 @@ fn note_from_row(row: &SqliteRow) -> StoreResult<Note> {
     })
 }
 
+/// The `aliases` column for a body: its aliases, one per line.
+pub(crate) fn aliases_column(body_md: &str) -> String {
+    properties::aliases(body_md).join("\n")
+}
+
 pub(crate) fn summary_from_row(row: &SqliteRow) -> StoreResult<NoteSummary> {
+    let aliases: String = row.try_get("aliases")?;
     Ok(NoteSummary {
         id: codec::parse_id(&row.try_get::<String, _>("id")?)?,
         title: row.try_get("title")?,
+        aliases: aliases.lines().filter(|a| !a.is_empty()).map(str::to_string).collect(),
         snippet: row.try_get("snippet")?,
         category_id: codec::parse_opt_id(row.try_get("category_id")?)?,
         kind: kind_from_sql(&row.try_get::<String, _>("kind")?),
@@ -1075,11 +1088,25 @@ fn changed_a_lot(old: &str, new: &str) -> bool {
     ratio < 0.5
 }
 
+/// The body a save stores. The editor never sees a note's properties, so a body written without a
+/// property block keeps the note's current one; a body with a block replaces it, and an empty
+/// block (`---\n---`) clears it.
+pub fn with_kept_properties(current: &str, incoming: &str) -> String {
+    match properties::split(incoming) {
+        (Some(yaml), body) if yaml.trim().is_empty() => body.to_string(),
+        (Some(_), _) => incoming.to_string(),
+        (None, body) => match properties::split(current).0 {
+            Some(yaml) if !yaml.trim().is_empty() => properties::join(yaml, body),
+            _ => incoming.to_string(),
+        },
+    }
+}
+
 /// The sidebar preview of a Markdown body: its first line with words in it, Markdown removed,
-/// cut to about [`SNIPPET_MAX_CHARS`] characters on a word boundary.
+/// cut to about [`SNIPPET_MAX_CHARS`] characters on a word boundary. Properties are skipped.
 pub fn snippet_from_markdown(markdown: &str) -> String {
     let mut in_fence = false;
-    for line in markdown.lines() {
+    for line in properties::body(markdown).lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
             in_fence = !in_fence;
@@ -1096,10 +1123,14 @@ pub fn snippet_from_markdown(markdown: &str) -> String {
     String::new()
 }
 
-/// The whole body as plain text for the search index (code blocks kept, syntax removed).
+/// The whole body as plain text for the search index (code blocks kept, syntax removed). Of the
+/// properties, only the aliases and description are searchable.
 pub fn markdown_to_plain(markdown: &str) -> String {
-    let mut out = Vec::new();
-    for line in markdown.lines() {
+    let (yaml, body) = properties::split(markdown);
+    let mut out: Vec<String> = yaml
+        .map(|y| [properties::list(y, properties::ALIASES), properties::list(y, properties::DESCRIPTION)].concat())
+        .unwrap_or_default();
+    for line in body.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
             continue;

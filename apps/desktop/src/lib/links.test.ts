@@ -58,6 +58,16 @@ describe("parseRefs", () => {
     ]);
   });
 
+  it("reads links and tags in properties", () => {
+    const md =
+      '---\nrelated:\n  - "[[Pricing]]"\nunrelated:\n  - "Q3"\ntags: [launch]\n---\n\nText [[Real]]';
+    expect(refs(md)).toEqual([
+      ["link", "Pricing"],
+      ["tag", "launch"],
+      ["link", "Real"],
+    ]);
+  });
+
   it("dedupes case-insensitively", () => {
     expect(refs("[[Plan]] [[plan]] [[PLAN|x]] #Tag #tag")).toEqual([
       ["link", "Plan"],

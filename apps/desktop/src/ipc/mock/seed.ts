@@ -155,7 +155,10 @@ What would make someone record a second meeting in the first week?
 Feeds into [[Q3 planning sync]]. #roadmap
 `;
 
-const SEARCH_BODY = `# Search ranking notes
+const SEARCH_BODY = `---
+aliases: [FTS ranking, search relevance]
+---
+# Search ranking notes
 
 FTS5 with \`bm25()\` gets us most of the way. Titles should outrank bodies, and transcripts come last.
 
@@ -277,7 +280,10 @@ const PRIYA_BODY = `# 1:1 with Priya
 See [[Onboarding review]] and [[Pricing interview, Marco]]. #one-on-one
 `;
 
-const LISBON_BODY = `# Trip to Lisbon
+const LISBON_BODY = `---
+aliases: [Lisbon trip]
+---
+# Trip to Lisbon
 
 Dates: 14 to 19 October.
 
@@ -497,6 +503,15 @@ function seedDemo(state: MockState, now: number): void {
       position: 3,
       created: { days: 6 },
       updated: { hours: 20 },
+    },
+    {
+      id: "note_vacation",
+      title: "Vacation",
+      body: "---\naliases: [time off]\n---\nTwo weeks in August. Ask Sam to cover the Q3 review.",
+      category: "cat_personal",
+      position: 4,
+      created: { days: 30 },
+      updated: { days: 10 },
     },
     {
       id: "note_half_thought",

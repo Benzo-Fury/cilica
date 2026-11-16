@@ -100,6 +100,8 @@ export type {
   ImportRunStatus,
   ImportSample,
   IslandInfo,
+  LinkReason,
+  LinkSuggestion,
   LocalLlmModel,
   Mention,
   NoteFont,

@@ -75,12 +75,13 @@ impl Db {
         let title = single_line(&w.title).trim().to_string();
         let position = top_position(&mut *tx, w.category_id).await?;
         sqlx::query(
-            "INSERT INTO notes (id, title, body_md, snippet, category_id, kind, meeting_app, started_at, ended_at, position, \
-             duration_ms, transcript_timed, created_at, updated_at, import_provider, import_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO notes (id, title, body_md, aliases, snippet, category_id, kind, meeting_app, started_at, ended_at, position, \
+             duration_ms, transcript_timed, created_at, updated_at, import_provider, import_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(codec::id(id))
         .bind(&title)
         .bind(&w.body_md)
+        .bind(crate::notes::aliases_column(&w.body_md))
         .bind(snippet_from_markdown(&w.body_md))
         .bind(codec::opt_id(w.category_id))
         .bind(kind_to_sql(w.kind))

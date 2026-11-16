@@ -10,6 +10,7 @@ import { qk } from "@/app/queryKeys";
 import { api, errorMessage } from "@/ipc/client";
 import type { Note, NoteSummary } from "@/ipc/types";
 import { refsSignature } from "@/lib/links";
+import { withBody } from "@/lib/properties";
 import { toast } from "@/lib/toast";
 import { normalizeMarkdown } from "./editor/markdown";
 
@@ -54,7 +55,8 @@ export function useAutosave(noteId: string, initialBody: string): Autosave {
         known.current = normalizeMarkdown(body);
         if (linksChanged) void queryClient.invalidateQueries({ queryKey: qk.links });
         queryClient.setQueryData<Note>(qk.note(noteId), (note) =>
-          note ? { ...note, ...summary, body_md: body } : note,
+          // The editor saves the text only: keep the note's hidden properties.
+          note ? { ...note, ...summary, body_md: withBody(note.body_md, body) } : note,
         );
         queryClient.setQueryData<NoteSummary[]>(qk.notes, (list) =>
           list?.map((n) => (n.id === summary.id ? summary : n)),

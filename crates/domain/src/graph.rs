@@ -82,3 +82,28 @@ pub struct Backlinks {
     /// Notes that name this one's title without linking it.
     pub unlinked: Vec<Mention>,
 }
+
+/// Why a link to another note is suggested.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkReason {
+    /// This note names the other note's title (or one of its aliases) without linking it.
+    Mentioned,
+    /// The other note links here, but this note does not link back.
+    LinksHere,
+    /// Both notes link to the same notes.
+    SharesLinks,
+}
+
+/// A note this one could link to. Approving it adds the link to the note's hidden `related`
+/// property; dismissing it adds the title to `unrelated`, so it is not suggested again.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct LinkSuggestion {
+    pub note: NoteRef,
+    pub reason: LinkReason,
+    /// `mentioned`: the line it is named on. `links_here`: the line in the other note that links
+    /// here. Plain text; empty for `shares_links`.
+    pub excerpt: String,
+    /// `shares_links`: titles both notes link to (at most 3).
+    pub shared: Vec<String>,
+}

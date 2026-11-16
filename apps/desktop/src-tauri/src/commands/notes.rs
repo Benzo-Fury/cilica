@@ -126,6 +126,27 @@ pub async fn link_mention(core: State<'_, Core>, source_note_id: Id, target_note
     Ok(core.db.link_mention(source_note_id, target_note_id).await?)
 }
 
+/// Notes this one could link to, best first (at most 3). Worked out when asked, not in the background.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_link_suggestions(core: State<'_, Core>, note_id: Id) -> AppResult<Vec<LinkSuggestion>> {
+    Ok(core.db.link_suggestions(note_id).await?)
+}
+
+/// Approve a suggested link: it goes in the note's hidden `related` property, not its text.
+#[tauri::command]
+#[specta::specta]
+pub async fn accept_link_suggestion(core: State<'_, Core>, note_id: Id, target_note_id: Id) -> AppResult<NoteSummary> {
+    Ok(core.db.accept_link_suggestion(note_id, target_note_id).await?)
+}
+
+/// Turn a suggested link down, so it is not suggested again.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_link_suggestion(core: State<'_, Core>, note_id: Id, target_note_id: Id) -> AppResult<NoteSummary> {
+    Ok(core.db.dismiss_link_suggestion(note_id, target_note_id).await?)
+}
+
 /// Save the editor's Markdown. Called debounced while typing; the store decides when to snapshot a version.
 #[tauri::command]
 #[specta::specta]
@@ -319,13 +340,21 @@ pub async fn export_note_markdown(core: State<'_, Core>, note_id: Id, path: Stri
     })
 }
 
-/// `# Title` then the body, unless the body already opens with that heading.
+/// The properties (kept on top, where Obsidian reads them), `# Title`, then the body, unless the
+/// body already opens with that heading.
 fn note_markdown(note: &Note) -> String {
     let title = if note.title.trim().is_empty() { "Untitled" } else { note.title.trim() };
     let heading = format!("# {title}");
-    let body = note.body_md.trim_matches('\n');
+    let (yaml, body) = properties::split(&note.body_md);
+    let body = body.trim_matches('\n');
     let starts_with_heading = body.lines().find(|l| !l.trim().is_empty()).is_some_and(|l| l.trim() == heading);
-    let mut out = if starts_with_heading { String::new() } else { format!("{heading}\n\n") };
+    let mut out = match yaml {
+        Some(yaml) if !yaml.trim().is_empty() => format!("---\n{}\n---\n\n", yaml.trim_matches('\n')),
+        _ => String::new(),
+    };
+    if !starts_with_heading {
+        out.push_str(&format!("{heading}\n\n"));
+    }
     if !body.trim().is_empty() {
         out.push_str(body);
         out.push('\n');
@@ -360,5 +389,6 @@ mod tests {
         assert_eq!(note_markdown(&note("Plan", "- one\n- two\n")), "# Plan\n\n- one\n- two\n");
         assert_eq!(note_markdown(&note("", "")), "# Untitled\n\n");
         assert_eq!(note_markdown(&note("Plan", "# Plan\n\nBody")), "# Plan\n\nBody\n");
+        assert_eq!(note_markdown(&note("Plan", "---\nrelated:\n  - \"[[A]]\"\n---\n\nBody")), "---\nrelated:\n  - \"[[A]]\"\n---\n\n# Plan\n\nBody\n");
     }
 }

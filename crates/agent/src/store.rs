@@ -156,6 +156,7 @@ fn summary(n: &Note) -> NoteSummary {
     NoteSummary {
         id: n.id,
         title: n.title.clone(),
+        aliases: cilica_domain::properties::aliases(&n.body_md),
         snippet: n.snippet.clone(),
         category_id: n.category_id,
         kind: n.kind,

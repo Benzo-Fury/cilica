@@ -24,7 +24,9 @@ import { useBackendEvent } from "@/app/backendEvents";
 import { useAction, useShortcut } from "@/app/keybinds";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { useRouter } from "@/app/router";
+import { useCilicaPlacement } from "@/features/assistant/placement";
 import { Connections } from "@/features/links/Connections";
+import { LinkSuggestions } from "@/features/links/LinkSuggestions";
 import {
   useCategories,
   useDiscardEmptyNote,
@@ -36,10 +38,12 @@ import {
 import { useHasSelection } from "@/features/notes/selection";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
 import { CanvasBand } from "@/features/shell/CanvasBand";
+import { usePanels } from "@/features/shell/panels";
 import { useTranscript } from "@/features/transcript/hooks";
 import { TranscriptPanel } from "@/features/transcript/TranscriptPanel";
 import type { AppError, Note, NotePanel } from "@/ipc/types";
 import { dayAndTime, displayTitle, duration } from "@/lib/format";
+import { bodyOf } from "@/lib/properties";
 import {
   AvatarStack,
   Button,
@@ -141,6 +145,11 @@ function LoadedNote({ note }: { note: Note }) {
   const trash = useTrashNote();
   const { data: transcript } = useTranscript(note.id, note.kind === "meeting");
   const category = categories.find((c) => c.id === note.category_id);
+  // With Cilica out of the way (panel shut, or the floating bar), Connections moves beside the
+  // note when the canvas is wide enough (see .nt-note-shell in links.css).
+  const floatingBar = useCilicaPlacement() === "floating_bar";
+  const assistantOpen = usePanels((s) => s.assistantOpen);
+  const asideConnections = floatingBar || !assistantOpen;
   const keys = {
     panel: useShortcut("note.togglePanel"),
     trash: useShortcut("note.trash"),
@@ -178,7 +187,10 @@ function LoadedNote({ note }: { note: Note }) {
   }, [note.id, discardEmpty]);
 
   const flush = useCallback(() => editorRef.current?.flush() ?? Promise.resolve(), []);
-  const markdown = useCallback(() => editorRef.current?.markdown() ?? note.body_md, [note.body_md]);
+  const markdown = useCallback(
+    () => editorRef.current?.markdown() ?? bodyOf(note.body_md),
+    [note.body_md],
+  );
   const { exportMarkdown, copyMarkdown } = useNoteActions(note.id, note.title, markdown, flush);
 
   const commitTitle = (value: string) => {
@@ -377,95 +389,104 @@ function LoadedNote({ note }: { note: Note }) {
           >
             {panel === "notes" ? (
               <ScrollArea>
-                <PageColumn>
-                  <article className="nt-note" data-streaming={streaming || undefined}>
-                    <TitleInput
-                      ref={titleRef}
-                      value={title}
-                      onChange={setTitle}
-                      onCommit={commitTitle}
-                      onExit={() => editorRef.current?.focusStart()}
-                    />
-                    <div className="nt-note-meta">
-                      <Chip icon={Calendar}>{dayAndTime(note.started_at ?? note.created_at)}</Chip>
-                      {note.started_at && note.ended_at && (
-                        <Chip icon={Clock}>
-                          {duration(
-                            new Date(note.ended_at).getTime() - new Date(note.started_at).getTime(),
-                          )}
+                <div className="nt-note-shell" data-aside={asideConnections || undefined}>
+                  <PageColumn>
+                    <article className="nt-note" data-streaming={streaming || undefined}>
+                      <TitleInput
+                        ref={titleRef}
+                        value={title}
+                        onChange={setTitle}
+                        onCommit={commitTitle}
+                        onExit={() => editorRef.current?.focusStart()}
+                      />
+                      <div className="nt-note-meta">
+                        <Chip icon={Calendar}>
+                          {dayAndTime(note.started_at ?? note.created_at)}
                         </Chip>
-                      )}
-                      {isRecordingHere && (
-                        <Chip tone="rec" leading={<RecDot size="sm" />}>
-                          Recording
-                        </Chip>
-                      )}
-                      {people.length > 0 && (
-                        <Chip leading={<AvatarStack people={people} />}>
-                          {people.length === 1 ? "1 person" : `${people.length} people`}
-                        </Chip>
-                      )}
-                      <Menu>
-                        <MenuTrigger asChild>
-                          <ChipButton
-                            tone={category ? "accent" : "neutral"}
-                            icon={category ? Folder : FolderInput}
-                          >
-                            {category?.name ?? "Add to category"}
-                          </ChipButton>
-                        </MenuTrigger>
-                        <MenuContent align="start">
-                          <MenuItem
-                            icon={Inbox}
-                            disabled={!note.category_id}
-                            onSelect={() =>
-                              move.mutate({
-                                noteId: note.id,
-                                categoryId: null,
-                                position: null,
-                                announce: "Notes",
-                              })
-                            }
-                          >
-                            Notes
-                          </MenuItem>
-                          {categories.map((c) => (
+                        {note.started_at && note.ended_at && (
+                          <Chip icon={Clock}>
+                            {duration(
+                              new Date(note.ended_at).getTime() -
+                                new Date(note.started_at).getTime(),
+                            )}
+                          </Chip>
+                        )}
+                        {isRecordingHere && (
+                          <Chip tone="rec" leading={<RecDot size="sm" />}>
+                            Recording
+                          </Chip>
+                        )}
+                        {people.length > 0 && (
+                          <Chip leading={<AvatarStack people={people} />}>
+                            {people.length === 1 ? "1 person" : `${people.length} people`}
+                          </Chip>
+                        )}
+                        <Menu>
+                          <MenuTrigger asChild>
+                            <ChipButton
+                              tone={category ? "accent" : "neutral"}
+                              icon={category ? Folder : FolderInput}
+                            >
+                              {category?.name ?? "Add to category"}
+                            </ChipButton>
+                          </MenuTrigger>
+                          <MenuContent align="start">
                             <MenuItem
-                              key={c.id}
-                              icon={Folder}
-                              iconMotion="folder"
-                              disabled={note.category_id === c.id}
+                              icon={Inbox}
+                              disabled={!note.category_id}
                               onSelect={() =>
                                 move.mutate({
                                   noteId: note.id,
-                                  categoryId: c.id,
+                                  categoryId: null,
                                   position: null,
-                                  announce: c.name,
+                                  announce: "Notes",
                                 })
                               }
                             >
-                              {c.name}
+                              Notes
                             </MenuItem>
-                          ))}
-                        </MenuContent>
-                      </Menu>
-                    </div>
-                    {streaming && (
-                      <div className="nt-streaming-line">
-                        <Shimmer>Writing notes from the meeting…</Shimmer>
+                            {categories.map((c) => (
+                              <MenuItem
+                                key={c.id}
+                                icon={Folder}
+                                iconMotion="folder"
+                                disabled={note.category_id === c.id}
+                                onSelect={() =>
+                                  move.mutate({
+                                    noteId: note.id,
+                                    categoryId: c.id,
+                                    position: null,
+                                    announce: c.name,
+                                  })
+                                }
+                              >
+                                {c.name}
+                              </MenuItem>
+                            ))}
+                          </MenuContent>
+                        </Menu>
+                        <LinkSuggestions
+                          noteId={note.id}
+                          enabled={!streaming && !isRecordingHere && !!note.title.trim()}
+                        />
                       </div>
+                      {streaming && (
+                        <div className="nt-streaming-line">
+                          <Shimmer>Writing notes from the meeting…</Shimmer>
+                        </div>
+                      )}
+                      <NoteEditor
+                        ref={editorRef}
+                        note={note}
+                        onStreamingChange={setStreaming}
+                        onTextChange={(text) => setWords(countWords(text))}
+                      />
+                    </article>
+                    {!streaming && (note.title.trim() || note.body_md.trim()) && (
+                      <Connections noteId={note.id} categoryId={note.category_id} />
                     )}
-                    <NoteEditor
-                      ref={editorRef}
-                      note={note}
-                      onStreamingChange={setStreaming}
-                      onTextChange={(text) => setWords(countWords(text))}
-                    />
-                  </article>
-                  {!streaming && (note.title.trim() || note.body_md.trim()) && (
-                    <Connections noteId={note.id} categoryId={note.category_id} />
-                  )}
-                </PageColumn>
+                  </PageColumn>
+                </div>
               </ScrollArea>
             ) : (
               <TranscriptPanel noteId={note.id} isMeeting={note.kind === "meeting"} atMs={atMs} />

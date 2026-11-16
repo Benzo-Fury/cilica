@@ -44,6 +44,8 @@ pub struct Note {
 pub struct NoteSummary {
     pub id: Id,
     pub title: String,
+    /// Other names for the note, from its `aliases` property, as written.
+    pub aliases: Vec<String>,
     pub snippet: String,
     pub category_id: Option<Id>,
     pub kind: NoteKind,

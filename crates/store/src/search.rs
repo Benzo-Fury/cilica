@@ -41,7 +41,7 @@ impl Db {
 
         // Columns
         let mut b: QueryBuilder<Sqlite> = QueryBuilder::new(
-            "SELECT n.id, n.title, n.snippet, n.category_id, n.kind, n.meeting_app, n.position, n.created_at, n.updated_at, n.deleted_at, ",
+            "SELECT n.id, n.title, n.aliases, n.snippet, n.category_id, n.kind, n.meeting_app, n.position, n.created_at, n.updated_at, n.deleted_at, ",
         );
         if match_expr.is_some() {
             b.push(concat!(

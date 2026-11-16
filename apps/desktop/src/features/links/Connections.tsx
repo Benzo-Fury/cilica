@@ -3,7 +3,9 @@
  * then the notes that link here, and the notes that name it without a link, each with Link.
  */
 import { ChevronRight, Expand, Link2 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
+import { reducedTransition, springs } from "@/app/motion";
 import { navigate, openGraph, openNote } from "@/app/router";
 import type { GraphNode, Mention } from "@/ipc/types";
 import { displayTitle, plural } from "@/lib/format";
@@ -23,6 +25,11 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
   const [showUnlinked, setShowUnlinked] = useState(false);
   const link = useLinkMention();
   const create = useCreateLinkedNote();
+  const reduced = useReducedMotion();
+  // Rises in when it shows up after the note did (first link, first words, a slow load), not when
+  // it was ready from the start.
+  const [entering, setEntering] = useState({ noteId, animate: !graph || !backlinks });
+  if (entering.noteId !== noteId) setEntering({ noteId, animate: !graph || !backlinks });
 
   const view = useMemo(() => (graph ? toView(graph) : { nodes: [], edges: [] }), [graph]);
   const focusKey = graph && graph.focus !== null ? (graph.nodes[graph.focus]?.key ?? null) : null;
@@ -46,7 +53,12 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
   };
 
   return (
-    <section className="nt-connections" aria-label="Connections">
+    <motion.section
+      className="nt-connections"
+      aria-label="Connections"
+      initial={entering.animate ? { opacity: 0, y: reduced ? 0 : 8 } : false}
+      animate={{ opacity: 1, y: 0, transition: reduced ? reducedTransition : springs.gentle }}
+    >
       <header className="nt-connections-head">
         <h2 className="nt-connections-title">Connections</h2>
         {connected && (
@@ -129,7 +141,7 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
           </Collapse>
         </div>
       )}
-    </section>
+    </motion.section>
   );
 }
 

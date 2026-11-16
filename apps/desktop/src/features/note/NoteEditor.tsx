@@ -14,10 +14,13 @@ import { useLinkResolverSync, useOpenLink } from "@/features/links/hooks";
 import { resolveLink, useLinkResolver } from "@/features/links/resolver";
 import { useSwearTyping } from "@/features/swearjar/hooks";
 import type { Note } from "@/ipc/types";
+import { bodyOf } from "@/lib/properties";
 import { rangesOf, useAiGlow } from "./aiGlow";
 import { noteExtensions } from "./editor/extensions";
+import type { InlineLinkHandlers } from "./editor/inlineLinkHint";
 import { normalizeMarkdown } from "./editor/markdown";
 import type { SuggestHandlers } from "./editor/wikiSuggest";
+import { InlineLinkHint, useInlineLinkMatcher } from "./InlineLinkHint";
 import { LinkSuggest } from "./LinkSuggest";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useAutosave } from "./useAutosave";
@@ -59,7 +62,9 @@ export function NoteEditor({
   ref?: Ref<NoteEditorHandle>;
 }) {
   const queryClient = useQueryClient();
-  const autosave = useAutosave(note.id, note.body_md);
+  // The editor shows and saves the text only; the store keeps the note's hidden properties.
+  const text = bodyOf(note.body_md);
+  const autosave = useAutosave(note.id, text);
   const [streaming, setStreamingState] = useState(false);
   const streamingRef = useRef(false);
   const setStreaming = (value: boolean) => {
@@ -74,6 +79,8 @@ export function NoteEditor({
   const openLinkRef = useRef(openLink);
   openLinkRef.current = openLink;
   const suggest = useRef<SuggestHandlers | null>(null);
+  const linkHint = useRef<InlineLinkHandlers | null>(null);
+  const matchTitle = useInlineLinkMatcher(note);
   const editor = useEditor({
     extensions: noteExtensions({
       placeholder: "Start writing",
@@ -90,9 +97,10 @@ export function NoteEditor({
         onOpen: (attrs) => openLinkRef.current(attrs.target),
       },
       suggest: () => suggest.current,
+      linkHint: { match: matchTitle, handlers: () => linkHint.current },
       onOpenTag: (tag) => openGraph(`t:${tag.toLowerCase()}`),
     }),
-    content: note.body_md,
+    content: text,
     contentType: "markdown",
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
@@ -116,15 +124,15 @@ export function NoteEditor({
   // A refetch landed: apply it only if it differs from what we know and we have no edits pending.
   useEffect(() => {
     if (!editor || streaming) return;
-    const incoming = normalizeMarkdown(note.body_md);
+    const incoming = normalizeMarkdown(text);
     if (incoming === autosave.known()) return;
     if (autosave.isDirty()) return; // our pending save wins; it snapshots a version first
     if (incoming === normalizeMarkdown(editor.getMarkdown())) {
-      autosave.setKnown(note.body_md);
+      autosave.setKnown(text);
       return;
     }
-    autosave.setKnown(note.body_md);
-    setBody(editor, note.body_md);
+    autosave.setKnown(text);
+    setBody(editor, text);
     // An accepted AI edit: wash the changed sentences, then let the wash fade.
     const phrases = useAiGlow.getState().take(note.id);
     if (phrases) {
@@ -132,7 +140,7 @@ export function NoteEditor({
       const t = setTimeout(() => editor.isDestroyed || editor.commands.clearStreamed(), 2200);
       return () => clearTimeout(t);
     }
-  }, [editor, note.id, note.body_md, streaming, autosave]);
+  }, [editor, note.id, text, streaming, autosave]);
 
   useBackendEvent("note_body_stream", (event) => {
     if (!editor || event.note_id !== note.id) return;
@@ -141,9 +149,10 @@ export function NoteEditor({
       editor.setEditable(false);
     }
     const before = editor.state.doc.content.size;
-    editor.commands.setContent(event.body_md, { contentType: "markdown", emitUpdate: false });
+    const streamed = bodyOf(event.body_md);
+    editor.commands.setContent(streamed, { contentType: "markdown", emitUpdate: false });
     const after = editor.state.doc.content.size;
-    autosave.setKnown(event.body_md);
+    autosave.setKnown(streamed);
     if (event.done) {
       editor.commands.markStreamed(1, after, "nt-ai-settle");
       editor.setEditable(true);
@@ -167,11 +176,11 @@ export function NoteEditor({
         if (editor && !streaming) autosave.schedule(editor.getMarkdown());
         return autosave.flush();
       },
-      markdown: () => editor?.getMarkdown() ?? note.body_md,
+      markdown: () => editor?.getMarkdown() ?? text,
       replace: (markdown: string) => {
         if (!editor) return;
-        autosave.setKnown(markdown);
-        setBody(editor, markdown);
+        autosave.setKnown(bodyOf(markdown));
+        setBody(editor, bodyOf(markdown));
       },
       focusStart: () => {
         if (!editor) return;
@@ -180,7 +189,7 @@ export function NoteEditor({
         editor.view.focus();
       },
     }),
-    [editor, autosave, note.body_md, streaming],
+    [editor, autosave, text, streaming],
   );
 
   return (

@@ -4,6 +4,7 @@
  * (crates/store/src/links.rs); this one mirrors it for the in-browser mock and for cheap checks in
  * the UI (did a save change any links?).
  */
+import { bodyOf, listProperty, splitProperties } from "./properties";
 
 export type RefKind = "link" | "embed" | "tag";
 
@@ -170,15 +171,9 @@ function mdLinkPage(dest: string): string | null {
   }
 }
 
-/** Calls `fn` for each line outside fenced code and frontmatter. */
+/** Calls `fn` for each line outside fenced code and the property block. */
 function eachLine(markdown: string, fn: (line: string, state: { comment: boolean }) => void) {
-  let text = markdown.replace(/\r\n/g, "\n");
-  if (text.startsWith("---\n")) {
-    const end = text.indexOf("\n---", 4);
-    if (end >= 0 && (text.length === end + 4 || text[end + 4] === "\n")) {
-      text = text.slice(end + 5);
-    }
-  }
+  const text = bodyOf(markdown.replace(/\r\n/g, "\n"));
   let fence: string | null = null;
   const state = { comment: false };
   for (const line of text.split("\n")) {
@@ -196,14 +191,26 @@ function eachLine(markdown: string, fn: (line: string, state: { comment: boolean
 export function parseRefs(markdown: string): ParsedRef[] {
   const out: ParsedRef[] = [];
   const seen = new Set<string>();
-  eachLine(markdown, (line, state) => {
-    for (const f of scanLine(line, state)) {
-      if (!f.ref?.key) continue;
-      const id = `${f.ref.kind}:${f.ref.key}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push(f.ref);
+  const add = (ref: ParsedRef | null | undefined) => {
+    if (!ref?.key) return;
+    const id = `${ref.kind}:${ref.key}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push(ref);
+  };
+  // Properties: a `[[link]]` in any value is a link (an approved `related` one, say), and `tags`.
+  const { yaml } = splitProperties(markdown.replace(/\r\n/g, "\n"));
+  if (yaml) {
+    for (const line of yaml.split("\n")) {
+      for (const f of scanLine(line, { comment: false })) if (f.ref?.kind !== "tag") add(f.ref);
     }
+    for (const tag of listProperty(yaml, "tags").flatMap((t) => t.split(/[\s,]+/))) {
+      const t = tag.replace(/^#/, "");
+      if (t && /[^\d]/.test(t)) add({ kind: "tag", target: t, key: t.toLowerCase() });
+    }
+  }
+  eachLine(markdown, (line, state) => {
+    for (const f of scanLine(line, state)) add(f.ref);
   });
   return out;
 }
@@ -235,8 +242,10 @@ export function findUnlinked(
 ): { start: number; end: number; line: string } | null {
   const needle = title.toLowerCase();
   if (!needle.trim()) return null;
-  const lines = markdown.split("\n");
-  let offset = 0;
+  // Never inside the property block: start counting where the visible text starts.
+  const body = bodyOf(markdown);
+  const lines = body.split("\n");
+  let offset = markdown.length - body.length;
   let fence: string | null = null;
   const state = { comment: false };
   for (const line of lines) {

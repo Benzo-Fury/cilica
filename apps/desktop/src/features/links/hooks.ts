@@ -6,7 +6,7 @@ import { navigate, openNote } from "@/app/router";
 import { toSummary, useNotes } from "@/features/notes/hooks";
 import { usePeople } from "@/features/people/hooks";
 import { api, errorMessage } from "@/ipc/client";
-import type { Note, NoteSummary } from "@/ipc/types";
+import type { LinkSuggestion, Note, NoteSummary } from "@/ipc/types";
 import { toast } from "@/lib/toast";
 import { resolveLink, useLinkResolver } from "./resolver";
 
@@ -42,6 +42,54 @@ export function useLinkMention() {
     },
     onError: (error) =>
       toast.error("The mention was not linked", { description: errorMessage(error) }),
+  });
+}
+
+/** Notes this one could link to (at most 3), worked out when the note opens. */
+export function useLinkSuggestions(noteId: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.linkSuggestions(noteId),
+    queryFn: () => api.getLinkSuggestions(noteId),
+    enabled,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Approve or turn down a suggested link. Either way it leaves the list at once; approving adds the
+ * link to the note's hidden `related` property, so the graph and backlinks pick it up.
+ */
+export function useAnswerLinkSuggestion(noteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ targetId, accept }: { targetId: string; accept: boolean }) =>
+      accept
+        ? api.acceptLinkSuggestion(noteId, targetId)
+        : api.dismissLinkSuggestion(noteId, targetId),
+    onMutate: async ({ targetId }) => {
+      const key = qk.linkSuggestions(noteId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const before = queryClient.getQueryData<LinkSuggestion[]>(key);
+      queryClient.setQueryData<LinkSuggestion[]>(key, (list) =>
+        list?.filter((s) => s.note.id !== targetId),
+      );
+      return { before };
+    },
+    onSuccess: (summary) => {
+      queryClient.setQueryData<NoteSummary[]>(qk.notes, (list) =>
+        list?.map((n) => (n.id === summary.id ? summary : n)),
+      );
+      // The body's properties changed; the visible text did not, so the editor stays as it is.
+      void queryClient.invalidateQueries({ queryKey: qk.note(noteId) });
+      void queryClient.invalidateQueries({ queryKey: qk.versions(noteId) });
+      void queryClient.invalidateQueries({ queryKey: qk.links });
+    },
+    onError: (error, { accept }, context) => {
+      queryClient.setQueryData(qk.linkSuggestions(noteId), context?.before);
+      toast.error(accept ? "The link was not added" : "The suggestion was not dismissed", {
+        description: errorMessage(error),
+      });
+    },
   });
 }
 
