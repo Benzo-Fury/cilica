@@ -44,9 +44,15 @@ export function GraphView({ focus }: { focus?: string }) {
   /** During a replay, the step on screen (-1 before the first); null when not replaying. */
   const [growStep, setGrowStep] = useState<number | null>(null);
 
+  // The graph only reads category order (for colour), so collapsing or renaming one in the
+  // sidebar must not rebuild the nodes and reheat the layout.
+  const categoryOrder = categories.map((c) => c.id).join("\n");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on categoryOrder on purpose.
+  const graphCategories = useMemo(() => categories, [categoryOrder]);
   const view = useMemo(
-    () => (graph ? toView(graph, options, categories, focus ?? null) : { nodes: [], edges: [] }),
-    [graph, options, categories, focus],
+    () =>
+      graph ? toView(graph, options, graphCategories, focus ?? null) : { nodes: [], edges: [] },
+    [graph, options, graphCategories, focus],
   );
   const growth = useMemo(() => (graph ? growthOrder(graph, view) : null), [graph, view]);
   const growing = growStep !== null;
