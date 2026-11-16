@@ -313,7 +313,7 @@ async fn destructive_tools_always_propose_and_apply_with_undo() {
 
     let trash = e.call(&ctx, "trash_note", json!({"note_ids": [c.id.to_string()], "reason": "Empty draft."})).await;
     let merge = e.call(&ctx, "merge_notes", json!({"note_ids": [a.id.to_string(), b.id.to_string()], "title": "Acme", "body_md": "alpha\nbeta"})).await;
-    let delcat = e.call(&ctx, "delete_category", json!({"category_id": cat.id.to_string()})).await;
+    let delcat = e.call(&ctx, "delete_category", json!({"category_ids": [cat.id.to_string()]})).await;
     let delp = e.call(&ctx, "delete_person", json!({"person_id": sam.id.to_string()})).await;
     for out in [&trash, &merge, &delcat, &delp] {
         assert_eq!(out.action.status, AiActionStatus::Proposed, "{}", out.content);
@@ -338,6 +338,40 @@ async fn destructive_tools_always_propose_and_apply_with_undo() {
     assert_eq!(e.notes.live_count(), 3);
     e.agent.undo_ai_action(delcat.action.id).await.unwrap();
     assert_eq!(e.notes.categories()[0].name, "Clients");
+}
+
+#[tokio::test]
+async fn deleting_several_categories_is_one_card_one_apply_one_undo() {
+    let e = env(vec![]).await;
+    let ctx = e.ctx();
+    let n = e.notes.add_note("Book list", "x");
+    let reading = e.notes.create_category("Reading").await.unwrap();
+    let home = e.notes.create_category("Home").await.unwrap();
+    let travel = e.notes.create_category("Travel").await.unwrap();
+    e.notes.move_note(n.id, Some(reading.id), 0.0).await.unwrap();
+
+    let ids = [reading.id, home.id, travel.id, reading.id].map(|i| i.to_string());
+    let out = e.call(&ctx, "delete_category", json!({"category_ids": ids, "reason": "You asked to delete them."})).await;
+    assert_eq!(out.action.status, AiActionStatus::Proposed, "{}", out.content);
+    let proposal = out.proposal.as_ref().unwrap();
+    let ProposalKind::DeleteCategories { categories } = &proposal.kind else { panic!("{:?}", proposal.kind) };
+    assert_eq!(categories.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["Reading", "Home", "Travel"], "duplicates dropped");
+    assert_eq!(categories[0].note_count, 1);
+    assert_eq!(e.notes.categories().len(), 3, "nothing deleted before confirmation");
+
+    e.agent.apply_proposal(proposal.id, None).await.unwrap();
+    assert!(e.notes.categories().is_empty());
+
+    e.agent.undo_ai_action(out.action.id).await.unwrap();
+    let mut names: Vec<_> = e.notes.categories().into_iter().map(|c| c.name).collect();
+    names.sort();
+    assert_eq!(names, ["Home", "Reading", "Travel"]);
+    let back = e.notes.categories().into_iter().find(|c| c.name == "Reading").unwrap();
+    assert_eq!(e.notes.get_note(n.id).await.unwrap().category_id, Some(back.id), "notes refiled");
+
+    // One id still makes the single-category card.
+    let one = e.call(&e.ctx(), "delete_category", json!({"category_ids": [back.id.to_string()]})).await;
+    assert!(matches!(one.proposal.unwrap().kind, ProposalKind::DeleteCategory { .. }));
 }
 
 #[tokio::test]

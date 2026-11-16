@@ -3278,6 +3278,16 @@ mark {
 .nt-proposal-note:focus-visible {
   box-shadow: var(--focus);
 }
+/* A row that names something without opening it (a category on a delete card). */
+.nt-proposal-note.is-static:hover {
+  background: none;
+}
+.nt-proposal-note > .nt-proposal-note-count {
+  margin-left: auto;
+  flex: none;
+  color: var(--ink-3);
+  font-weight: 420;
+}
 .nt-proposal-preview {
   max-height: 220px;
   overflow-y: auto;

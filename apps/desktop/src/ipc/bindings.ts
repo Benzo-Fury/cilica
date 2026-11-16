@@ -548,6 +548,13 @@ export type Category = {
 	collapsed: boolean,
 };
 
+/**  One category inside a `DeleteCategories` card. */
+export type CategoryDeletion = {
+	category_id: string,
+	name: string,
+	note_count: number,
+};
+
 /**  Where the assistant lives in the window. */
 export type CilicaPlacement = 
 /**  A panel on the right that pushes the note aside. */
@@ -1848,7 +1855,9 @@ export type ProposalKind_Deserialize =
  *  Every bulk move of one chat turn, gathered into one card: notes grouped by destination.
  *  Later moves in the same turn join this card instead of making a new one.
  */
-{ type: "move_groups"; groups: MoveGroup_Deserialize[] };
+{ type: "move_groups"; groups: MoveGroup_Deserialize[] } | 
+/**  Several categories deleted together, confirmed once. Their notes become uncategorised. */
+{ type: "delete_categories"; categories: CategoryDeletion[] };
 
 /**  What a proposal would do. Each variant carries everything the card needs to render. */
 export type ProposalKind_Serialize = 
@@ -1864,7 +1873,9 @@ export type ProposalKind_Serialize =
  *  Every bulk move of one chat turn, gathered into one card: notes grouped by destination.
  *  Later moves in the same turn join this card instead of making a new one.
  */
-{ type: "move_groups"; groups: MoveGroup_Serialize[] };
+{ type: "move_groups"; groups: MoveGroup_Serialize[] } | 
+/**  Several categories deleted together, confirmed once. Their notes become uncategorised. */
+{ type: "delete_categories"; categories: CategoryDeletion[] };
 
 export type ProposalSource = "chat" | "task";
 

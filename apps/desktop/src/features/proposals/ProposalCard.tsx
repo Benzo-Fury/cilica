@@ -5,7 +5,7 @@
  * changed sentences in the note. A `conflict` from Apply is explained on the card, which stays
  * pending.
  */
-import { ArrowRight, Check, FileText, TriangleAlert, X } from "lucide-react";
+import { ArrowRight, Check, FileText, Folder, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { reducedTransition, springs, tweens } from "@/app/motion";
@@ -91,6 +91,8 @@ function headline(proposal: Proposal): { action: string; subject: string } {
       return { action: "Merge", subject: plural(k.sources.length, "note") };
     case "delete_category":
       return { action: "Delete category", subject: k.name };
+    case "delete_categories":
+      return { action: "Delete", subject: plural(k.categories.length, "category", "categories") };
     case "delete_person":
       return { action: "Delete person", subject: k.name };
     case "bulk_move":
@@ -286,6 +288,32 @@ function PendingCard({
         </p>
       );
       break;
+    case "delete_categories": {
+      const moved = kind.categories.reduce((n, c) => n + c.note_count, 0);
+      acceptLabel = `Delete ${plural(kind.categories.length, "category", "categories")}`;
+      rejectLabel = "Keep";
+      body = (
+        <>
+          <ul className="nt-proposal-notes">
+            {kind.categories.map((c) => (
+              <li key={c.category_id}>
+                <span className="nt-proposal-note is-static">
+                  <Icon icon={Folder} size="sm" />
+                  <span>{c.name}</span>
+                  <span className="nt-proposal-note-count">{plural(c.note_count, "note")}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="nt-proposal-note-line">
+            {moved === 0
+              ? "These categories are empty."
+              : `Their ${plural(moved, "note")} move to Notes. No note is deleted.`}
+          </p>
+        </>
+      );
+      break;
+    }
     case "delete_person":
       acceptLabel = `Delete ${kind.name}`;
       rejectLabel = "Keep";

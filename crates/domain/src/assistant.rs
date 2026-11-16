@@ -186,6 +186,18 @@ pub enum ProposalKind {
     MoveGroups {
         groups: Vec<MoveGroup>,
     },
+    /// Several categories deleted together, confirmed once. Their notes become uncategorised.
+    DeleteCategories {
+        categories: Vec<CategoryDeletion>,
+    },
+}
+
+/// One category inside a `DeleteCategories` card.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct CategoryDeletion {
+    pub category_id: Id,
+    pub name: String,
+    pub note_count: u32,
 }
 
 /// Notes going to one destination inside a `MoveGroups` card.

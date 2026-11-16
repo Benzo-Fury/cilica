@@ -4,7 +4,7 @@
 use std::collections::BTreeSet;
 
 use cilica_domain::{
-    AppError, AppResult, Author, DataScope, ErrorCode, Id, MoveGroup, NoteRef, ProposalKind, TaskDraft, ToolTier,
+    AppError, AppResult, Author, CategoryDeletion, DataScope, ErrorCode, Id, MoveGroup, NoteRef, ProposalKind, TaskDraft, ToolTier,
 };
 use cilica_store::{Db, NewNote};
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,8 @@ pub enum WriteOp {
     TrashNotes { notes: Vec<NoteRef> },
     MergeNotes { sources: Vec<NoteRef>, merged_title: String, merged_md: String },
     DeleteCategory { category_id: Id, name: String, note_count: u32 },
+    /// Several categories confirmed on one card; applied as one step with one undo.
+    DeleteCategories { categories: Vec<CategoryDeletion> },
     DeletePerson { person_id: Id, name: String },
 }
 
@@ -46,6 +48,26 @@ pub enum UndoOp {
     RestoreNotes { note_ids: Vec<Id> },
     UnMerge { merged_note_id: Id, source_ids: Vec<Id> },
     RecreateCategory { name: String, position: f64, note_ids: Vec<Id> },
+    RecreateCategories { categories: Vec<RecreatedCategory> },
+}
+
+/// A deleted category and the notes that were in it, for undoing a multi-category delete.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecreatedCategory {
+    pub name: String,
+    pub position: f64,
+    pub note_ids: Vec<Id>,
+}
+
+/// "Reading", "Reading and Home", or "Reading, Home and 2 more".
+fn categories_phrase(categories: &[CategoryDeletion]) -> String {
+    match categories {
+        [one] => format!("the category {}", one.name),
+        [a, b] => format!("the categories {} and {}", a.name, b.name),
+        [a, b, c] => format!("the categories {}, {} and {}", a.name, b.name, c.name),
+        [a, b, rest @ ..] => format!("the categories {}, {} and {} more", a.name, b.name, rest.len()),
+        [] => "no categories".into(),
+    }
 }
 
 fn conflict(msg: impl Into<String>) -> AppError {
@@ -112,9 +134,11 @@ impl WriteOp {
             | Self::LabelSpeaker { .. }
             | Self::CreateTask { .. } => ToolTier::Additive,
             Self::EditNote { .. } | Self::RenameNote { .. } => ToolTier::Edit,
-            Self::TrashNotes { .. } | Self::MergeNotes { .. } | Self::DeleteCategory { .. } | Self::DeletePerson { .. } => {
-                ToolTier::Destructive
-            }
+            Self::TrashNotes { .. }
+            | Self::MergeNotes { .. }
+            | Self::DeleteCategory { .. }
+            | Self::DeleteCategories { .. }
+            | Self::DeletePerson { .. } => ToolTier::Destructive,
         }
     }
 
@@ -149,6 +173,7 @@ impl WriteOp {
             Self::TrashNotes { notes } => format!("Moved {} to Trash", notes_phrase(notes)),
             Self::MergeNotes { sources, merged_title, .. } => format!("Merged {} into {merged_title}", plural(sources.len(), "note", "notes")),
             Self::DeleteCategory { name, .. } => format!("Deleted the category {name}"),
+            Self::DeleteCategories { categories } => format!("Deleted {}", categories_phrase(categories)),
             Self::DeletePerson { name, .. } => format!("Deleted {name} from Saved people"),
         }
     }
@@ -165,6 +190,7 @@ impl WriteOp {
             Self::TrashNotes { notes } => format!("Asked to move {} to Trash", notes_phrase(notes)),
             Self::MergeNotes { sources, merged_title, .. } => format!("Asked to merge {} into {merged_title}", plural(sources.len(), "note", "notes")),
             Self::DeleteCategory { name, .. } => format!("Asked to delete the category {name}"),
+            Self::DeleteCategories { categories } => format!("Asked to delete {}", categories_phrase(categories)),
             Self::DeletePerson { name, .. } => format!("Asked to delete {name} from Saved people"),
             other => format!("Suggested: {}", other.applied_summary()),
         }
@@ -180,7 +206,7 @@ impl WriteOp {
             Self::CreateTask { .. } => (vec![Tasks], None),
             Self::EditNote { note, .. } | Self::RenameNote { note, .. } => (vec![Notes, Versions], Some(note.id)),
             Self::TrashNotes { .. } | Self::MergeNotes { .. } => (vec![Notes, Trash], None),
-            Self::DeleteCategory { .. } => (vec![Categories, Notes], None),
+            Self::DeleteCategory { .. } | Self::DeleteCategories { .. } => (vec![Categories, Notes], None),
             Self::DeletePerson { .. } => (vec![People, Transcript], None),
         }
     }
@@ -205,6 +231,7 @@ impl WriteOp {
             Self::TrashNotes { notes } => ProposalKind::TrashNotes { notes },
             Self::MergeNotes { sources, merged_title, merged_md } => ProposalKind::MergeNotes { sources, merged_title, merged_md },
             Self::DeleteCategory { category_id, name, note_count } => ProposalKind::DeleteCategory { category_id, name, note_count },
+            Self::DeleteCategories { categories } => ProposalKind::DeleteCategories { categories },
             Self::DeletePerson { person_id, name } => ProposalKind::DeletePerson { person_id, name },
             _ => return None,
         })
@@ -221,6 +248,7 @@ impl WriteOp {
                 Self::MergeNotes { sources, merged_title, merged_md: final_md.unwrap_or(merged_md) }
             }
             ProposalKind::DeleteCategory { category_id, name, note_count } => Self::DeleteCategory { category_id, name, note_count },
+            ProposalKind::DeleteCategories { categories } => Self::DeleteCategories { categories },
             ProposalKind::DeletePerson { person_id, name } => Self::DeletePerson { person_id, name },
             ProposalKind::BulkMove { notes, category_id, category_name } => {
                 Self::MoveNotes { notes, category: category_id.map(|id| (id, category_name)) }
@@ -242,7 +270,7 @@ pub fn tool_for_kind(kind: &ProposalKind) -> &'static str {
         ProposalKind::RenameNote { .. } => "rename_note",
         ProposalKind::TrashNotes { .. } => "trash_note",
         ProposalKind::MergeNotes { .. } => "merge_notes",
-        ProposalKind::DeleteCategory { .. } => "delete_category",
+        ProposalKind::DeleteCategory { .. } | ProposalKind::DeleteCategories { .. } => "delete_category",
         ProposalKind::DeletePerson { .. } => "delete_person",
         ProposalKind::BulkMove { .. } | ProposalKind::MoveGroups { .. } => "move_note",
         ProposalKind::CreateNote { .. } => "create_note",
@@ -274,6 +302,10 @@ pub fn fingerprint(kind: &ProposalKind) -> String {
         ProposalKind::TrashNotes { notes } => format!("trash:{}", sorted_ids(notes)),
         ProposalKind::MergeNotes { sources, .. } => format!("merge:{}", sorted_ids(sources)),
         ProposalKind::DeleteCategory { category_id, .. } => format!("delete_category:{category_id}"),
+        ProposalKind::DeleteCategories { categories } => format!(
+            "delete_categories:{}",
+            categories.iter().map(|c| c.category_id.to_string()).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(",")
+        ),
         ProposalKind::DeletePerson { person_id, .. } => format!("delete_person:{person_id}"),
         ProposalKind::BulkMove { notes, category_id, .. } => {
             format!("move:{}:{}", sorted_ids(notes), category_id.map(|c| c.to_string()).unwrap_or_default())
@@ -413,11 +445,19 @@ pub async fn apply(notes: &dyn NoteStore, db: &Db, op: &WriteOp, action_id: Id) 
             Some(UndoOp::UnMerge { merged_note_id: merged.id, source_ids: sources.iter().map(|s| s.id).collect() })
         }
         WriteOp::DeleteCategory { category_id, .. } => {
-            let c = notes.get_category(*category_id).await?;
-            let members: Vec<Id> =
-                notes.list_notes().await?.into_iter().filter(|n| n.category_id == Some(*category_id)).map(|n| n.id).collect();
-            notes.delete_category(*category_id).await?;
-            Some(UndoOp::RecreateCategory { name: c.name, position: c.position, note_ids: members })
+            let RecreatedCategory { name, position, note_ids } = delete_category(notes, *category_id).await?;
+            Some(UndoOp::RecreateCategory { name, position, note_ids })
+        }
+        WriteOp::DeleteCategories { categories } => {
+            // Check every category still exists before deleting any, so a stale card changes nothing.
+            for c in categories {
+                notes.get_category(c.category_id).await?;
+            }
+            let mut deleted = Vec::new();
+            for c in categories {
+                deleted.push(delete_category(notes, c.category_id).await?);
+            }
+            Some(UndoOp::RecreateCategories { categories: deleted })
         }
         WriteOp::DeletePerson { person_id, .. } => {
             notes.delete_person(*person_id).await?;
@@ -476,18 +516,36 @@ pub async fn undo(notes: &dyn NoteStore, db: &Db, op: &UndoOp, action_id: Id) ->
             }
             notes.trash_note(*merged_note_id).await?;
         }
-        UndoOp::RecreateCategory { name, position, note_ids } => {
-            let c = notes.create_category(name).await?;
-            notes.reorder_category(c.id, *position).await?;
-            let current = notes.list_notes().await?;
-            let mut pos = 0.0;
-            for id in note_ids {
-                // Only notes the user has not filed elsewhere since.
-                if current.iter().any(|n| n.id == *id && n.category_id.is_none()) {
-                    notes.move_note(*id, Some(c.id), pos).await?;
-                    pos += 1.0;
-                }
+        UndoOp::RecreateCategory { name, position, note_ids } => recreate_category(notes, name, *position, note_ids).await?,
+        UndoOp::RecreateCategories { categories } => {
+            for c in categories {
+                recreate_category(notes, &c.name, c.position, &c.note_ids).await?;
             }
+        }
+    }
+    Ok(())
+}
+
+/// Delete one category, remembering its place and members so Undo can bring it back.
+async fn delete_category(notes: &dyn NoteStore, category_id: Id) -> AppResult<RecreatedCategory> {
+    let c = notes.get_category(category_id).await?;
+    let note_ids: Vec<Id> =
+        notes.list_notes().await?.into_iter().filter(|n| n.category_id == Some(category_id)).map(|n| n.id).collect();
+    notes.delete_category(category_id).await?;
+    Ok(RecreatedCategory { name: c.name, position: c.position, note_ids })
+}
+
+/// Bring a deleted category back and refile its notes.
+async fn recreate_category(notes: &dyn NoteStore, name: &str, position: f64, note_ids: &[Id]) -> AppResult<()> {
+    let c = notes.create_category(name).await?;
+    notes.reorder_category(c.id, position).await?;
+    let current = notes.list_notes().await?;
+    let mut pos = 0.0;
+    for id in note_ids {
+        // Only notes the user has not filed elsewhere since.
+        if current.iter().any(|n| n.id == *id && n.category_id.is_none()) {
+            notes.move_note(*id, Some(c.id), pos).await?;
+            pos += 1.0;
         }
     }
     Ok(())
@@ -498,7 +556,9 @@ impl UndoOp {
         use DataScope::*;
         match self {
             Self::TrashCreatedNote { .. } | Self::RestoreNotes { .. } | Self::UnMerge { .. } => (vec![Notes, Trash], None),
-            Self::DeleteCreatedCategory { .. } | Self::RecreateCategory { .. } => (vec![Categories, Notes], None),
+            Self::DeleteCreatedCategory { .. } | Self::RecreateCategory { .. } | Self::RecreateCategories { .. } => {
+                (vec![Categories, Notes], None)
+            }
             Self::MoveBack { .. } => (vec![Notes, Categories], None),
             Self::RenameCategory { .. } => (vec![Categories], None),
             Self::RestoreSpeaker { .. } => (vec![Transcript, People], None),

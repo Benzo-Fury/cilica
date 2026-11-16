@@ -19,7 +19,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use cilica_domain::{
-    AiAction, AiActionStatus, ProposalKind, AppEvent, AppResult, AssistantEvent, DataScope, Events, Id, NoteRef, Proposal,
+    AiAction, AiActionStatus, CategoryDeletion, ProposalKind, AppEvent, AppResult, AssistantEvent, DataScope, Events, Id, NoteRef, Proposal,
     ProposalSource, ProposalStatus, TaskDraft, TaskSchedule, TaskScope, ToolTier, new_id, now,
 };
 use cilica_store::Db;
@@ -908,17 +908,30 @@ impl ToolRunner {
             "delete_category" => {
                 #[derive(Deserialize)]
                 struct A {
-                    category_id: String,
+                    #[serde(default)]
+                    category_ids: Vec<String>,
+                    /// Older single-id form, still accepted.
+                    category_id: Option<String>,
                     #[serde(default)]
                     reason: String,
                 }
                 let a: A = parse(input)?;
-                let (category_id, name) = self.category_ref(&a.category_id).await?;
-                let note_count = e(self.notes.list_notes().await)?.iter().filter(|n| n.category_id == Some(category_id)).count();
-                Ok(Exec::Write {
-                    op: WriteOp::DeleteCategory { category_id, name, note_count: u32::try_from(note_count).unwrap_or(u32::MAX) },
-                    reason: a.reason,
-                })
+                let raw: Vec<String> = a.category_ids.into_iter().chain(a.category_id).collect();
+                if raw.is_empty() {
+                    return Err("category_ids is empty.".into());
+                }
+                let all = e(self.notes.list_notes().await)?;
+                let mut categories = Vec::new();
+                for r in dedup(raw) {
+                    let (category_id, name) = self.category_ref(&r).await?;
+                    let note_count = all.iter().filter(|n| n.category_id == Some(category_id)).count();
+                    categories.push(CategoryDeletion { category_id, name, note_count: u32::try_from(note_count).unwrap_or(u32::MAX) });
+                }
+                let op = match <[CategoryDeletion; 1]>::try_from(categories) {
+                    Ok([CategoryDeletion { category_id, name, note_count }]) => WriteOp::DeleteCategory { category_id, name, note_count },
+                    Err(categories) => WriteOp::DeleteCategories { categories },
+                };
+                Ok(Exec::Write { op, reason: a.reason })
             }
             "delete_person" => {
                 #[derive(Deserialize)]

@@ -40,6 +40,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
   trash_notes: Trash2,
   merge_notes: Merge,
   delete_category: Trash2,
+  delete_categories: Trash2,
   delete_person: UserX,
   bulk_move: FolderInput,
   move_groups: FolderInput,

@@ -69,6 +69,8 @@ function appliedSummary(kind: Proposal["kind"]): string {
       return `Merged ${kind.sources.length} notes into ${kind.merged_title}`;
     case "delete_category":
       return `Deleted ${kind.name}`;
+    case "delete_categories":
+      return `Deleted ${kind.categories.length} categories`;
     case "delete_person":
       return `Deleted ${kind.name}`;
     case "bulk_move":
@@ -754,6 +756,15 @@ export function assistantCommands({ state, emit }: MockContext) {
             if (note.category_id === kind.category_id) note.category_id = null;
           }
           state.categories.delete(kind.category_id);
+          scopes.add("notes").add("categories");
+          break;
+        }
+        case "delete_categories": {
+          const ids = new Set(kind.categories.map((c) => c.category_id));
+          for (const note of state.notes.values()) {
+            if (note.category_id && ids.has(note.category_id)) note.category_id = null;
+          }
+          for (const id of ids) state.categories.delete(id);
           scopes.add("notes").add("categories");
           break;
         }

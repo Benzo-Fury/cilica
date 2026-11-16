@@ -47,6 +47,7 @@ export function groupOf(proposal: Proposal): Group {
       return "trim";
     case "trash_notes":
     case "delete_category":
+    case "delete_categories":
     case "delete_person":
       return "delete";
     default:
@@ -67,6 +68,13 @@ export function destructiveLine(proposal: Proposal): string | null {
       return `Move ${names(k.notes)} to Trash`;
     case "delete_category":
       return `Delete the category “${k.name}”; its ${plural(k.note_count, "note")} move to Notes`;
+    case "delete_categories":
+      return k.categories
+        .map(
+          (c) =>
+            `Delete the category “${c.name}”; its ${plural(c.note_count, "note")} move to Notes`,
+        )
+        .join("; ");
     case "delete_person":
       return `Delete ${k.name} from Saved people`;
     case "bulk_move":

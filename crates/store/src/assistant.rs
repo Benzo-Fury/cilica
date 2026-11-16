@@ -112,6 +112,7 @@ fn kind_name(kind: &ProposalKind) -> &'static str {
         ProposalKind::BulkMove { .. } => "bulk_move",
         ProposalKind::CreateNote { .. } => "create_note",
         ProposalKind::MoveGroups { .. } => "move_groups",
+        ProposalKind::DeleteCategories { .. } => "delete_categories",
     }
 }
 

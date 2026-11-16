@@ -78,7 +78,13 @@ pub const TOOLS: &[ToolDef] = &[
         running: "Preparing a merge",
         in_tasks: true,
     },
-    ToolDef { name: "delete_category", tier: ToolTier::Destructive, description: "Delete a category; its notes become uncategorised. Always asks the user to confirm.", running: "Preparing to delete a category", in_tasks: true },
+    ToolDef {
+        name: "delete_category",
+        tier: ToolTier::Destructive,
+        description: "Delete one or more categories; their notes become uncategorised. Pass every category to delete in one call: the user confirms them together on one card. Always asks the user to confirm.",
+        running: "Preparing to delete categories",
+        in_tasks: true,
+    },
     ToolDef { name: "delete_person", tier: ToolTier::Destructive, description: "Delete a Saved person and their voiceprint. Always asks the user to confirm.", running: "Preparing to delete a person", in_tasks: true },
 ];
 
@@ -207,7 +213,7 @@ pub fn schema(name: &str) -> Value {
             }),
             &["note_ids", "title", "body_md"],
         ),
-        "delete_category" => obj(json!({ "category_id": id("Category id."), "reason": reason }), &["category_id"]),
+        "delete_category" => obj(json!({ "category_ids": ids("Categories to delete, from list_categories."), "reason": reason }), &["category_ids"]),
         "delete_person" => obj(json!({ "person_id": id("Saved person id from list_people."), "reason": reason }), &["person_id"]),
         _ => obj(json!({}), &[]),
     }
