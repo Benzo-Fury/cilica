@@ -145,9 +145,24 @@ pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
             if id == menu::QUIT_ID {
                 request_quit(app);
             }
+            #[cfg(target_os = "macos")]
+            if id == menu::RELOAD_ID {
+                reload_focused_window(app);
+            }
         }
     });
     Ok(())
+}
+
+/// Dev-only View > Reload: reload whichever window has focus.
+#[cfg(target_os = "macos")]
+fn reload_focused_window(app: &AppHandle) {
+    let focused = app.webview_windows().into_values().find(|window| window.is_focused().unwrap_or(false));
+    if let Some(window) = focused
+        && let Err(error) = window.reload()
+    {
+        tracing::warn!(%error, label = window.label(), "could not reload the window");
+    }
 }
 
 /// React to backend events: recording state drives the tray label and the island; settings

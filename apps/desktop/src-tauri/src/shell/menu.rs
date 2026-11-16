@@ -2,11 +2,14 @@
 //! - Quit is Cilica's own item, so Cmd+Q can ask before stopping a recording.
 //! - Edit has no Undo/Redo items, so Cmd+Z and Cmd+Shift+Z reach the webview, where the keybind
 //!   registry handles them (including undoing whole AI turns).
+//! - Debug builds add View > Reload (Cmd+R) for development. Release builds leave it out so a
+//!   stray Cmd+R can't drop unsaved edits or reset the window.
 
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Wry};
 
 pub const QUIT_ID: &str = "cilica.app.quit";
+pub const RELOAD_ID: &str = "cilica.dev.reload";
 
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let info = app.package_info();
@@ -40,6 +43,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         ],
     )?;
     let view = Submenu::with_items(app, "View", true, &[&PredefinedMenuItem::fullscreen(app, None)?])?;
+    if cfg!(debug_assertions) {
+        view.prepend_items(&[
+            &MenuItem::with_id(app, RELOAD_ID, "Reload", true, Some("CmdOrCtrl+R"))?,
+            &separator()?,
+        ])?;
+    }
     let window = Submenu::with_items(
         app,
         "Window",
