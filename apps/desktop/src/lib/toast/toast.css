@@ -48,7 +48,9 @@
 }
 /* Glass without the light: no inset highlight, and a neutral hairline instead of the bright glass edge. */
 .nt-toast-card.nt-glass-strong {
-  box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow-float);
+  box-shadow:
+    inset 0 0 0 0.5px var(--line),
+    var(--shadow-float);
 }
 @supports (corner-shape: squircle) {
   .nt-toast-card {

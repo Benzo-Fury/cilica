@@ -54,14 +54,7 @@ export function CanvasBand({
               />
             </>
           )}
-          {back && (
-            <IconButton
-              icon={ArrowLeft}
-              iconMotion="arrow"
-              label="Back"
-              onClick={goBack}
-            />
-          )}
+          {back && <IconButton icon={ArrowLeft} iconMotion="arrow" label="Back" onClick={goBack} />}
           {start}
         </>
       }
