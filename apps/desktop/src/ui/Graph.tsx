@@ -687,7 +687,7 @@ export function Graph({
     if (s.hover === i) return;
     s.hover = i;
     if (canvasRef.current)
-      canvasRef.current.style.cursor = s.drag ? "grabbing" : "";
+      canvasRef.current.style.cursor = s.drag ? "grabbing" : i >= 0 ? "grab" : "";
     kick();
   };
 
@@ -747,7 +747,7 @@ export function Graph({
       s.sim.pinned[d.node] = 0;
       s.sim.alphaTarget = s.growth && !s.reduced ? GROW_HEAT : 0;
     }
-    if (canvasRef.current) canvasRef.current.style.cursor = "";
+    if (canvasRef.current) canvasRef.current.style.cursor = s.hover >= 0 ? "grab" : "";
     if (!cancelled && !d.moved && d.node >= 0) {
       const key = s.nodes[d.node]?.key;
       if (key) s.onOpen?.(key);
