@@ -7,3 +7,4 @@ pub mod swears;
 pub mod ollama;
 pub mod updates;
 pub mod import;
+pub mod thesaurus;

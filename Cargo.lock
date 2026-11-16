@@ -896,6 +896,7 @@ dependencies = [
  "cilica-scheduler",
  "cilica-store",
  "cilica-stt",
+ "cilica-thesaurus",
  "futures",
  "keyring",
  "objc2",
@@ -1139,6 +1140,14 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "whisper-rs",
+]
+
+[[package]]
+name = "cilica-thesaurus"
+version = "0.8.0"
+dependencies = [
+ "cilica-domain",
+ "flate2",
 ]
 
 [[package]]

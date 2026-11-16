@@ -7,14 +7,14 @@ const viewport = { width: 1000, height: 800 };
 const bar = { width: 200, height: 36 };
 
 describe("placeToolbar", () => {
-  it("centres the bar above the selection", () => {
+  it("centres the bar under the selection", () => {
     const p = placeToolbar({ left: 400, right: 600, top: 300, bottom: 320 }, bar, viewport);
-    expect(p).toEqual({ left: 400, top: 256, side: "above" });
+    expect(p).toEqual({ left: 400, top: 328, side: "below" });
   });
 
-  it("flips below when there is no room above", () => {
-    const p = placeToolbar({ left: 400, right: 600, top: 20, bottom: 40 }, bar, viewport);
-    expect(p).toEqual({ left: 400, top: 48, side: "below" });
+  it("flips above when there is no room below", () => {
+    const p = placeToolbar({ left: 400, right: 600, top: 760, bottom: 780 }, bar, viewport);
+    expect(p).toEqual({ left: 400, top: 716, side: "above" });
   });
 
   it("stays inside the left and right edges", () => {
@@ -24,9 +24,9 @@ describe("placeToolbar", () => {
     ).toBe(792);
   });
 
-  it("pins to the top when the selection fills the window", () => {
+  it("pins to the bottom when the selection fills the window", () => {
     const p = placeToolbar({ left: 400, right: 600, top: 10, bottom: 790 }, bar, viewport);
-    expect(p).toEqual({ left: 400, top: 8, side: "above" });
+    expect(p).toEqual({ left: 400, top: 756, side: "below" });
   });
 });
 

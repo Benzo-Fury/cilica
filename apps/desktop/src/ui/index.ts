@@ -51,6 +51,7 @@ export * from "./Status";
 export * from "./Swatch";
 export * from "./SwearJar";
 export * from "./Switch";
+export * from "./SynonymPanel";
 export * from "./TextArea";
 export * from "./ThemeChoice";
 export * from "./Thread";

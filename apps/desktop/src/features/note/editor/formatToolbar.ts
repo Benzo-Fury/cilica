@@ -21,8 +21,8 @@ export interface Placement {
 }
 
 /**
- * Centre the bar over the selection, `gap` px above it; flip below when there is no room above,
- * and keep it `cilica` px inside the viewport.
+ * Centre the bar under the selection, `gap` px below it; flip above when there is no room below,
+ * and keep it `margin` px inside the viewport.
  */
 export function placeToolbar(
   selection: Box,
@@ -34,12 +34,12 @@ export function placeToolbar(
   const centre = (selection.left + selection.right) / 2;
   const maxLeft = Math.max(margin, viewport.width - bar.width - margin);
   const left = Math.min(Math.max(centre - bar.width / 2, margin), maxLeft);
+  const below = selection.bottom + gap;
+  if (below + bar.height <= viewport.height - margin) return { left, top: below, side: "below" };
   const above = selection.top - gap - bar.height;
   if (above >= margin) return { left, top: above, side: "above" };
-  const below = selection.bottom + gap;
-  // Neither side fits (a selection taller than the window): pin it to the top edge.
-  if (below + bar.height > viewport.height - margin) return { left, top: margin, side: "above" };
-  return { left, top: below, side: "below" };
+  // Neither side fits (a selection taller than the window): pin it to the bottom edge.
+  return { left, top: Math.max(margin, viewport.height - margin - bar.height), side: "below" };
 }
 
 /** A real run of text is selected, outside code blocks, in an editable editor. */

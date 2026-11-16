@@ -18,6 +18,7 @@ mod recording;
 mod settings;
 mod swears;
 mod tasks;
+mod thesaurus;
 mod transcript;
 
 pub use assistant::*;
@@ -31,6 +32,7 @@ pub use recording::*;
 pub use settings::*;
 pub use swears::*;
 pub use tasks::*;
+pub use thesaurus::*;
 pub use transcript::*;
 
 pub use chrono;

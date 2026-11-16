@@ -1,6 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Editor } from "@tiptap/core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { useLinkResolver } from "@/features/links/resolver";
+import type { NoteSummary } from "@/ipc/types";
 import { TooltipProvider } from "@/ui";
 import { noteExtensions } from "./editor/extensions";
 import { SelectionToolbar } from "./SelectionToolbar";
@@ -54,10 +56,24 @@ function setup(content = "Thsi is wrnog") {
   return { e, dom: e.view.dom, selectFirstWord, select };
 }
 
+const summary = (id: string, title: string, aliases: string[] = []): NoteSummary => ({
+  id,
+  title,
+  aliases,
+  snippet: "",
+  category_id: null,
+  kind: "manual",
+  meeting_app: null,
+  position: 0,
+  created_at: "2026-11-01T00:00:00Z",
+  updated_at: "2026-11-01T00:00:00Z",
+  deleted_at: null,
+});
+
 const toolbar = () => screen.queryByRole("toolbar");
 
 describe("SelectionToolbar", () => {
-  it("shows over a selection", () => {
+  it("shows under a selection", () => {
     const { selectFirstWord } = setup();
     selectFirstWord();
     expect(toolbar()).toBeInTheDocument();
@@ -103,5 +119,79 @@ describe("SelectionToolbar", () => {
     fireEvent.pointerUp(window);
     selectFirstWord();
     expect(toolbar()).toBeInTheDocument();
+  });
+
+  describe("synonyms", () => {
+    afterEach(() => useLinkResolver.getState().set([], []));
+
+    it("swaps the selected word for a synonym, in its case, keeping it selected", async () => {
+      const { e, select } = setup("I feel Happy today");
+      select(8, 13);
+      // Listed straight away, without taking focus from the editor.
+      const glad = await screen.findByRole("button", { name: "Glad" });
+      expect(glad).not.toHaveFocus();
+      expect(toolbar()).toHaveAttribute("data-side", "below");
+      fireEvent.click(glad);
+      expect(e.getMarkdown().trim()).toBe("I feel Glad today");
+      const { from, to } = e.state.selection;
+      expect(e.state.doc.textBetween(from, to)).toBe("Glad");
+      // One undo puts the original back.
+      act(() => void e.commands.undo());
+      expect(e.getMarkdown().trim()).toBe("I feel Happy today");
+    });
+
+    it("lists every synonym once as a pill, with no meanings or links", async () => {
+      useLinkResolver.getState().set([summary("n_vac", "Vacation")], []);
+      const { select } = setup("Planning a holiday soon");
+      select(12, 19);
+      expect(await screen.findByRole("button", { name: "vacation" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "getaway" })).toBeVisible();
+      expect(screen.getByText("Replace with")).toBeVisible();
+      expect(screen.queryByText(/leisure time/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Link to/ })).not.toBeInTheDocument();
+      const names = screen
+        .getAllByRole("button")
+        .filter((b) => b.className.includes("nt-synonyms-word"))
+        .map((b) => b.textContent);
+      expect(new Set(names).size).toBe(names.length);
+    });
+
+    it("Esc hides the bar; words with no synonyms list nothing", async () => {
+      const { select } = setup("I feel happy and zorbly");
+      select(8, 13);
+      const glad = await screen.findByRole("button", { name: "glad" });
+      fireEvent.keyDown(glad, { key: "Escape" });
+      await waitFor(() => expect(toolbar()).not.toBeInTheDocument());
+
+      select(18, 24);
+      expect(await screen.findByRole("toolbar")).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("group", { name: /Synonyms/ })).toBeNull());
+    });
+
+    it("arrow keys move from the buttons into the list and through it", async () => {
+      const { select } = setup("I feel happy");
+      select(8, 13);
+      const glad = await screen.findByRole("button", { name: "glad" });
+      const bold = screen.getByRole("button", { name: "Bold" });
+      act(() => bold.focus());
+      fireEvent.keyDown(bold, { key: "ArrowDown" });
+      expect(glad).toHaveFocus();
+      fireEvent.keyDown(glad, { key: "ArrowRight" });
+      expect(screen.getByRole("button", { name: "blissful" })).toHaveFocus();
+      fireEvent.keyDown(document.activeElement as Element, { key: "End" });
+      expect(screen.getByRole("button", { name: "felicitous" })).toHaveFocus();
+      fireEvent.keyDown(document.activeElement as Element, { key: "Home" });
+      fireEvent.keyDown(document.activeElement as Element, { key: "ArrowUp" });
+      expect(bold).toHaveFocus();
+      // Focus in the bar keeps it open.
+      expect(toolbar()).toBeInTheDocument();
+    });
+
+    it("lists no synonyms for long selections", () => {
+      const { select } = setup("one two three four five six");
+      select(1, 27);
+      expect(toolbar()).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: /Synonyms/ })).not.toBeInTheDocument();
+    });
   });
 });

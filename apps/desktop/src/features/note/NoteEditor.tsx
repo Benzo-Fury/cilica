@@ -196,6 +196,7 @@ export function NoteEditor({
     <>
       <EditorContent editor={editor} className="nt-editor" />
       <LinkSuggest editor={editor} handlers={suggest} excludeNoteId={note.id} />
+      <InlineLinkHint editor={editor} handlers={linkHint} />
       <SelectionToolbar editor={editor} />
     </>
   );

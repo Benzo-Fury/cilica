@@ -1,11 +1,13 @@
 /**
- * The formatting toolbar that appears over selected text in a note: bold, italic,
- * strikethrough, superscript, subscript, inline code, headings, quote and link. Everything
- * it offers round-trips through Markdown. It waits until the mouse is released, hides on Esc, and follows the
+ * The formatting toolbar that appears under selected text in a note: bold, italic,
+ * strikethrough, superscript, subscript, inline code, headings, quote and link, and for a word or short phrase its
+ * synonyms (from the bundled thesaurus) as pills under the buttons.
+ * Everything it offers round-trips through Markdown. It waits until the mouse is released, hides on Esc, and follows the
  * selection as the page scrolls. A right-click selects the word under it for the system menu
  * (spelling suggestions, Look Up), so that selection never brings the bar up.
  */
 import { type Editor, posToDOMRect } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
 import {
   Bold,
@@ -22,13 +24,15 @@ import {
   TextQuote,
   Unlink,
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatAccelerator } from "@/app/keybinds/registry";
 import { useEscapeLayer } from "@/app/layers";
 import { isMac } from "@/app/platform";
-import { FormatBar, FormatBarDivider, FormatBarField, IconButton } from "@/ui";
+import { FormatBar, FormatBarDivider, FormatBarField, IconButton, SynonymPanel } from "@/ui";
 import { hasFormattableSelection, normalizeHref, placeToolbar } from "./editor/formatToolbar";
+import { MAX_SYNONYM_PILLS, matchCase, synonymTarget } from "./editor/synonyms";
+import { useSynonyms } from "./useSynonyms";
 
 /** How long the exit fade runs before the bar unmounts (`--dur-fast`). */
 const EXIT_MS = 120;
@@ -142,7 +146,9 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   // The selection came from a right-click: kept hidden until the next click or key.
   const [fromContextMenu, setFromContextMenu] = useState(false);
   const [editingLink, setEditingLink] = useState(false);
-  const [side, setSide] = useState<"above" | "below">("above");
+  // Keyboard focus is on the bar's own buttons or synonyms, so the editor has let go of it.
+  const [focusInBar, setFocusInBar] = useState(false);
+  const [side, setSide] = useState<"above" | "below">("below");
 
   const state = useEditorState({
     editor,
@@ -161,6 +167,7 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
           enabled: {} as Record<string, boolean>,
           link: false,
           href: "",
+          word: null as string | null,
         };
       return {
         from,
@@ -171,6 +178,7 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
         enabled: Object.fromEntries(ALL.map((a) => [a.id, a.can(e)])) as Record<string, boolean>,
         link: e.isActive("link"),
         href: (e.getAttributes("link").href as string | undefined) ?? "",
+        word: synonymTarget(e.state)?.text ?? null,
       };
     },
   });
@@ -218,7 +226,25 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
     !pointerDown &&
     !dismissed &&
     !fromContextMenu &&
-    (state.focused || editingLink);
+    (state.focused || editingLink || focusInBar);
+
+  // Looked up as soon as the bar shows; the list joins the bar once it has something to offer.
+  const synonyms = useSynonyms(visible ? (state?.word ?? null) : null);
+  // Every synonym once, closest first (the thesaurus orders them), in the selection's case.
+  const words = useMemo(() => {
+    const word = state?.word ?? "";
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const w of synonyms?.groups.flatMap((g) => g.words) ?? []) {
+      const cased = matchCase(word, w);
+      if (seen.has(cased.toLowerCase()) || cased.toLowerCase() === word.toLowerCase()) continue;
+      seen.add(cased.toLowerCase());
+      out.push(cased);
+      if (out.length === MAX_SYNONYM_PILLS) break;
+    }
+    return out;
+  }, [synonyms, state?.word]);
+  const showSynonyms = !!state?.word && !editingLink && words.length > 0;
 
   // Keep it mounted for the exit fade.
   const [mounted, setMounted] = useState(false);
@@ -247,10 +273,10 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   }, [editor]);
 
   // Place before paint when it appears and whenever the selection or its contents change.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `state` and `editingLink` resize it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `state`, `editingLink` and the synonyms resize it.
   useLayoutEffect(() => {
     if (visible) place();
-  }, [visible, state, editingLink, place]);
+  }, [visible, state, editingLink, showSynonyms, synonyms, place]);
 
   useEffect(() => {
     if (!visible) return;
@@ -267,6 +293,7 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
   const dismiss = () => {
     setDismissed(true);
     setEditingLink(false);
+    setFocusInBar(false);
     editor?.commands.focus();
   };
   useEscapeLayer(visible, dismiss);
@@ -291,6 +318,22 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
     setEditingLink(false);
   };
 
+  // A synonym takes the selection's place in its case and keeps its formatting; it stays
+  // selected, so another can be tried. One undo puts the original back.
+  const pickSynonym = (word: string) => {
+    const target = synonymTarget(editor.state);
+    if (!target) return;
+    const text = matchCase(target.text, word);
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        tr.insertText(text, target.from, target.to);
+        tr.setSelection(TextSelection.create(tr.doc, target.from, target.from + text.length));
+        return true;
+      })
+      .run();
+  };
   const button = (action: Action) => (
     <IconButton
       key={action.id}
@@ -310,7 +353,22 @@ export function SelectionToolbar({ editor }: { editor: Editor | null }) {
       label="Format text"
       side={side}
       closing={!visible}
-      onFocusLeave={() => setEditingLink(false)}
+      onFocusEnter={() => setFocusInBar(true)}
+      onFocusLeave={() => {
+        setEditingLink(false);
+        setFocusInBar(false);
+      }}
+      panel={
+        showSynonyms && state.word ? (
+          <SynonymPanel
+            key={state.word}
+            word={state.word}
+            words={words}
+            onPick={pickSynonym}
+            onClose={dismiss}
+          />
+        ) : undefined
+      }
       // Placed by `place()` before paint; start off-screen so the first frame never flashes.
       style={{ left: -9999, top: -9999 }}
     >

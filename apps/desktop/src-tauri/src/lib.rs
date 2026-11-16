@@ -53,6 +53,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::notes::get_link_suggestions,
             commands::notes::accept_link_suggestion,
             commands::notes::dismiss_link_suggestion,
+            commands::thesaurus::get_synonyms,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_app_info,

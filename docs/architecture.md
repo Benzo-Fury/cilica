@@ -37,6 +37,7 @@ crates/
   scheduler/          task runner, the default Notes review
   mcp/                the agent's tools over MCP (stdio) for the Claude Code bridge
   import/             notes from other apps: file formats, local databases, API-key accounts, preview, re-import, undo (docs/import.md)
+  thesaurus/          synonyms for the selection toolbar, from the bundled ABC Thesaurus, cleaned (no network)
 ```
 
 ## The contract

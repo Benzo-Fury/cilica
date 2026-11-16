@@ -1,0 +1,10 @@
+[package]
+name = "cilica-thesaurus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+cilica-domain = { path = "../domain" }
+flate2 = "1.1.11"

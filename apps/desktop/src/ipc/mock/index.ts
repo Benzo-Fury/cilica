@@ -18,6 +18,7 @@ import { createState, type SeedKind } from "./seed";
 import type { MockContext } from "./state";
 import { swearCommands } from "./swears";
 import { tasksCommands } from "./tasks";
+import { mockSynonyms } from "./thesaurus";
 import { updatesCommands } from "./updates";
 import { clone } from "./util";
 import { windowCommands } from "./window";
@@ -75,6 +76,7 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
     ...imports,
     ...windowCommands(),
     ...updatesCommands(ctx),
+    getSynonyms: (text: string) => mockSynonyms(text),
   };
 
   const wrap =

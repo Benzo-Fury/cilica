@@ -133,6 +133,8 @@ export type {
   SwearCount,
   SwearWeek,
   SwearWord,
+  SynonymGroup,
+  Synonyms,
   TaskDraft,
   TaskRunStatus,
   TaskSchedule,

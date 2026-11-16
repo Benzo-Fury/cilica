@@ -56,6 +56,7 @@ cilica-pipeline = { path = "../../../crates/pipeline" }
 async-trait = "0.1.92"
 futures = "0.3.34"
 cilica-import = { path = "../../../crates/import" }
+cilica-thesaurus = { path = "../../../crates/thesaurus" }
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 auto-launch = "0.6.0"
 

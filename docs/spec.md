@@ -312,6 +312,7 @@ crates/
   agent/              # tools, context builder, tiers, proposals, audit, undo
   scheduler/          # task runner, default Notes review
   mcp/                # exposes agent tools over MCP for the Claude Code bridge
+  thesaurus/          # bundled synonyms (ABC Thesaurus, cleaned) for the selection toolbar
 ```
 
 - Each crate has a short README: purpose, public API, what it must not depend on. `domain` depends on nothing app-specific; `src-tauri` only wires crates together.

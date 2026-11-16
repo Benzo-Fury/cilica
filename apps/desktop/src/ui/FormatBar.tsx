@@ -1,7 +1,9 @@
 /**
  * A small floating toolbar on strong glass, for formatting a text selection. The caller places
  * it (fixed `left`/`top`) and fills it with `IconButton`s, `FormatBarDivider`s, or a
- * `FormatBarField`. It never takes focus on mouse down, so the editor keeps its selection.
+ * `FormatBarField`; a `panel` (synonyms) sits under the buttons and the bar grows to hold it.
+ * ↓ moves from the buttons into the panel and ↑ from its first entry back.
+ * It never takes focus on mouse down, so the editor keeps its selection.
  */
 import type { LucideIcon } from "lucide-react";
 import {
@@ -19,7 +21,9 @@ export function FormatBar({
   side = "above",
   closing = false,
   style,
+  onFocusEnter,
   onFocusLeave,
+  panel,
   children,
   ref,
 }: {
@@ -30,19 +34,37 @@ export function FormatBar({
   /** Plays the exit fade; the caller unmounts it afterwards. */
   closing?: boolean;
   style?: CSSProperties;
+  /** Focus moved into the bar from somewhere outside it. */
+  onFocusEnter?: () => void;
   /** Focus moved from inside the bar to somewhere outside it. */
   onFocusLeave?: () => void;
+  /** Shown under the buttons, as wide as they are. */
+  panel?: ReactNode;
   children: ReactNode;
   ref?: Ref<HTMLDivElement>;
 }) {
-  // ←/→ move between buttons, like any toolbar.
+  // ←/→ move between buttons, like any toolbar; ↓/↑ cross between the buttons and the panel.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT") return;
-    const buttons = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
-    );
+    const row = event.currentTarget.querySelector(".nt-formatbar-row");
+    if (target.tagName === "INPUT" || !row) return;
+    const buttons = Array.from(row.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+    const inRow = row.contains(target);
+    if (event.key === "ArrowDown" && inRow) {
+      const first = event.currentTarget.querySelector<HTMLButtonElement>(
+        ".nt-formatbar-panel button:not(:disabled)",
+      );
+      if (!first) return;
+      event.preventDefault();
+      first.focus();
+      return;
+    }
+    if (event.key === "ArrowUp" && !inRow) {
+      event.preventDefault();
+      buttons[0]?.focus();
+      return;
+    }
+    if ((event.key !== "ArrowLeft" && event.key !== "ArrowRight") || !inRow) return;
     const index = buttons.indexOf(target as HTMLButtonElement);
     if (index < 0) return;
     event.preventDefault();
@@ -64,11 +86,15 @@ export function FormatBar({
         if ((e.target as HTMLElement).tagName !== "INPUT") e.preventDefault();
       }}
       onKeyDown={onKeyDown}
+      onFocus={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onFocusEnter?.();
+      }}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onFocusLeave?.();
       }}
     >
-      {children}
+      <div className="nt-formatbar-row">{children}</div>
+      {panel && <div className="nt-formatbar-panel">{panel}</div>}
     </div>
   );
 }

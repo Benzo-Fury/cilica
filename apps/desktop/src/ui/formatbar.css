@@ -5,9 +5,7 @@
   position: fixed;
   z-index: var(--z-popover);
   display: flex;
-  align-items: center;
-  gap: var(--space-0-5);
-  height: var(--size-control-lg);
+  flex-direction: column;
   padding: var(--space-1);
   border-radius: calc(var(--radius-lg) * var(--sq));
   transform-origin: center bottom;
@@ -15,6 +13,12 @@
 }
 .nt-formatbar[data-side="below"] {
   transform-origin: center top;
+}
+.nt-formatbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  height: var(--size-control);
 }
 .nt-formatbar[data-closing] {
   animation: nt-formatbar-out var(--dur-fast) var(--ease-in) both;
@@ -78,7 +82,78 @@
   color: var(--ink-4);
 }
 
+/* ───────── Synonyms, under the buttons ───────── */
+.nt-synonyms {
+  /* As wide as the buttons, never wider. */
+  width: 0;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: var(--space-1);
+  padding: var(--space-0-5) 0 var(--space-1);
+  border-top: 0.5px solid var(--line-strong);
+  transform-origin: center top;
+  animation: nt-synonyms-in var(--spring-snappy-dur) var(--spring-snappy) both;
+}
+@keyframes nt-synonyms-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+/* The label, as in menus: "Replace with". */
+.nt-synonyms-heading {
+  margin: 0;
+  padding: var(--space-1-5) var(--space-2) var(--space-0-5);
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+/* Each synonym is a pill, so it reads as something to press. */
+.nt-synonyms-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-1);
+}
+.nt-synonyms-word {
+  all: unset;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  font: 450 13px / 24px var(--font-sans);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: default;
+  transition:
+    background-color var(--dur-instant) linear,
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-synonyms-word:hover,
+.nt-synonyms-word:focus-visible {
+  background: var(--line-strong);
+}
+.nt-synonyms-word:active {
+  transform: scale(0.96);
+  transition-duration: var(--dur-instant);
+}
+.nt-synonyms-note {
+  margin: 0;
+  padding: var(--space-2);
+  font: 400 13px / 18px var(--font-sans);
+  color: var(--ink-3);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .nt-synonyms {
+    animation: nt-fade-in var(--dur-fast) var(--ease-out) both;
+  }
+  .nt-synonyms-word:active {
+    transform: none;
+  }
   .nt-formatbar,
   .nt-formatbar[data-side="below"] {
     animation: nt-fade-in var(--dur-fast) var(--ease-out) both;

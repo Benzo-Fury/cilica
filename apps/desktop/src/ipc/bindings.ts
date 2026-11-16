@@ -81,6 +81,14 @@ export const commands = {
 	getBacklinks: (noteId: string) => __TAURI_INVOKE<Backlinks>("get_backlinks", { noteId }),
 	/**  Turn the first unlinked mention of `target_note_id`'s title in `source_note_id` into a `[[link]]`. */
 	linkMention: (sourceNoteId: string, targetNoteId: string) => __TAURI_INVOKE<NoteSummary_Serialize>("link_mention", { sourceNoteId, targetNoteId }),
+	/**  Notes this one could link to, best first (at most 3). Worked out when asked, not in the background. */
+	getLinkSuggestions: (noteId: string) => __TAURI_INVOKE<LinkSuggestion[]>("get_link_suggestions", { noteId }),
+	/**  Approve a suggested link: it goes in the note's hidden `related` property, not its text. */
+	acceptLinkSuggestion: (noteId: string, targetNoteId: string) => __TAURI_INVOKE<NoteSummary_Serialize>("accept_link_suggestion", { noteId, targetNoteId }),
+	/**  Turn a suggested link down, so it is not suggested again. */
+	dismissLinkSuggestion: (noteId: string, targetNoteId: string) => __TAURI_INVOKE<NoteSummary_Serialize>("dismiss_link_suggestion", { noteId, targetNoteId }),
+	/**  Synonyms for a selected word or short phrase, grouped by meaning. Empty groups when there are none. */
+	getSynonyms: (text: string) => __TAURI_INVOKE<Synonyms>("get_synonyms", { text }),
 	getSettings: () => __TAURI_INVOKE<Settings_Serialize>("get_settings"),
 	/**  Replace the settings document. Applies side effects (theme, window material, autostart, global hotkey) and emits SettingsChanged. */
 	updateSettings: (settings: Settings_Deserialize) => __TAURI_INVOKE<Settings_Serialize>("update_settings", { settings }),
@@ -2447,6 +2455,23 @@ export type SwearWord = {
 	/**  The group it counts under ("fucking" counts as "fuck"). */
 	root: string,
 	mild: boolean,
+};
+
+/**  Words that share one meaning of the looked-up word. */
+export type SynonymGroup = {
+	/**  "noun", "verb", "adjective", "adverb", "preposition", "pronoun", "conjunction" or "other". */
+	part_of_speech: string,
+	/**  A short definition of the meaning. */
+	gloss: string,
+	/**  Put in the form the selection was in where that is regular ("runs" gives "sprints"). */
+	words: string[],
+};
+
+/**  Synonyms for a word or short phrase, one group per meaning, the most used part of speech first. */
+export type Synonyms = {
+	/**  The form looked up: "run" for "running". Empty when nothing was found. */
+	word: string,
+	groups: SynonymGroup[],
 };
 
 export type TalkShare = TalkShare_Serialize | TalkShare_Deserialize;
