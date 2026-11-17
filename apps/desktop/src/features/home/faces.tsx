@@ -513,10 +513,11 @@ function SilenceFace({ silence }: { silence: Silence }) {
   );
 }
 
-/** "9 Oct" or "Yesterday": when a note was last changed, for a line's meta. */
+/** "9 Oct" or "yesterday": when a note was last changed, for a line's meta. */
 function writtenWhen(iso: string): string {
   const when = relativeDate(iso);
-  return /^\d+[mh]$|^Now$/.test(when) ? "today" : when;
+  if (/^\d+[mh]$|^Now$/.test(when)) return "today";
+  return when === "Yesterday" ? "yesterday" : when;
 }
 
 function OwnWordsFace({ lines }: { lines: NoteLine[] }) {
@@ -563,27 +564,41 @@ function WritingFace({ writing }: { writing: WritingHours }) {
 /** How many questions show at once. */
 const QUESTIONS_SHOWN = 3;
 
+/**
+ * Lines in written notes that end in a question mark. Says where each came from and how the
+ * list was made, so it reads as "questions still sitting in your notes", not a quiz.
+ */
 function QuestionsFace({ questions }: { questions: NoteLine[] }) {
   const [page, setPage] = useState(0);
   const pages = Math.ceil(questions.length / QUESTIONS_SHOWN);
   const start = (page % pages) * QUESTIONS_SHOWN;
   const shown = questions.slice(start, start + QUESTIONS_SHOWN);
+  const end = start + shown.length;
+  const last = page % pages === pages - 1;
+  const next = Math.min(QUESTIONS_SHOWN, questions.length - end);
   return (
     <div className="nt-glance">
-      <span className="nt-glance-eyebrow">Questions you asked yourself</span>
+      <span className="nt-glance-eyebrow">Open questions in your notes</span>
       <LineList
         key={start}
-        items={shown.map((q, i) => ({
-          id: `${q.note_id}-${start + i}`,
-          text: q.text,
-          meta: `${q.note_title || "Untitled"} · ${writtenWhen(q.written_at)}`,
-          openLabel: `Open ${q.note_title || "this note"}`,
-          onOpen: () => openNote(q.note_id),
-        }))}
+        items={shown.map((q, i) => {
+          const title = q.note_title || "Untitled";
+          return {
+            id: `${q.note_id}-${start + i}`,
+            text: q.text,
+            meta: `In \u201c${title}\u201d \u00b7 edited ${writtenWhen(q.written_at)}`,
+            openLabel: `Open ${q.note_title || "this note"} to answer it`,
+            onOpen: () => openNote(q.note_id),
+          };
+        })}
       />
+      <span className="nt-glance-caption">
+        {pages > 1 ? `${start + 1 === end ? end : `${start + 1}\u2013${end}`} of ${questions.length}. ` : ""}
+        Lines you ended with a question mark, newest note first.
+      </span>
       {pages > 1 && (
         <Button variant="ghost" onClick={() => setPage((p) => p + 1)}>
-          More questions
+          {last ? "Back to the first" : `Next ${next}`}
         </Button>
       )}
     </div>
