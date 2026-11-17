@@ -154,7 +154,7 @@ function OvertimeFace({ o }: { o: Data<"overtime"> }) {
     <div className="nt-glance">
       <p className="nt-glance-line">
         Your {o.title} usually takes <b>{minutes(o.usual_ms)} minutes</b>. This one took{" "}
-        <b className="nt-glance-hot">{minutes(o.actual_ms)}</b>.{o.again ? " Again." : ""}
+        <b className="nt-glance-hot">{minutes(o.actual_ms)}</b>.
       </p>
       <OvertimeTrack
         usualMs={o.usual_ms}
