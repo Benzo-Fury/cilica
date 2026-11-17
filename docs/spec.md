@@ -95,11 +95,11 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 ### Right sidebar: assistant
 
-- Toggled with `⌘J`; the panel animates in and pushes the editor (it does not overlay it).
-- A context line at the top shows what the assistant can see (“Viewing: Acme kickoff · Transcript”).
-
-- Empty state: 3–4 prompt chips generated from context. Meeting note: action items, follow-up email, per-person commitments. Sidebar or category selected: weekly digest, find duplicates. Chips are cached per note and refreshed after edits.
-- Tool calls appear inline as compact rows (“Searched 14 notes”). Proposed edits render as diff cards with Apply / Reject.
+- Toggled with `⌘J`; the panel animates in and pushes the editor (it does not overlay it). It is the only place Cilica lives; there is no floating bar.
+- At rest (no conversation open): “Ready when you are”, one line on what Cilica can see (“Cilica can see this note and its transcript.”), up to 3 suggestions for the open note in one card (icon, label, the full request under it), then the conversations, running ones first with their current step, and “See all”. Suggestions come from prompt chips (meeting note: action items, follow-up email, per-person commitments), cached per note and refreshed after edits. Settings › Cilica › Suggest things to do turns them off, and then Cilica only calls the model when asked.
+- In a conversation: tool calls appear inline as one-line steps as they happen (“Reading “Acme kickoff”…”); there is no plan up front. While a turn runs, the header counts (“Working · 8 s”), a Touching row lists the notes it reads or changes, and Stop carries its key (Esc). A finished turn that changed notes ends with “What changed” (each change, the notes it read, Undo all ⌘Z). Proposed edits render as diff cards with Apply / Reject.
+- In the note: while a turn reads or edits the open note, a marker washes the section it is on and springs to the next one (reading sweeps section by section; an edit jumps to the lines it changes and scrolls them into view unless you are typing). A suggested edit stays marked until you answer it.
+- Leaving a conversation never stops it. Its row keeps working, opening it again shows every step, and a toast says when a turn you are not watching is done (with Show and Undo) or needs your OK (Review). One notification per turn; nothing while it runs.
 
 ## Search
 
