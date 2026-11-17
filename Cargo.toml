@@ -6,7 +6,7 @@ members = ["apps/desktop/src-tauri", "apps/setup", "crates/*"]
 # The one place to bump the app version. Tauri reads it for the bundle and updater, and CI checks the release tag against it.
 version = "0.9.0"
 edition = "2024"
-license = "Apache-2.0"
+license = "AGPL-3.0-only"
 publish = false
 
 [profile.dev]

@@ -71,4 +71,14 @@ See [CLAUDE.md](CLAUDE.md) for commands and conventions, [docs/spec.md](docs/spe
 
 ## License
 
-[Apache 2.0](LICENSE)
+The Cilica desktop app is open source under the [GNU AGPL v3](LICENSE). You can use, change and share it, including at work. If you share a changed version, or run one for other people over a network, you must publish your source under the same licence.
+
+Versions up to and including 0.9.0 were licensed under Apache 2.0 and stay available under those terms.
+
+The Cilica server (sync and team features) has its own licence, the [Cilica Server License](licenses/SERVER-LICENSE.md). It's free for individuals, non-profits and organisations of up to 10 people. Larger organisations need a [commercial licence](licenses/COMMERCIAL-LICENSE.md). See [docs/licensing.md](docs/licensing.md) for the whole picture.
+
+"Cilica" and the Cilica logo are trademarks. A fork must use its own name and logo. See the [trademark policy](TRADEMARKS.md).
+
+Contributions need a signed [contributor licence agreement](licenses/CLA.md). See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Copyright (C) 2026 Neo Haggard.
