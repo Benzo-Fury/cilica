@@ -46,17 +46,6 @@ pub enum NoteFont {
     Mono,
 }
 
-/// Where the assistant lives in the window.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum CilicaPlacement {
-    /// A panel on the right that pushes the note aside.
-    #[default]
-    SidePanel,
-    /// A bar at the bottom of the page that grows into the conversation.
-    FloatingBar,
-}
-
 /// What Home shows when no note is open.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
@@ -101,7 +90,6 @@ pub struct AppearanceSettings {
     pub note_font: NoteFont,
     /// Under a theme with a scene, set note titles and headings in the serif.
     pub scene_headings: bool,
-    pub cilica_placement: CilicaPlacement,
     pub home_face: HomeFace,
 }
 
@@ -112,7 +100,6 @@ impl Default for AppearanceSettings {
             transparency: true,
             note_font: NoteFont::Sans,
             scene_headings: true,
-            cilica_placement: CilicaPlacement::SidePanel,
             home_face: HomeFace::Random,
         }
     }
@@ -274,6 +261,9 @@ pub struct AiSettings {
     pub auto_apply_edits: bool,
     /// Conversations with no new message for this many days are deleted. 0 keeps them for ever.
     pub conversation_retention_days: u32,
+    /// Suggest up to 3 things to do with the open note while Cilica is idle (prompt chips).
+    /// Off: Cilica only calls the model when you ask it something.
+    pub suggestions: bool,
 }
 
 impl Default for AiSettings {
@@ -285,6 +275,7 @@ impl Default for AiSettings {
             base_url: None,
             auto_apply_edits: false,
             conversation_retention_days: 7,
+            suggestions: true,
         }
     }
 }

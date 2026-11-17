@@ -63,7 +63,8 @@ export const toast = Object.assign(show("default"), {
   error: show("error"),
   action: (title: string, options: ToastOptions & { action: ToastButton }) =>
     toastStore.add({ ...options, title, variant: "action" }),
-  undo: (title: string, options: Omit<ToastOptions, "action"> & { onUndo: () => void }) =>
+  /** Undo, plus an optional second button ("Show") before it. */
+  undo: (title: string, options: ToastOptions & { onUndo: () => void }) =>
     toastStore.add({ ...options, title, variant: "undo" }),
   promise,
   /** Dismiss one toast, or all of them without an id. */

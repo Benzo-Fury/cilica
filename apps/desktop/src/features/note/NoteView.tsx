@@ -24,7 +24,6 @@ import { useBackendEvent } from "@/app/backendEvents";
 import { useAction, useShortcut } from "@/app/keybinds";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { useRouter } from "@/app/router";
-import { useCilicaPlacement } from "@/features/assistant/placement";
 import { Connections } from "@/features/links/Connections";
 import { LinkSuggestions } from "@/features/links/LinkSuggestions";
 import {
@@ -145,11 +144,9 @@ function LoadedNote({ note }: { note: Note }) {
   const trash = useTrashNote();
   const { data: transcript } = useTranscript(note.id, note.kind === "meeting");
   const category = categories.find((c) => c.id === note.category_id);
-  // With Cilica out of the way (panel shut, or the floating bar), Connections moves beside the
-  // note when the canvas is wide enough (see .nt-note-shell in links.css).
-  const floatingBar = useCilicaPlacement() === "floating_bar";
-  const assistantOpen = usePanels((s) => s.assistantOpen);
-  const asideConnections = floatingBar || !assistantOpen;
+  // With Cilica's panel shut, Connections moves beside the note when the canvas is wide enough
+  // (see .nt-note-shell in links.css).
+  const asideConnections = !usePanels((s) => s.assistantOpen);
   const keys = {
     panel: useShortcut("note.togglePanel"),
     trash: useShortcut("note.trash"),

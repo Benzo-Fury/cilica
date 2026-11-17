@@ -1819,20 +1819,6 @@ mark {
   justify-content: flex-end;
   gap: var(--space-3);
 }
-.nt-context-line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  font: 450 12px / 16px var(--font-sans);
-  color: var(--ink-3);
-  padding: 0 var(--space-1) var(--space-2);
-}
-.nt-chip-list {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1-5);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .nt-swatch,
@@ -2378,6 +2364,23 @@ mark {
 .nt-send-stop:hover {
   background: var(--ink);
   color: var(--bg-canvas);
+}
+/* Stop is a pill that names its key: [■ Stop esc]. */
+.nt-send-slot .nt-send-stop {
+  width: auto;
+  gap: var(--space-1-5);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  font: 500 12px / 1 var(--font-sans);
+}
+.nt-send-key {
+  font: 500 11px / 16px var(--font-mono);
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, currentColor 16%, transparent);
+  opacity: 0.8;
 }
 .nt-send-square {
   width: 9px;
@@ -3332,15 +3335,6 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.nt-context-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nt-context-line .nt-ico {
-  flex: none;
-}
 .nt-assistant-scroll {
   justify-content: flex-start;
   overscroll-behavior: contain;
@@ -3393,26 +3387,6 @@ mark {
   margin: 0 0 var(--space-2);
   color: var(--ink-2);
   font: 450 13px / 19px var(--font-sans);
-}
-.nt-prompt-chip {
-  height: auto;
-  min-height: 28px;
-  padding: var(--space-1) var(--space-3);
-  white-space: normal;
-  text-align: left;
-  font-size: 13px;
-  line-height: 18px;
-}
-.nt-chip-skel {
-  width: 160px;
-  height: 28px;
-  border-radius: var(--radius-pill);
-}
-.nt-chip-skel:nth-child(2) {
-  width: 200px;
-}
-.nt-chip-skel:nth-child(3) {
-  width: 130px;
 }
 .nt-assistant .nt-empty {
   padding-left: var(--space-2);
@@ -3520,31 +3494,333 @@ mark {
   display: flex;
   flex-direction: column;
 }
-/* The bar hugs its content, so the view never grows; it shrinks once the bar hits its cap, which
-   gives the thread a bounded height to scroll in. */
-.nt-assistant-bar .nt-assistant-view {
-  flex: 0 1 auto;
-}
-/* Retention line under the composer, in every state. */
-.nt-assistant > .nt-conv-footnote {
-  padding: var(--space-2) var(--space-2) 0;
-  font-size: 11px;
-  line-height: 14px;
-  text-align: center;
-}
 .nt-conv-footnote .nt-cite {
   font: inherit;
 }
-/* No conversation open: the list scrolls above; the intro stays just above the composer. */
-.nt-assistant-home-intro {
-  flex: none;
-  padding: var(--space-3) var(--space-1);
+
+/* ───────── Cilica at rest: intro, suggestions, conversations ───────── */
+/* One text column, inset like the composer's text: intro, card glyphs, captions and rows. */
+.nt-assistant-home {
+  justify-content: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-5) 0 var(--space-3);
+  overscroll-behavior: contain;
 }
-.nt-assistant-bar .nt-conv-list {
+.nt-assistant-intro {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+}
+.nt-assistant-home .nt-conv-caption,
+.nt-assistant-home .nt-conv-more {
+  padding-left: var(--space-3);
+}
+.nt-assistant-home .nt-conv-open {
+  padding-left: var(--space-3);
+}
+.nt-assistant-intro .nt-assistant-empty-text {
+  margin: 0;
+}
+.nt-suggest {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    inset 0 0 0 0.5px var(--line-strong),
+    var(--shadow-sm);
+}
+.nt-suggest-row {
+  all: unset;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 10px var(--space-3) 10px var(--space-2);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  cursor: default;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+/* Hairlines between rows, inset to the text; hidden around the hovered row. */
+.nt-suggest-row + .nt-suggest-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--space-2);
+  right: var(--space-2);
+  border-top: 0.5px solid var(--line);
+}
+.nt-suggest-row:hover::before,
+.nt-suggest-row:hover + .nt-suggest-row::before {
+  border-top-color: transparent;
+}
+button.nt-suggest-row:hover {
+  background: var(--fill-hover);
+}
+button.nt-suggest-row:active {
+  background: var(--fill-press);
+}
+.nt-suggest-row:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-suggest-icon {
   flex: none;
-  max-height: 260px;
+  margin-top: 2px;
+  color: var(--ink-2);
+}
+.nt-suggest-text {
+  display: grid;
   gap: 2px;
-  padding: var(--space-1) 0 var(--space-2);
+  min-width: 0;
+}
+.nt-suggest-title {
+  font: 500 14px / 20px var(--font-sans);
+  color: var(--ink);
+}
+.nt-suggest-detail {
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.nt-suggest-skel-icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: var(--radius-xs);
+}
+.nt-suggest-skel-line {
+  width: 200px;
+  height: 12px;
+  margin-block: 4px;
+  border-radius: var(--radius-xs);
+}
+.nt-suggest-skel-line.nt-skel-short {
+  width: 140px;
+}
+.nt-assistant-home .nt-conv-group {
+  gap: 0;
+}
+.nt-conv-more {
+  all: unset;
+  box-sizing: border-box;
+  padding: var(--space-2);
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink-2);
+  cursor: default;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-conv-more:hover {
+  background: var(--fill-hover);
+  color: var(--ink);
+}
+.nt-conv-more:focus-visible {
+  box-shadow: var(--focus);
+}
+/* A conversation Cilica is still working in: a dot before the title, its step shimmering. */
+.nt-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: var(--space-2);
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+.nt-conv-row[data-live] .nt-conv-meta {
+  padding-left: calc(7px + var(--space-2));
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    var(--ink-3) 0%,
+    var(--ink-3) 40%,
+    var(--ink) 50%,
+    var(--ink-3) 60%,
+    var(--ink-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: nt-shimmer 1.8s linear infinite;
+}
+
+/* ───────── Cilica at work: the clock, what it touches, what changed ───────── */
+.nt-assistant-clock {
+  flex: none;
+  padding: 0 var(--space-1);
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.nt-assistant-work {
+  flex: none;
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-3);
+}
+.nt-assistant-leave {
+  margin: 0;
+  font: 450 12px / 16px var(--font-sans);
+  color: var(--ink-3);
+}
+.nt-touch {
+  display: grid;
+  gap: var(--space-1-5);
+}
+.nt-touch-caption {
+  font: 600 11px / 14px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.nt-touch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nt-touch-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  font: 450 12px / 16px var(--font-sans);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.nt-touch-item[data-live] {
+  box-shadow: inset 0 0 0 1px var(--accent-text);
+}
+.nt-touch-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.nt-touch-verb {
+  flex: none;
+  color: var(--ink-3);
+}
+.nt-changes {
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow:
+    inset 0 0 0 0.5px var(--line-strong),
+    var(--shadow-sm);
+  overflow: hidden;
+}
+.nt-changes-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-3);
+  font: 600 13px / 18px var(--font-sans);
+  color: var(--ink);
+}
+.nt-changes-icon {
+  color: var(--success);
+}
+.nt-changes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nt-changes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 0.5px solid var(--line);
+  font: 450 13px / 18px var(--font-sans);
+  color: var(--ink);
+}
+.nt-changes-row .nt-ico {
+  flex: none;
+  color: var(--ink-2);
+}
+.nt-changes-row[data-quiet] {
+  color: var(--ink-3);
+}
+.nt-changes-open {
+  all: unset;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.nt-changes-open:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+.nt-changes-open:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-changes-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 0.5px solid var(--line);
+}
+
+/* ───────── Cilica's marker in the note (CilicaAtWork) ───────── */
+.nt-editor-host {
+  position: relative;
+}
+.nt-editor-host > .nt-editor {
+  position: relative;
+  z-index: 1;
+}
+.nt-cilica-mark-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nt-cilica-mark {
+  position: absolute;
+  z-index: 0;
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--accent-soft);
+}
+.nt-cilica-mark-badge {
+  position: absolute;
+  z-index: 2;
+  translate: calc(-100% - var(--space-2)) -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 500 11px / 1 var(--font-sans);
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-conv-row[data-live] .nt-conv-meta {
+    animation: none;
+    color: var(--ink-3);
+    background: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .nt-conv-delete {
@@ -3966,136 +4242,6 @@ ul.nt-virtual {
   width: 72px;
 }
 
-/* ───────── Cilica as a floating bar (CilicaBar) ───────── */
-.nt-cilicabar-dock {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--space-16);
-  bottom: var(--space-4);
-  z-index: var(--z-capsule);
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  pointer-events: none;
-}
-.nt-cilicabar-dock[hidden] {
-  display: none;
-}
-/* A capsule (playback, the auto-stop countdown) keeps the bottom edge; the bar sits above it. */
-.nt-canvas:has(.nt-capsule-dock) .nt-cilicabar-dock {
-  bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
-}
-.nt-cilicabar {
-  position: relative;
-  flex: none;
-  pointer-events: auto;
-  box-sizing: border-box;
-  /* clip, not hidden: a hidden box can still be scrolled (focus, the working glow below the
-     composer), which would slide the header out of view. */
-  overflow: clip;
-  border-radius: calc(var(--radius-xl) * var(--sq));
-  background: var(--bg-raised);
-  box-shadow:
-    0 0 0 0.5px var(--line-strong),
-    var(--shadow-float);
-}
-/* Both faces stay mounted and cross-fade: the pill's label on top of the resting shape, the
-   open content pinned to the bottom at its final width so the growing shape reveals it. */
-.nt-cilicabar-rest {
-  all: unset;
-  box-sizing: border-box;
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-3) 0 var(--space-5);
-  font: 450 14px / 20px var(--font-sans);
-  letter-spacing: -0.006em;
-  color: var(--ink-2);
-  white-space: nowrap;
-  border-radius: inherit;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    opacity var(--dur-base) var(--ease-out) var(--dur-fast);
-}
-.nt-cilicabar[data-open] .nt-cilicabar-rest {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.nt-cilicabar-rest:hover {
-  color: var(--ink);
-}
-.nt-cilicabar-rest:focus-visible {
-  box-shadow: var(--focus);
-}
-.nt-cilicabar-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.nt-cilicabar-open {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--dur-fast) var(--ease-out),
-    visibility 0s linear var(--dur-fast);
-}
-.nt-cilicabar[data-open] .nt-cilicabar-open {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity var(--dur-base) var(--ease-out) var(--dur-fast);
-}
-.nt-assistant-bar {
-  padding: 0 var(--space-2) var(--space-2);
-}
-.nt-assistant-bar[data-compact] {
-  gap: var(--space-1);
-}
-.nt-cilicabar-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  height: 44px;
-  padding-left: var(--space-2);
-}
-.nt-cilicabar-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1-5);
-  padding: var(--space-1) var(--space-1) 0;
-}
-.nt-assistant-bar .nt-assistant-body {
-  padding-inline: var(--space-2);
-}
-/* The bar is already a raised surface: the composer inside it loses its own card. */
-.nt-assistant-bar .nt-composer,
-.nt-assistant-bar .nt-composer:focus-within {
-  background: transparent;
-  box-shadow: none;
-}
-.nt-assistant-bar:not([data-compact]) .nt-composer {
-  box-shadow: inset 0 0.5px 0 var(--line-strong);
-  border-radius: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .nt-cilicabar-rest,
-  .nt-cilicabar-open,
-  .nt-cilicabar[data-open] .nt-cilicabar-rest,
-  .nt-cilicabar[data-open] .nt-cilicabar-open {
-    transition-delay: 0s;
-  }
-}
-
 /* ───────── Sidebar: quiet rows under small headings ───────── */
 /* A group heading (Notes, each category): smaller and fainter than a note, chevron after the name. */
 .nt-row-heading {
@@ -4269,9 +4415,6 @@ ul.nt-virtual {
   flex: 1;
   min-width: 0;
   color: var(--ink);
-}
-.nt-assistant-bar .nt-cilica-notice {
-  margin: 0 var(--space-1) var(--space-1);
 }
 
 /* The search bar (Search.tsx): the sidebar's Search button and find-in-place fields share it. */
@@ -4936,22 +5079,6 @@ button.nt-searchbar:focus-visible {
 .nt-home > .nt-doodle > .nt-doodle-content {
   margin-block: auto;
 }
-/* With Cilica as the floating bar, the footer sits just above the resting pill (44px, REST in
-   CilicaBar.tsx), wherever the bar rests: on the bottom edge, or above a capsule. */
-.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) {
-  --nt-cilicabar-rest: 44px;
-  --nt-cilicabar-bottom: var(--space-4);
-}
-.nt-canvas:has(.nt-cilicabar-dock:not([hidden])):has(.nt-capsule-dock) {
-  --nt-cilicabar-bottom: calc(var(--space-6) + var(--size-control-lg) + var(--space-3));
-}
-.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-glance-footer {
-  bottom: calc(var(--nt-cilicabar-bottom) + var(--nt-cilicabar-rest) + var(--space-3));
-}
-.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-home {
-  padding-bottom: calc(var(--space-16) + var(--nt-cilicabar-rest) + var(--space-3));
-}
-
 /* ───────── Launch intro (features/shell/intro.ts) ─────────
    `hold`: the empty page stands alone; the band and floating controls wait unseen.
    `reveal`: they come in after the panels start to slide, the band from above, the rest from below. */
@@ -4960,15 +5087,14 @@ button.nt-searchbar:focus-visible {
 .nt-window[data-intro] {
   --spring-gentle-dur: 910ms;
 }
-.nt-window[data-intro="hold"]
-  :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
+.nt-window[data-intro="hold"] :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock) {
   opacity: 0;
   pointer-events: none;
 }
 .nt-window[data-intro="reveal"] .nt-band-canvas {
   animation: nt-intro-down var(--spring-gentle-dur) var(--spring-gentle) 120ms both;
 }
-.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
+.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock) {
   animation: nt-intro-up var(--spring-gentle-dur) var(--spring-gentle) 280ms both;
 }
 @keyframes nt-intro-down {
@@ -4985,8 +5111,7 @@ button.nt-searchbar:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   /* No travel: a short crossfade (beats the global 1ms animation cap). */
-  .nt-window[data-intro="reveal"]
-    :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock, .nt-cilicabar-dock) {
+  .nt-window[data-intro="reveal"] :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock) {
     /* biome-ignore lint/complexity/noImportantStyles: the global reduced-motion cap is !important too. */
     animation: nt-fade-in var(--dur-fast) linear both !important;
   }
@@ -5398,7 +5523,7 @@ button.nt-searchbar:focus-visible {
   z-index: var(--z-capsule);
   width: 64px;
   pointer-events: none;
-  /* Hidden below the edge and faded, so it is gone even when it rests above the floating bar. */
+  /* Hidden below the edge and faded, so it is gone. */
   transform: translateY(calc(100% + var(--space-6)));
   opacity: 0;
   transition:
@@ -5411,9 +5536,6 @@ button.nt-searchbar:focus-visible {
   transition:
     transform var(--spring-bouncy-dur) var(--spring-bouncy),
     opacity var(--dur-fast) var(--ease-out);
-}
-.nt-canvas:has(.nt-cilicabar-dock:not([hidden])) .nt-swearjar {
-  bottom: calc(var(--nt-cilicabar-bottom) + var(--nt-cilicabar-rest) + var(--space-3));
 }
 .nt-swearjar-art {
   transform-origin: 50% 100%;

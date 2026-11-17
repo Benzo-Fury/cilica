@@ -110,3 +110,131 @@ export function ThreadNotice({
     </div>
   );
 }
+
+/** Cilica's suggestions at rest: one card, a row each, divided by hairlines. */
+export function SuggestionList({
+  label,
+  busy,
+  children,
+}: {
+  label: string;
+  busy?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className="nt-suggest" aria-label={label} aria-busy={busy || undefined}>
+      {children}
+    </section>
+  );
+}
+
+/** One suggestion: the glyph sits on the row itself, never in a tile. */
+export function SuggestionRow({
+  icon,
+  title,
+  detail,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  detail?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="nt-suggest-row nt-anim-host" onClick={onClick}>
+      <Icon icon={icon} size="sm" className="nt-suggest-icon" />
+      <span className="nt-suggest-text">
+        <span className="nt-suggest-title">{title}</span>
+        {detail && <span className="nt-suggest-detail">{detail}</span>}
+      </span>
+    </button>
+  );
+}
+
+/** Placeholder rows while suggestions load. */
+export function SuggestionSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows
+        <span key={i} className="nt-suggest-row nt-suggest-skel" aria-hidden>
+          <span className="nt-skel nt-suggest-skel-icon" />
+          <span className="nt-suggest-text">
+            <span className="nt-skel nt-suggest-skel-line" />
+            <span className="nt-skel nt-suggest-skel-line nt-skel-short" />
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
+
+export interface TouchItem {
+  key: string;
+  label: string;
+  verb: string;
+  live: boolean;
+}
+
+/** What a running turn is touching: one pill per note, the live one outlined. */
+export function TouchList({ items }: { items: TouchItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="nt-touch">
+      <span className="nt-touch-caption">Touching</span>
+      <ul className="nt-touch-list">
+        {items.map((item) => (
+          <li key={item.key} className="nt-touch-item" data-live={item.live || undefined}>
+            <span className="nt-touch-label">{item.label}</span>
+            <span className="nt-touch-verb">{item.verb}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export interface ChangeRow {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  quiet?: boolean;
+  onOpen?: () => void;
+}
+
+/** "What changed" under a finished turn: one row per change, then the footer (Undo all). */
+export function ChangeCard({
+  title,
+  icon,
+  rows,
+  footer,
+}: {
+  title: string;
+  icon: LucideIcon;
+  rows: ChangeRow[];
+  footer?: ReactNode;
+}) {
+  return (
+    <section className="nt-changes" aria-label={title}>
+      <header className="nt-changes-head">
+        <Icon icon={icon} size="sm" className="nt-changes-icon" />
+        <span>{title}</span>
+      </header>
+      <ul className="nt-changes-list">
+        {rows.map((row) => (
+          <li key={row.key} className="nt-changes-row" data-quiet={row.quiet || undefined}>
+            <Icon icon={row.icon} size="sm" />
+            {row.onOpen ? (
+              <button type="button" className="nt-changes-open" onClick={row.onOpen}>
+                {row.label}
+              </button>
+            ) : (
+              <span>{row.label}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {footer && <footer className="nt-changes-foot">{footer}</footer>}
+    </section>
+  );
+}

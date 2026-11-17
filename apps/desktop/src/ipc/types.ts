@@ -82,7 +82,6 @@ export type {
   AudioLevels,
   Author,
   Category,
-  CilicaPlacement,
   DataScope,
   DateField,
   DetectedLocation,

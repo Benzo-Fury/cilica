@@ -108,16 +108,16 @@ export function Composer({
             animate={{ opacity: 1, scale: 1, transition: tweens.base }}
             exit={{ opacity: 0, scale: 0.8, transition: tweens.exit }}
           >
-            <Tooltip label="Stop" shortcut={["esc"]} side="top">
-              <button
-                type="button"
-                className="nt-send nt-send-stop"
-                aria-label="Stop"
-                onClick={onStop}
-              >
-                <span className="nt-send-square" />
-              </button>
-            </Tooltip>
+            <button
+              type="button"
+              className="nt-send nt-send-stop"
+              aria-keyshortcuts="Escape"
+              onClick={onStop}
+            >
+              <span className="nt-send-square" aria-hidden />
+              Stop
+              <kbd className="nt-send-key">esc</kbd>
+            </button>
           </motion.span>
         ) : (
           <motion.span

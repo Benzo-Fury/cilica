@@ -242,7 +242,6 @@ describe("settings", () => {
       transparency: true,
       note_font: "sans",
       scene_headings: true,
-      cilica_placement: "side_panel",
       home_face: "random",
     });
     expect(next.recording.auto_detect).toBe(true);
@@ -344,7 +343,7 @@ describe("assistant", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     const assistant = ofType("assistant").map((e) => e.event);
     expect(assistant[0]?.type).toBe("turn_started");
-    expect(assistant.filter((e) => e.type === "tool")).toHaveLength(2);
+    expect(assistant.filter((e) => e.type === "tool")).toHaveLength(4);
     const text = assistant.flatMap((e) => (e.type === "text_delta" ? [e.delta] : [])).join("");
     expect(text).toContain("Q3 planning sync");
     const proposalEvent = assistant.find((e) => e.type === "proposal");

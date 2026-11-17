@@ -359,6 +359,11 @@ export type AiSettings_Deserialize = {
 	auto_apply_edits?: boolean,
 	/**  Conversations with no new message for this many days are deleted. 0 keeps them for ever. */
 	conversation_retention_days?: number,
+	/**
+	 *  Suggest up to 3 things to do with the open note while Cilica is idle (prompt chips).
+	 *  Off: Cilica only calls the model when you ask it something.
+	 */
+	suggestions?: boolean,
 };
 
 export type AiSettings_Serialize = {
@@ -373,6 +378,11 @@ export type AiSettings_Serialize = {
 	auto_apply_edits: boolean,
 	/**  Conversations with no new message for this many days are deleted. 0 keeps them for ever. */
 	conversation_retention_days: number,
+	/**
+	 *  Suggest up to 3 things to do with the open note while Cilica is idle (prompt chips).
+	 *  Off: Cilica only calls the model when you ask it something.
+	 */
+	suggestions: boolean,
 };
 
 /**
@@ -465,7 +475,6 @@ export type AppearanceSettings_Deserialize = {
 	note_font?: NoteFont,
 	/**  Under a theme with a scene, set note titles and headings in the serif. */
 	scene_headings?: boolean,
-	cilica_placement?: CilicaPlacement,
 	home_face?: HomeFace_Deserialize,
 };
 
@@ -476,7 +485,6 @@ export type AppearanceSettings_Serialize = {
 	note_font: NoteFont,
 	/**  Under a theme with a scene, set note titles and headings in the serif. */
 	scene_headings: boolean,
-	cilica_placement: CilicaPlacement,
 	home_face: HomeFace_Serialize,
 };
 
@@ -554,13 +562,6 @@ export type CategoryDeletion = {
 	name: string,
 	note_count: number,
 };
-
-/**  Where the assistant lives in the window. */
-export type CilicaPlacement = 
-/**  A panel on the right that pushes the note aside. */
-"side_panel" | 
-/**  A bar at the bottom of the page that grows into the conversation. */
-"floating_bar";
 
 export type ClaudeCodeStatus = ClaudeCodeStatus_Serialize | ClaudeCodeStatus_Deserialize;
 

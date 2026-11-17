@@ -63,6 +63,10 @@ pub fn parse_chips(text: &str) -> Option<Vec<PromptChip>> {
 
 pub(crate) async fn prompt_chips(agent: &Agent, view: &ViewContext) -> AppResult<Vec<PromptChip>> {
     let inner = &agent.inner;
+    let settings = inner.providers.ai_settings().await;
+    if !settings.suggestions {
+        return Ok(Vec::new());
+    }
     let note = match view.note_id {
         Some(id) => inner.notes.get_note(id).await.ok().filter(|n| n.deleted_at.is_none()),
         None => None,
@@ -78,7 +82,6 @@ pub(crate) async fn prompt_chips(agent: &Agent, view: &ViewContext) -> AppResult
     let fallback = static_chips(note.as_ref().map(|n| n.kind), view.category_id.is_some());
 
     // Generate in the background; the next request for this view gets them.
-    let settings = inner.providers.ai_settings().await;
     let Ok(provider) = inner.providers.provider(&settings) else { return Ok(fallback) };
     if Agent::is_bridge(&settings) || note.as_ref().is_none_or(|n| n.body_md.trim().is_empty() && n.kind == NoteKind::Manual) {
         // No model call for empty notes, home or category views, or the bridge: static chips fit.

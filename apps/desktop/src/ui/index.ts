@@ -3,6 +3,7 @@ export * from "./Band";
 export * from "./Button";
 export * from "./Checkbox";
 export * from "./Chip";
+export * from "./CilicaMarker";
 export * from "./Collapse";
 export * from "./Composer";
 export * from "./Conversations";

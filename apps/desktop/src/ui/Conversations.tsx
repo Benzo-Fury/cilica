@@ -21,15 +21,30 @@ export interface ConversationRowProps {
   meta: string;
   onOpen: () => void;
   onDelete: () => void;
-  /** Title and meta on one line (the floating bar). */
+  /** Title and meta on one line (the recent list when no conversation is open). */
   inline?: boolean;
+  /** Cilica is working in this conversation: a breathing dot before the title. */
+  live?: boolean;
 }
 
-export function ConversationRow({ title, meta, onOpen, onDelete, inline }: ConversationRowProps) {
+export function ConversationRow({
+  title,
+  meta,
+  onOpen,
+  onDelete,
+  inline,
+  live,
+}: ConversationRowProps) {
   return (
-    <div className={cn("nt-conv-row nt-anim-host", inline && "nt-conv-row-inline")}>
+    <div
+      className={cn("nt-conv-row nt-anim-host", inline && "nt-conv-row-inline")}
+      data-live={live || undefined}
+    >
       <button type="button" className="nt-conv-open" onClick={onOpen}>
-        <span className="nt-conv-title">{title}</span>
+        <span className="nt-conv-title">
+          {live && <span className="nt-live-dot" role="img" aria-label="Working" />}
+          {title}
+        </span>
         <span className="nt-conv-meta">{meta}</span>
       </button>
       <IconButton

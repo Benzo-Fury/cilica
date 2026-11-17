@@ -292,6 +292,25 @@ export function assistantCommands({ state, emit }: MockContext) {
       type: "assistant",
       event: { type: "turn_finished", thread_id: threadId, turn_id: turnId, end },
     });
+    // Like the agent: one Undo toast for the turn's applied changes.
+    const applied = state.aiActions.filter(
+      (a) => a.turn_id === turnId && a.can_undo && a.status === "applied",
+    );
+    if (applied.length > 0) {
+      emit({
+        type: "toast",
+        toast: {
+          kind: "undo",
+          title:
+            applied.length === 1
+              ? (applied[0]?.summary ?? "Cilica made a change")
+              : `Cilica made ${applied.length} changes`,
+          description: null,
+          action_label: "Undo",
+          action: { type: "undo_turn", turn_id: turnId },
+        },
+      });
+    }
   };
 
   return {
@@ -395,15 +414,38 @@ export function assistantCommands({ state, emit }: MockContext) {
         action.status = "applied";
         action.summary = `Searched ${Math.min(3, state.notes.size)} notes`;
         emit({ type: "assistant", event: { type: "tool", ...ids, action: { ...action } } });
-        reply.parts.push(textPart);
       });
+      // With a note open, Cilica reads it before answering (the editor's marker sweeps it).
+      const open = view.note_id ? state.notes.get(view.note_id) : undefined;
+      const readMs = open && !open.deleted_at ? 2400 : 0;
+      if (open && readMs) {
+        const read: AiAction = {
+          ...action,
+          id: newId("act"),
+          tool: "get_note",
+          args_json: JSON.stringify({ note_id: open.id }),
+          summary: "Reading a note",
+          status: "running",
+        };
+        timers.later(850, () => {
+          reply.parts.push({ type: "tool", action: read });
+          state.aiActions.unshift(read);
+          emit({ type: "assistant", event: { type: "tool", ...ids, action: { ...read } } });
+        });
+        timers.later(850 + readMs - 100, () => {
+          read.status = "applied";
+          read.summary = `Read ${open.title || "Untitled"}`;
+          emit({ type: "assistant", event: { type: "tool", ...ids, action: { ...read } } });
+        });
+      }
+      timers.later(850 + readMs, () => reply.parts.push(textPart));
       chunks.forEach((chunk, i) => {
-        timers.later(850 + i * 50, () => {
+        timers.later(850 + readMs + i * 50, () => {
           textPart.text += chunk;
           emit({ type: "assistant", event: { type: "text_delta", ...ids, delta: chunk } });
         });
       });
-      const afterText = 850 + chunks.length * 50;
+      const afterText = 850 + readMs + chunks.length * 50;
       timers.later(afterText + 100, () => {
         const note = view.note_id ? state.notes.get(view.note_id) : undefined;
         const live = note && !note.deleted_at ? note : undefined;
@@ -619,6 +661,7 @@ export function assistantCommands({ state, emit }: MockContext) {
     },
 
     getPromptChips(view: ViewContext): PromptChip[] {
+      if (!state.settings.ai.suggestions) return [];
       const note = view.note_id ? state.notes.get(view.note_id) : undefined;
       if (note?.kind === "meeting") {
         return [

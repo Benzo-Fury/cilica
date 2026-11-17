@@ -78,7 +78,6 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       transparency: true,
       note_font: "sans",
       scene_headings: true,
-      cilica_placement: "side_panel",
       home_face: "random",
     },
     recording: {
@@ -106,6 +105,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       base_url: null,
       auto_apply_edits: false,
       conversation_retention_days: 7,
+      suggestions: true,
     },
     sounds: {
       enabled: true,

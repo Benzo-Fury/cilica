@@ -103,6 +103,20 @@ export function runToastAction(action: ToastAction): Promise<unknown> | undefine
   }
 }
 
+/**
+ * Takes over the Undo toast that ends one of Cilica's turns (features/assistant/feed.ts): it says
+ * nothing while you watch that conversation, and names it when you do not. True when handled.
+ */
+type TurnToastHandler = (request: ToastRequest, turnId: string, run: () => void) => boolean;
+let turnToastHandler: TurnToastHandler | null = null;
+
+export function setTurnToastHandler(handler: TurnToastHandler): () => void {
+  turnToastHandler = handler;
+  return () => {
+    if (turnToastHandler === handler) turnToastHandler = null;
+  };
+}
+
 /** Render a backend `ToastRequest` with the in-house toast library. */
 export function showBackendToast(request: ToastRequest) {
   const description = request.description ?? undefined;
@@ -125,6 +139,15 @@ export function showBackendToast(request: ToastRequest) {
         // ⌘Z after the toast has gone still undoes Cilica's last turn (see aiUndo.ts).
         if (action.type === "undo_turn" || action.type === "undo_ai_action") {
           rememberAiUndo(request.title, run);
+        }
+        if (
+          action.type === "undo_turn" &&
+          turnToastHandler?.(request, action.turn_id, () => {
+            forgetAiUndo(run);
+            void run();
+          })
+        ) {
+          return;
         }
         return toast.undo(request.title, {
           description,

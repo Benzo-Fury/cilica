@@ -1,7 +1,6 @@
 /**
  * The three-pane window: glass sidebar (248px, ⌘\), the opaque inset canvas, and the assistant
- * (380px, ⌘J) which pushes the canvas rather than covering it, or the floating bar instead
- * (switched with the buttons in Cilica's header). Panels start closed; their widths persist. The
+ * (380px, ⌘J) which pushes the canvas rather than covering it. Panels start closed; their widths persist. The
  * canvas keeps CANVAS_MIN: when both panels do not fit, the one opened earlier closes.
  *
  * At launch the empty page holds the window alone for a moment, then the chrome comes in (intro.ts).
@@ -9,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { themeOption } from "@/app/theme/themes";
 import { AssistantPanel } from "@/features/assistant/AssistantPanel";
-import { useCilicaPlacement } from "@/features/assistant/placement";
+import { useCilicaFeed } from "@/features/assistant/feed";
 import { CheatSheet } from "@/features/palette/CheatSheet";
 import { CommandPalette } from "@/features/palette/CommandPalette";
 import { ConsentNotice } from "@/features/recorder/ConsentNotice";
@@ -33,15 +32,14 @@ export function Shell() {
   useTitleBarDoubleClick();
   useRecordingEffects();
   useLiveTranscripts();
+  useCilicaFeed();
   useModelDownloadEvents();
   useBackgroundUpdates();
   const intro = useLaunchIntro();
   const holding = intro === "hold";
   // Panels stay shut while the intro holds; opening them after is what slides them in.
   const sidebarOpen = usePanels((s) => s.sidebarOpen) && !holding;
-  const sidePanel = useCilicaPlacement() === "side_panel";
-  // With the floating bar, Cilica opens inside the canvas and the right panel stays shut.
-  const assistantOpen = usePanels((s) => s.assistantOpen) && sidePanel && !holding;
+  const assistantOpen = usePanels((s) => s.assistantOpen) && !holding;
   const sidebarWidth = usePanels((s) => s.sidebarWidth);
   const assistantWidth = usePanels((s) => s.assistantWidth);
   const setSidebarWidth = usePanels((s) => s.setSidebarWidth);
@@ -137,7 +135,7 @@ export function Shell() {
         resizing={resizing === "right"}
         label="Assistant"
       >
-        {sidePanel && <AssistantPanel />}
+        <AssistantPanel />
       </SidePanel>
       <CommandPalette />
       <CheatSheet />

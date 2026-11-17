@@ -170,6 +170,23 @@ export function CilicaPage() {
           }
         />
       </SettingsGroup>
+      <SettingsGroup
+        title="When you're not asking"
+        footer="Turn this off and Cilica only uses your model when you ask it something."
+      >
+        <SettingsRow
+          id="suggestions"
+          label="Suggest things to do"
+          description="Up to 3 ideas for the open note, shown when no conversation is open."
+          control={
+            <Switch
+              aria-labelledby="suggestions"
+              checked={ai.suggestions}
+              onCheckedChange={(suggestions) => patch("ai", { suggestions })}
+            />
+          }
+        />
+      </SettingsGroup>
       <SettingsGroup title="Conversations">
         <SettingsRow
           label="Delete conversations after"

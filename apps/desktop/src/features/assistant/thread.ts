@@ -32,7 +32,8 @@ export interface ThreadState {
 }
 
 export type ThreadAction =
-  | { type: "load"; threadId: string | null; messages: Message[] }
+  /** History arrived. `resume` is the thread's last live state, when it ran in the background. */
+  | { type: "load"; threadId: string | null; messages: Message[]; resume?: ThreadState }
   | { type: "event"; event: AssistantEvent }
   /** Show the user's words at once while the turn starts. */
   | { type: "send"; threadId: string; text: string; now: string }
@@ -49,9 +50,9 @@ export const emptyThread: ThreadState = {
 };
 
 /**
- * The last live state of each thread this session. The side panel and the floating bar are two
- * views of one conversation, and only one is mounted at a time: when the placement changes, the
- * view that mounts resumes from here, so the conversation (and a reply still streaming) carries on.
+ * The last live state of each thread this session, kept current by `CilicaActivity` even while
+ * another conversation is on screen. Opening a conversation resumes from here, so a turn that ran
+ * in the background shows every step it took.
  */
 const liveThreads = new Map<string, ThreadState>();
 
@@ -105,17 +106,21 @@ function upsertTool(parts: MessagePart[], action: AiAction): MessagePart[] {
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "load": {
-      if (state.threadId !== action.threadId) {
-        return { ...emptyThread, threadId: action.threadId, messages: action.messages };
-      }
-      // The same thread again (it was just created, or refetched): keep what is still streaming.
+      const base =
+        state.threadId === action.threadId
+          ? state
+          : action.resume?.threadId === action.threadId && action.threadId !== null
+            ? action.resume
+            : null;
+      if (!base) return { ...emptyThread, threadId: action.threadId, messages: action.messages };
+      // The same thread again (just created, refetched, or resumed): keep what is still streaming.
       const known = new Set(action.messages.map((m) => m.id));
-      const live = state.messages.filter(
+      const live = base.messages.filter(
         (m) =>
           !known.has(m.id) &&
-          (isPending(m) || (state.activeTurn !== null && m.turn_id === state.activeTurn)),
+          (isPending(m) || (base.activeTurn !== null && m.turn_id === base.activeTurn)),
       );
-      return { ...state, messages: [...action.messages, ...live] };
+      return { ...base, messages: [...action.messages, ...live] };
     }
     case "send":
       return {

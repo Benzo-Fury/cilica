@@ -20,6 +20,17 @@ export function useProposal(proposalId: string, initial?: Proposal) {
   });
 }
 
+/** A proposal's status while `proposalId` is set (shares the card's cache entry). */
+export function useProposalStatus(proposalId: string | null | undefined) {
+  const { data } = useQuery({
+    queryKey: qk.proposal(proposalId ?? ""),
+    queryFn: () => api.getProposal(proposalId as string),
+    enabled: Boolean(proposalId),
+    staleTime: 30_000,
+  });
+  return proposalId ? data?.status : undefined;
+}
+
 export function isConflict(error: unknown): boolean {
   return (error as AppError | null)?.code === "conflict";
 }

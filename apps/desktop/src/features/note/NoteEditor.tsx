@@ -16,6 +16,7 @@ import { useSwearTyping } from "@/features/swearjar/hooks";
 import type { Note } from "@/ipc/types";
 import { bodyOf } from "@/lib/properties";
 import { rangesOf, useAiGlow } from "./aiGlow";
+import { CilicaAtWork } from "./CilicaAtWork";
 import { noteExtensions } from "./editor/extensions";
 import type { InlineLinkHandlers } from "./editor/inlineLinkHint";
 import { normalizeMarkdown } from "./editor/markdown";
@@ -194,7 +195,9 @@ export function NoteEditor({
 
   return (
     <>
-      <EditorContent editor={editor} className="nt-editor" />
+      <CilicaAtWork editor={editor} noteId={note.id}>
+        <EditorContent editor={editor} className="nt-editor" />
+      </CilicaAtWork>
       <LinkSuggest editor={editor} handlers={suggest} excludeNoteId={note.id} />
       <InlineLinkHint editor={editor} handlers={linkHint} />
       <SelectionToolbar editor={editor} />

@@ -114,7 +114,8 @@ export function useLiveThread(threadId: string | null) {
   });
   useEffect(() => {
     if (!threadId) dispatch({ type: "load", threadId: null, messages: [] });
-    else if (history) dispatch({ type: "load", threadId, messages: history });
+    else if (history)
+      dispatch({ type: "load", threadId, messages: history, resume: resumeThread(threadId) });
   }, [threadId, history]);
   useBackendEvent("assistant", (event) => {
     dispatch({ type: "event", event: event.event });

@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
 import { useRouter } from "@/app/router";
-import { useCilicaPlacement } from "@/features/assistant/placement";
 import { isTauri } from "@/ipc/client";
 import { CanvasBandLayout, IconButton, TrafficLightsSpace, WindowControls } from "@/ui";
 import { usePanels } from "./panels";
@@ -12,7 +11,7 @@ import { useWindowControls } from "./useWindowControls";
 /**
  * The band at the top of every canvas view. It brings back the sidebar toggle (and leaves room
  * for the traffic lights) when the sidebar is closed, and, while Cilica's side panel is hidden, ends with the button that
- * shows it (the panel carries its own hide button; the floating bar needs neither).
+ * shows it (the panel carries its own hide button).
  *
  * Any view with a breadcrumb gets a back button before it that returns to the view you came from
  * (home when there is none). A view that has its own way back (a task report) passes `back={false}`.
@@ -30,8 +29,7 @@ export function CanvasBand({
   end?: ReactNode;
 }) {
   const sidebarOpen = usePanels((s) => s.sidebarOpen);
-  const sidePanel = useCilicaPlacement() === "side_panel";
-  const assistantOpen = usePanels((s) => s.assistantOpen) && sidePanel;
+  const assistantOpen = usePanels((s) => s.assistantOpen);
   const toggleSidebar = usePanels((s) => s.toggleSidebar);
   const toggleAssistant = usePanels((s) => s.toggleAssistant);
   const sidebarKeys = useShortcut("sidebar.toggle");
@@ -62,7 +60,7 @@ export function CanvasBand({
       end={
         <>
           {end}
-          {sidePanel && !assistantOpen && (
+          {!assistantOpen && (
             <IconButton
               icon={PanelRight}
               label="Ask Cilica"

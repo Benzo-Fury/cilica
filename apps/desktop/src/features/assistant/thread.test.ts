@@ -208,3 +208,41 @@ describe("handing a thread between views", () => {
     expect(resumeThread("thread_gone")).toBe(emptyThread);
   });
 });
+
+describe("resuming a conversation that ran in the background", () => {
+  it("opens on its live state, keeping the running turn's steps", () => {
+    const live = run(
+      { ...emptyThread, threadId: T, messages: [] },
+      ev({ type: "turn_started", thread_id: T, turn_id: TURN, user_message: user }),
+      ev({
+        type: "tool",
+        thread_id: T,
+        turn_id: TURN,
+        message_id: MSG,
+        action: action("running", "Searching"),
+      }),
+    );
+    const elsewhere: ThreadState = { ...emptyThread, threadId: "other" };
+    // History stops at the user's message; the running turn is only in the live state.
+    const next = threadReducer(elsewhere, {
+      type: "load",
+      threadId: T,
+      messages: [user],
+      resume: live,
+    });
+    expect(next.activeTurn).toBe(TURN);
+    expect(next.messages.map((m) => m.id)).toEqual(["msg_user", MSG]);
+  });
+
+  it("ignores a resume state for another conversation", () => {
+    const other: ThreadState = { ...emptyThread, threadId: "other", activeTurn: "x" };
+    const next = threadReducer(emptyThread, {
+      type: "load",
+      threadId: T,
+      messages: [user],
+      resume: other,
+    });
+    expect(next.activeTurn).toBeNull();
+    expect(next.messages).toEqual([user]);
+  });
+});

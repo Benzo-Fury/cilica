@@ -3,7 +3,7 @@
  *
  * Following stops only when you move up: content growing below you, or a smooth scroll still on
  * its way down, never counts as leaving. Scrolling back near the bottom picks it up again. Size
- * changes (the floating bar springing taller, a card expanding) keep it pinned too.
+ * changes (a card expanding) keep it pinned too.
  */
 import { useCallback, useEffect, useRef } from "react";
 

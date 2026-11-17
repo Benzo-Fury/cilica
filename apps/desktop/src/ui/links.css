@@ -442,7 +442,7 @@
   -webkit-box-orient: vertical;
 }
 
-/* Beside the note: with Cilica out of the way (panel shut, or the floating bar) and room to
+/* Beside the note: with Cilica's panel shut and room to
    spare, Connections leaves the foot of the note for a column on its right that stays in view
    while the note scrolls. Narrower canvases keep it under the note. */
 .nt-note-shell {
