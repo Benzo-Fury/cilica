@@ -14,15 +14,56 @@ use crate::Timestamp;
 /// Strong swears, grouped by root. The first word of each group is the root.
 const STRONG: &[&[&str]] = &[
     &[
-        "fuck", "fucks", "fucked", "fucker", "fuckers", "fucking", "fuckin", "fuckup", "fuckups", "fuckwit", "fuckwits", "fuckhead",
-        "fuckheads", "fuckface", "fuckery", "motherfucker", "motherfuckers", "motherfucking", "motherfuckin", "mofo", "clusterfuck",
-        "wtf", "ffs", "stfu", "gtfo",
+        "fuck",
+        "fucks",
+        "fucked",
+        "fucker",
+        "fuckers",
+        "fucking",
+        "fuckin",
+        "fuckup",
+        "fuckups",
+        "fuckwit",
+        "fuckwits",
+        "fuckhead",
+        "fuckheads",
+        "fuckface",
+        "fuckery",
+        "motherfucker",
+        "motherfuckers",
+        "motherfucking",
+        "motherfuckin",
+        "mofo",
+        "clusterfuck",
+        "wtf",
+        "ffs",
+        "stfu",
+        "gtfo",
     ],
     &[
-        "shit", "shits", "shitty", "shitting", "shitted", "shite", "shitshow", "shithead", "shitheads", "shithole", "shitload",
-        "shitstorm", "bullshit", "bullshitting", "horseshit", "dipshit", "apeshit", "batshit", "chickenshit",
+        "shit",
+        "shits",
+        "shitty",
+        "shitting",
+        "shitted",
+        "shite",
+        "shitshow",
+        "shithead",
+        "shitheads",
+        "shithole",
+        "shitload",
+        "shitstorm",
+        "bullshit",
+        "bullshitting",
+        "horseshit",
+        "dipshit",
+        "apeshit",
+        "batshit",
+        "chickenshit",
     ],
-    &["ass", "asshole", "assholes", "dumbass", "jackass", "smartass", "hardass"],
+    &[
+        "ass", "asshole", "assholes", "dumbass", "jackass", "smartass", "hardass",
+    ],
     &["arsehole", "arseholes"],
     &["bitch", "bitches", "bitching", "bitchy", "sonofabitch"],
     &["bastard", "bastards"],
@@ -131,7 +172,11 @@ impl Swears {
         for (groups, mild) in [(STRONG, false), (MILD, true)] {
             for group in groups {
                 for word in *group {
-                    out.push(SwearWord { word: (*word).to_string(), root: group[0].to_string(), mild });
+                    out.push(SwearWord {
+                        word: (*word).to_string(),
+                        root: group[0].to_string(),
+                        mild,
+                    });
                 }
             }
         }
@@ -152,7 +197,9 @@ impl Swears {
         }
 
         // As written, then with stretched letters squeezed to one and to two
-        lookup(&word).or_else(|| lookup(&squeeze(&word, 1))).or_else(|| lookup(&squeeze(&word, 2)))
+        lookup(&word)
+            .or_else(|| lookup(&squeeze(&word, 1)))
+            .or_else(|| lookup(&squeeze(&word, 2)))
     }
 
     /// Whether a root is one of the mild ones.
@@ -166,7 +213,10 @@ impl Swears {
         let mut start: Option<usize> = None;
 
         // Walk the text, closing a word at each character that cannot be part of one
-        for (i, c) in text.char_indices().chain(std::iter::once((text.len(), ' '))) {
+        for (i, c) in text
+            .char_indices()
+            .chain(std::iter::once((text.len(), ' ')))
+        {
             if is_word_char(c) {
                 start.get_or_insert(i);
                 continue;
@@ -175,7 +225,12 @@ impl Swears {
             if let Some((root, is_mild)) = Self::canonical(&text[from..i])
                 && (mild || !is_mild)
             {
-                out.push(SwearHit { root, mild: is_mild, start: from, end: i });
+                out.push(SwearHit {
+                    root,
+                    mild: is_mild,
+                    start: from,
+                    end: i,
+                });
             }
         }
         out
@@ -233,7 +288,8 @@ fn starred(word: &str) -> Option<(&'static str, bool)> {
     for (groups, mild) in [(STRONG, false), (MILD, true)] {
         for group in groups {
             let hit = group.iter().any(|w| {
-                w.chars().count() == chars.len() && w.chars().zip(&chars).all(|(a, b)| *b == '*' || a == *b)
+                w.chars().count() == chars.len()
+                    && w.chars().zip(&chars).all(|(a, b)| *b == '*' || a == *b)
             });
             if hit {
                 return Some((group[0], mild));
@@ -248,24 +304,39 @@ mod tests {
     use super::*;
 
     fn roots(text: &str, mild: bool) -> Vec<&'static str> {
-        Swears::find(text, mild).into_iter().map(|h| h.root).collect()
+        Swears::find(text, mild)
+            .into_iter()
+            .map(|h| h.root)
+            .collect()
     }
 
     #[test]
     fn finds_whole_words_only() {
-        assert_eq!(roots("Oh, for fuck’s sake. That's bullshit.", true), ["fuck", "shit"]);
+        assert_eq!(
+            roots("Oh, for fuck’s sake. That's bullshit.", true),
+            ["fuck", "shit"]
+        );
         assert!(roots("We assess the class in Scunthorpe, hello shell", true).is_empty());
     }
 
     #[test]
     fn mild_ones_can_be_left_out() {
-        assert_eq!(roots("Damn, that was a bloody good shit idea", true), ["damn", "bloody", "shit"]);
-        assert_eq!(roots("Damn, that was a bloody good shit idea", false), ["shit"]);
+        assert_eq!(
+            roots("Damn, that was a bloody good shit idea", true),
+            ["damn", "bloody", "shit"]
+        );
+        assert_eq!(
+            roots("Damn, that was a bloody good shit idea", false),
+            ["shit"]
+        );
     }
 
     #[test]
     fn reads_stretched_censored_and_abbreviated_words() {
-        assert_eq!(roots("fuuuuck, shiiiit, f***, s**t, WTF", true), ["fuck", "shit", "fuck", "shit", "fuck"]);
+        assert_eq!(
+            roots("fuuuuck, shiiiit, f***, s**t, WTF", true),
+            ["fuck", "shit", "fuck", "shit", "fuck"]
+        );
         assert_eq!(roots("f**king hell", true), ["fuck", "hell"]);
         assert!(roots("** and *s and x", true).is_empty());
     }
@@ -280,11 +351,20 @@ mod tests {
     #[test]
     fn every_word_maps_to_its_root() {
         let words = Swears::words();
-        assert!(words.iter().any(|w| w.word == "motherfucking" && w.root == "fuck" && !w.mild));
+        assert!(
+            words
+                .iter()
+                .any(|w| w.word == "motherfucking" && w.root == "fuck" && !w.mild)
+        );
         assert!(words.iter().any(|w| w.word == "bloody" && w.mild));
         assert!(Swears::is_mild("damn") && !Swears::is_mild("fuck"));
         for w in &words {
-            assert_eq!(Swears::canonical(&w.word).map(|c| c.0), Some(w.root.as_str()), "{}", w.word);
+            assert_eq!(
+                Swears::canonical(&w.word).map(|c| c.0),
+                Some(w.root.as_str()),
+                "{}",
+                w.word
+            );
         }
     }
 }

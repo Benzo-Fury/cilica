@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::{AssistantEvent, AudioLevels, Id, ImportProgress, MeetingDetected, ModelDownloadProgress, RecordingState, Segment, Settings, TaskRun};
+use crate::{
+    AssistantEvent, AudioLevels, Id, ImportProgress, MeetingDetected, ModelDownloadProgress,
+    RecordingState, Segment, Settings, TaskRun,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]

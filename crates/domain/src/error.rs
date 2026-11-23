@@ -29,7 +29,10 @@ pub struct AppError {
 
 impl AppError {
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
     pub fn not_found(what: impl Into<String>) -> Self {
         Self::new(ErrorCode::NotFound, what)
@@ -47,7 +50,10 @@ impl AppError {
         Self::new(ErrorCode::Internal, message)
     }
     pub fn not_implemented(command: &str) -> Self {
-        Self::new(ErrorCode::NotImplemented, format!("{command} is not implemented yet."))
+        Self::new(
+            ErrorCode::NotImplemented,
+            format!("{command} is not implemented yet."),
+        )
     }
 }
 

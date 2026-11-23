@@ -1,0 +1,99 @@
+<!-- @dsCard group="Recording" height=660 subtitle="The recording chip in the note header, Cilica in the macOS menu bar, and its Windows taskbar button with the hover thumbnail." -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>preview</title></head>
+<body>
+<style>
+.rs-wrap{padding:24px;display:grid;gap:28px}
+.rs-label{font:600 11px/14px var(--font-sans);letter-spacing:.02em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
+.rs-states{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end}
+.rs-state{display:grid;gap:8px;justify-items:start}
+.rs-state .nt-note-meta{margin:0}
+.rs-cap{font:450 12px/16px var(--font-sans);color:var(--ink-3)}
+.rs-desk{position:relative;border-radius:calc(var(--radius-lg) * var(--sq));overflow:hidden;box-shadow:inset 0 0 0 0.5px var(--line);
+  background: radial-gradient(circle at 20% 30%, var(--speaker-1) 0 18%, transparent 19%), radial-gradient(circle at 70% 60%, var(--accent) 0 22%, transparent 23%), radial-gradient(circle at 45% 90%, var(--speaker-3) 0 14%, transparent 15%), var(--bg-sunken)}
+.rs-mac{height:250px}
+.rs-mac .nt-menu{position:absolute;right:96px;top:30px;min-width:250px}
+.rs-win{height:290px;display:flex;flex-direction:column;justify-content:flex-end}
+.rs-win .nt-thumb{position:absolute;left:50%;bottom:56px;margin-left:-120px}
+.rs-win .nt-tip{position:absolute;left:50%;bottom:76px;margin-left:132px}
+</style>
+
+<div class="rs-wrap">
+
+ <section>
+  <div class="rs-label">Note header</div>
+  <div class="rs-states">
+   <div class="rs-state">
+    <div class="nt-tip">Stop recording <span class="nt-kbd-group"><kbd class="nt-kbd">⌘</kbd><kbd class="nt-kbd">⇧</kbd><kbd class="nt-kbd">R</kbd></span></div>
+    <div class="nt-note-meta">
+     <span class="nt-chip"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar nt-ico" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Today, 10:00</span>
+     <button class="nt-chip nt-chip-rec" aria-label="Stop recording"><span class="nt-rec-dot" style="width:6px;height:6px"></span>Recording · <span class="nt-mono">12:04</span></button>
+    </div>
+    <div class="rs-cap">Recording: a click stops</div>
+   </div>
+   <div class="rs-state">
+    <div class="nt-tip">Keep recording</div>
+    <div class="nt-note-meta">
+     <span class="nt-chip"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar nt-ico" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Today, 10:00</span>
+     <button class="nt-chip nt-chip-rec" aria-label="Keep recording"><span class="nt-rec-dot" style="width:6px;height:6px"></span>Stops in <span class="nt-mono">8s</span></button>
+    </div>
+    <div class="rs-cap">Meeting ended: a click keeps recording</div>
+   </div>
+   <div class="rs-state">
+    <div class="nt-note-meta">
+     <span class="nt-chip"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar nt-ico" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Today, 10:00</span>
+     <span class="nt-chip nt-chip-busy" aria-disabled="true"><span class="nt-shimmer">Writing notes…</span></span>
+    </div>
+    <div class="rs-cap">Writing notes: not clickable</div>
+   </div>
+  </div>
+ </section>
+
+ <section>
+  <div class="rs-label">macOS menu bar</div>
+  <div class="rs-desk rs-mac">
+   <div class="nt-menubar">
+    <span class="nt-menubar-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wifi nt-ico nt-ico-sm" aria-hidden="true"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg></span>
+    <span class="nt-menubar-item" data-open><svg class="nt-tray-glyph" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5.5" r="3" fill="currentColor" stroke="none"/><path d="M1.5 11.5 5 8.5l3 2.5 2.5-2 6 4.5"/><path d="M1.5 14.5 6 11.5l3.5 2.5 2-1.5 5 2.5"/></svg><span class="nt-mono">12:04</span></span>
+    <span class="nt-menubar-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-battery-full nt-ico nt-ico-sm" aria-hidden="true"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/><line x1="6" x2="6" y1="11" y2="13"/><line x1="10" x2="10" y1="11" y2="13"/><line x1="14" x2="14" y1="11" y2="13"/></svg></span>
+    <span class="nt-menubar-item nt-tnum">Tue 10:12</span>
+   </div>
+   <div class="nt-menu nt-glass-strong" style="--origin:top right">
+    <div class="nt-menu-item" aria-disabled="true"><span class="nt-menu-tick"></span>Recording · <span class="nt-mono">12:04</span></div>
+    <div class="nt-menu-item" data-highlighted><span class="nt-menu-tick"></span>Open note</div>
+    <div class="nt-menu-item"><span class="nt-menu-tick"></span>Stop and write notes</div>
+    <div class="nt-menu-sep"></div>
+    <div class="nt-menu-item"><span class="nt-menu-tick"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check nt-ico" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Listening for meetings</div>
+    <div class="nt-menu-sep"></div>
+    <div class="nt-menu-item"><span class="nt-menu-tick"></span>Quit Cilica</div>
+   </div>
+  </div>
+ </section>
+
+ <section>
+  <div class="rs-label">Windows taskbar</div>
+  <div class="rs-desk rs-win">
+   <div class="nt-tip">Stop and write notes</div>
+   <div class="nt-thumb nt-glass-strong">
+    <div class="nt-thumb-title"><span class="nt-rec-dot" style="width:6px;height:6px"></span>Recording 12:04 · Cilica</div>
+    <div class="nt-thumb-shot"><i style="width:55%;height:9px;background:var(--line-strong)"></i><i style="width:90%"></i><i style="width:80%"></i><i style="width:85%"></i><i style="width:60%"></i></div>
+    <div class="nt-thumbbar">
+     <button aria-label="Stop and write notes" data-highlighted><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square nt-ico" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></button>
+     <button aria-label="Open note"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text nt-ico" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></button>
+     <button aria-label="Keep recording"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mic nt-ico" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
+    </div>
+   </div>
+   <div class="nt-taskbar">
+    <span class="nt-taskbtn"><span class="nt-taskbtn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder nt-ico nt-ico-sm" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></span>
+    <span class="nt-taskbtn" data-active aria-label="Recording 12:04 · Cilica"><span class="nt-taskbtn-icon"><svg class="nt-tray-glyph" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5.5" r="2" fill="currentColor" stroke="none"/><path d="M1.5 11.5 5 8.5l3 2.5 2.5-2 6 4.5"/><path d="M1.5 14.5 6 11.5l3.5 2.5 2-1.5 5 2.5"/></svg></span><span class="nt-taskbtn-overlay"></span></span>
+    <span class="nt-taskbtn"><span class="nt-taskbtn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-video nt-ico nt-ico-sm" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></span></span>
+   </div>
+  </div>
+  <div class="rs-cap" style="margin-top:8px">Keep recording shows only during the auto-stop countdown; Stop hides while writing notes.</div>
+ </section>
+
+</div>
+
+</body>
+</html>
