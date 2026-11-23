@@ -18,10 +18,12 @@ mod finalize;
 mod live;
 mod recognise;
 mod service;
+mod words;
 
 pub use backend::{AudioBackend, DeviceAudio, LocalModels, REFINE_MODEL_ID, SpeechBackend, SttKeys};
 pub use files::RECORDINGS_DIR;
 pub use service::{RecordingService, ServiceConfig, SummarizerProvider, default_title};
+pub use words::MIN_WORDS_SPEECH_MS;
 pub use cilica_detect::DetectEvent;
 
 #[cfg(test)]

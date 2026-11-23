@@ -37,6 +37,7 @@ mod settings;
 mod swears;
 mod tasks;
 mod transcripts;
+mod words;
 mod welcome;
 mod written;
 

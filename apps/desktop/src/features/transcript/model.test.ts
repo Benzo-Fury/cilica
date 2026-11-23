@@ -8,11 +8,15 @@ import {
   nextPersonLabel,
   segmentAt,
   segmentChanges,
+  selectedSpeakers,
+  selectedText,
   speakerLook,
   speakerRoster,
   speakersLive,
   TURN_GAP_MS,
   upsertSegment,
+  wordAtEdge,
+  wordSpans,
 } from "./model";
 
 const seg = (
@@ -181,6 +185,9 @@ describe("speakers while recording", () => {
     started_at: null,
     auto_stop_at: null,
     live_speakers: false,
+    paused_at: null,
+    paused_ms: 0,
+    meeting_live: null,
     ...patch,
   });
 
@@ -296,5 +303,35 @@ describe("segment motion", () => {
     const before = [seg("a", null, 0)];
     const after = [seg("a", "s1", 0)];
     expect(segmentChanges(known(before), after, false).resolved).toEqual([]);
+  });
+});
+
+describe("selected words", () => {
+  const text = "So the  plan, is fine.";
+  it("snaps selection edges to whole words", () => {
+    expect(wordSpans(text).map((w) => text.slice(w.start, w.end))).toEqual([
+      "So",
+      "the",
+      "plan,",
+      "is",
+      "fine.",
+    ]);
+    // Starting mid-word takes the whole word; starting in a gap takes the next one.
+    expect(wordAtEdge(text, 4, "start")?.index).toBe(1);
+    expect(wordAtEdge(text, 7, "start")?.index).toBe(2);
+    // Ending mid-word takes the whole word; ending in a gap takes the one before.
+    expect(wordAtEdge(text, 9, "end")?.index).toBe(2);
+    expect(wordAtEdge(text, 7, "end")?.index).toBe(1);
+    expect(wordAtEdge(text, 0, "end")).toBeNull();
+    expect(wordAtEdge(text, text.length, "start")).toBeNull();
+  });
+
+  it("joins the words between two ends, across lines", () => {
+    const lines = [seg("a", "maya", 0, "one two three"), seg("b", "tomas", 2000, "four five")];
+    const words = (id: string) => wordSpans(lines.find((l) => l.id === id)?.text ?? "");
+    const at = (id: string, i: number) => ({ segmentId: id, word: words(id)[i] as never });
+    expect(selectedText(lines, at("a", 1), at("b", 0))).toBe("two three four");
+    expect(selectedText(lines, at("a", 2), at("a", 1))).toBe("");
+    expect(selectedSpeakers(lines, at("a", 1), at("b", 0))).toEqual(["maya", "tomas"]);
   });
 });

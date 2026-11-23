@@ -79,6 +79,8 @@ import { SpeakerMenu } from "./SpeakerMenu";
 import { type SpeakerEntry, SpeakersPopover } from "./SpeakersPopover";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useSegmentMotion } from "./useSegmentMotion";
+import { useWordSelection } from "./useWordSelection";
+import { WordsMenu } from "./WordsMenu";
 
 export interface TranscriptPanelProps {
   noteId: string;
@@ -166,6 +168,7 @@ export function TranscriptPanel({ noteId, isMeeting, atMs }: TranscriptPanelProp
       }
       live={live}
       idle={recording.phase === "idle"}
+      busy={recording.note_id === noteId && recording.phase !== "idle"}
       pendingSpeakers={pendingSpeakers}
       detection={transcript.speaker_detection}
       atMs={atMs}
@@ -185,6 +188,7 @@ function TranscriptBody({
   durationMs,
   live,
   idle,
+  busy,
   pendingSpeakers,
   detection,
   atMs,
@@ -199,6 +203,8 @@ function TranscriptBody({
   durationMs: number;
   live: boolean;
   idle: boolean;
+  /** This note is being recorded or its recording processed: its lines may still change. */
+  busy: boolean;
   /** Speakers are told apart live: a line without one is "Pending" until it is placed. */
   pendingSpeakers: boolean;
   /** Why this meeting's speakers could not be told apart, if they could not. */
@@ -221,6 +227,8 @@ function TranscriptBody({
   const findKeys = useShortcut("note.find");
   const noticeDismissed = useDismissedNotices((s) => Boolean(s.dismissed[noteId]));
   const dismissNotice = useDismissedNotices((s) => s.dismiss);
+  // Selected words can be given to who actually said them, once the meeting is done.
+  const words = useWordSelection(listRef, segments, !live && !busy);
 
   // ── Suggestions ("Is Person 2 Sam?") ──
   const hasUnnamed = speakers.some((s) => speakerLook(s, people).unnamed);
@@ -556,6 +564,14 @@ function TranscriptBody({
           </div>
         )}
       </AnimatePresence>
+      <WordsMenu
+        noteId={noteId}
+        selection={words.selection}
+        segments={segments}
+        speakers={speakers}
+        people={people}
+        onClose={words.clear}
+      />
       {showBar &&
         bandSlot &&
         createPortal(

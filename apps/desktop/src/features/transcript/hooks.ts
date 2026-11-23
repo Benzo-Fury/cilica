@@ -9,7 +9,7 @@ import { persist } from "zustand/middleware";
 import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
 import { api, errorMessage, isTauri } from "@/ipc/client";
-import type { Person, Speaker, Transcript } from "@/ipc/types";
+import type { MovedLine, Person, Speaker, Transcript, WordPoint, WordsTarget } from "@/ipc/types";
 import { toast } from "@/lib/toast";
 import { hasUnknownSpeaker, nextPersonLabel, upsertSegment } from "./model";
 
@@ -163,6 +163,50 @@ export function useSpeakerActions(noteId: string) {
       toast.error("The speakers were not merged", { description: errorMessage(error) }),
   });
   return { rename, link, save, unlink, merge };
+}
+
+/**
+ * Selected words go to who actually said them. The toast offers Undo (also ⌘Z), which gives the
+ * words back and takes back any voice Cilica learnt from them.
+ */
+export function useMoveWords(noteId: string) {
+  const queryClient = useQueryClient();
+  const changed = () => {
+    void queryClient.invalidateQueries({ queryKey: qk.transcript(noteId) });
+    void queryClient.invalidateQueries({ queryKey: qk.people });
+    void queryClient.invalidateQueries({ queryKey: qk.speakerSuggestions(noteId) });
+  };
+  const restore = useMutation({
+    mutationFn: (lines: MovedLine[]) => api.restoreMovedWords(noteId, lines),
+    onSuccess: changed,
+    onError: (error) =>
+      toast.error("The words were not moved back", { description: errorMessage(error) }),
+  });
+  return useMutation({
+    mutationFn: ({
+      from,
+      to,
+      target,
+    }: {
+      from: WordPoint;
+      to: WordPoint;
+      target: WordsTarget;
+      name: string;
+    }) => api.moveWords(noteId, from, to, target),
+    onSuccess: ({ moved, learnt }, { name }) => {
+      changed();
+      if (moved.length === 0) {
+        toast(`Those words were ${name}'s already`);
+        return;
+      }
+      toast.undo(`Moved to ${name}`, {
+        description: learnt ? "Cilica learnt their voice from these words." : undefined,
+        onUndo: () => restore.mutate(moved),
+      });
+    },
+    onError: (error) =>
+      toast.error("The words were not moved", { description: errorMessage(error) }),
+  });
 }
 
 /**

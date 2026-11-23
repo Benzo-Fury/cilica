@@ -629,7 +629,7 @@ impl Db {
         let mut touched = take_samples(&mut tx, gone).await?;
         sqlx::query("DELETE FROM speakers WHERE id = ?").bind(gone.to_string()).execute(&mut *tx).await?;
         // Confirmed through `gone`, or confirmed before its voiceprint came from `gone`.
-        let (has,): (bool,) = sqlx::query_as("SELECT EXISTS (SELECT 1 FROM voice_samples WHERE speaker_id = ?)").bind(keep.to_string()).fetch_one(&mut *tx).await?;
+        let (has,): (bool,) = sqlx::query_as("SELECT EXISTS (SELECT 1 FROM voice_samples WHERE speaker_id = ? AND segment_id IS NULL)").bind(keep.to_string()).fetch_one(&mut *tx).await?;
         if !has {
             touched.extend(give_sample(&mut tx, keep).await?);
         }
@@ -973,7 +973,7 @@ fn default_label(channel: AudioChannel) -> &'static str {
     }
 }
 
-fn channel_str(channel: AudioChannel) -> &'static str {
+pub(crate) fn channel_str(channel: AudioChannel) -> &'static str {
     match channel {
         AudioChannel::Mic => "mic",
         AudioChannel::System => "system",
@@ -984,7 +984,7 @@ fn clamp_color(c: u8) -> u8 {
     c.clamp(1, COLOR_COUNT)
 }
 
-fn parse_id(s: &str) -> StoreResult<Id> {
+pub(crate) fn parse_id(s: &str) -> StoreResult<Id> {
     Id::parse_str(s).map_err(|e| StoreError::Invalid(format!("Stored id {s:?} is not valid: {e}")))
 }
 
@@ -1163,7 +1163,7 @@ async fn sync_sample(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, speaker_id: I
 }
 
 /// Refresh each person once.
-async fn refresh_voiceprints(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, people: Vec<Id>) -> StoreResult<()> {
+pub(crate) async fn refresh_voiceprints(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, people: Vec<Id>) -> StoreResult<()> {
     let mut seen = HashSet::new();
     for person in people {
         if seen.insert(person) {

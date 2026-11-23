@@ -139,6 +139,21 @@ pub fn encode_ogg_opus(wav: &Path, out: &Path) -> AudioResult<u32> {
 
 /// Decode an Ogg Opus file written by [`encode_ogg_opus`] to one `Vec<f32>` per channel at 16 kHz.
 pub fn decode_ogg_opus(path: &Path) -> AudioResult<Vec<Vec<f32>>> {
+    let mut out: Vec<Vec<f32>> = Vec::new();
+    decode_ogg_opus_frames(path, |_, frame| {
+        out.resize(frame.len(), Vec::new());
+        for (c, v) in frame.iter().enumerate() {
+            out[c].push(*v);
+        }
+        true
+    })?;
+    Ok(out)
+}
+
+/// Decode an Ogg Opus file written by [`encode_ogg_opus`] frame by frame (a sample per channel,
+/// at 16 kHz), handing each to `each` with its index on the timeline. Stops early when `each`
+/// returns false.
+pub(crate) fn decode_ogg_opus_frames(path: &Path, mut each: impl FnMut(usize, &[f32]) -> bool) -> AudioResult<()> {
     let mut reader = ogg::reading::PacketReader::new(BufReader::new(File::open(path)?));
     let head = reader.read_packet().map_err(enc_err)?.ok_or_else(|| enc_err("empty file"))?;
     if head.data.len() < 19 || &head.data[0..8] != b"OpusHead" {
@@ -148,24 +163,28 @@ pub fn decode_ogg_opus(path: &Path) -> AudioResult<Vec<Vec<f32>>> {
     let pre_skip = u16::from_le_bytes([head.data[10], head.data[11]]) as u64 / GRANULE_SCALE;
     let _tags = reader.read_packet().map_err(enc_err)?;
     let mut dec = opus::Decoder::new(SAMPLE_RATE, if n_ch == 2 { Channels::Stereo } else { Channels::Mono }).map_err(enc_err)?;
-    let mut out = vec![Vec::new(); n_ch];
     let mut buf = vec![0.0f32; 5760 * n_ch];
-    let mut last_granule = 0u64;
+    // Samples decoded so far, pre-skip included.
+    let mut decoded = 0u64;
     while let Some(p) = reader.read_packet().map_err(enc_err)? {
         let n = dec.decode_float(&p.data, &mut buf, false).map_err(enc_err)?;
+        // The last page's granule position marks where the audio really ends.
+        let end = if p.last_in_stream() { p.absgp_page() / GRANULE_SCALE } else { u64::MAX };
         for i in 0..n {
-            for c in 0..n_ch {
-                out[c].push(buf[i * n_ch + c]);
+            let at = decoded + i as u64;
+            if at >= end {
+                return Ok(());
+            }
+            if at < pre_skip {
+                continue;
+            }
+            if !each((at - pre_skip) as usize, &buf[i * n_ch..(i + 1) * n_ch]) {
+                return Ok(());
             }
         }
-        last_granule = p.absgp_page();
+        decoded += n as u64;
     }
-    let end = (last_granule / GRANULE_SCALE) as usize;
-    for ch in &mut out {
-        ch.truncate(end.min(ch.len()));
-        ch.drain(..(pre_skip as usize).min(ch.len()));
-    }
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(test)]

@@ -259,3 +259,13 @@ export function TranscriptNotice({
     </motion.div>
   );
 }
+
+/**
+ * Keep words someone selected washed like a selection while their menu is open (focus moving
+ * to the menu's field would otherwise grey out or drop the page selection). `null` clears it.
+ */
+export function highlightWords(range: globalThis.Range | null) {
+  if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
+  if (range) CSS.highlights.set("nt-words", new Highlight(range));
+  else CSS.highlights.delete("nt-words");
+}

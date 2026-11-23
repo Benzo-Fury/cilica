@@ -93,6 +93,45 @@ pub struct SpeakerSuggestion {
     pub similarity: f32,
 }
 
+/// One word of a line: the `word`-th word (0-based, counted by whitespace) of a segment's text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct WordPoint {
+    pub segment_id: Id,
+    pub word: u32,
+}
+
+/// Who words someone selected were said by.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum WordsTarget {
+    /// Someone already heard in this meeting.
+    Speaker { speaker_id: Id },
+    /// A Saved person, whether or not they were heard in this meeting yet.
+    Person { person_id: Id },
+    /// A new Saved person with this name.
+    NewPerson { name: String },
+    /// Someone named for this meeting only.
+    Label { name: String },
+}
+
+/// A line that words were moved into, and who said it before, so the move can be undone.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct MovedLine {
+    pub segment_id: Id,
+    pub previous_speaker_id: Option<Id>,
+}
+
+/// What moving words to someone did.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct WordsMoved {
+    /// The speaker the words are theirs now.
+    pub speaker: Speaker,
+    /// The lines they became, empty when they were theirs already.
+    pub moved: Vec<MovedLine>,
+    /// Cilica learnt the person's voice from these words.
+    pub learnt: bool,
+}
+
 /// A Saved person: a name and an averaged voiceprint (the voiceprint itself never crosses IPC;
 /// [`PersonVoice`] carries a coarse picture of it for drawing).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]

@@ -25,6 +25,7 @@ mod platform;
 mod resample;
 mod session;
 mod source;
+mod span;
 mod wav;
 
 pub use aec::{EchoCanceller, FRAME_SAMPLES};
@@ -43,6 +44,7 @@ pub fn encode_ogg_opus(_wav: &std::path::Path, _out: &std::path::Path) -> AudioR
 pub use platform::SystemSource;
 pub use resample::{Resampler, resample_to_16k};
 pub use session::{CaptureConfig, CaptureEvent, CaptureSession, CaptureSummary};
+pub use span::{AudioSpan, read_spans_16k};
 pub use source::{CaptureSource, RawStream, SourceKind, SourceStatus};
 pub use wav::{WavWriter, read_wav_16k, read_wav_channel_16k, recover_wav};
 

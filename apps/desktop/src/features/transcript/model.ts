@@ -317,3 +317,74 @@ export function segmentChanges(
   }
   return { added, resolved };
 }
+
+// ── Selected words ──
+
+/** A word of a line: where it starts and ends in the line's text. */
+export interface WordSpan {
+  index: number;
+  start: number;
+  end: number;
+}
+
+/** The words of a line (split on whitespace, as the backend counts them). */
+export function wordSpans(text: string): WordSpan[] {
+  const out: WordSpan[] = [];
+  for (const m of text.matchAll(/\S+/g)) {
+    out.push({ index: out.length, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
+  }
+  return out;
+}
+
+/**
+ * The word a selection edge at character `offset` lands on. A start edge takes the word it is
+ * in or the next one; an end edge (exclusive) the word it is in or the one before. `null` when
+ * there is no such word (a start after the last word, an end before the first).
+ */
+export function wordAtEdge(text: string, offset: number, edge: "start" | "end"): WordSpan | null {
+  const words = wordSpans(text);
+  if (edge === "start") return words.find((w) => w.end > offset) ?? null;
+  return words.findLast((w) => w.start < offset) ?? null;
+}
+
+/** One end of a word selection: a word of a line. */
+export interface SelectedEnd {
+  segmentId: string;
+  word: WordSpan;
+}
+
+/**
+ * The selected words between two ends (in transcript order, both included), joined by spaces.
+ * Empty when the ends cross (the selection held no whole word).
+ */
+export function selectedText(
+  segments: readonly Segment[],
+  from: SelectedEnd,
+  to: SelectedEnd,
+): string {
+  const first = segments.findIndex((s) => s.id === from.segmentId);
+  const last = segments.findIndex((s) => s.id === to.segmentId);
+  if (first < 0 || last < 0 || first > last) return "";
+  if (first === last && from.word.index > to.word.index) return "";
+  const parts: string[] = [];
+  for (let i = first; i <= last; i++) {
+    const words = wordSpans(segments[i]?.text ?? "");
+    const a = i === first ? from.word.index : 0;
+    const b = i === last ? to.word.index : words.length - 1;
+    const text = segments[i]?.text ?? "";
+    for (const w of words.slice(a, b + 1)) parts.push(text.slice(w.start, w.end));
+  }
+  return parts.join(" ");
+}
+
+/** The speakers of the lines a selection touches (null for lines with nobody). */
+export function selectedSpeakers(
+  segments: readonly Segment[],
+  from: SelectedEnd,
+  to: SelectedEnd,
+): (string | null)[] {
+  const first = segments.findIndex((s) => s.id === from.segmentId);
+  const last = segments.findIndex((s) => s.id === to.segmentId);
+  if (first < 0 || last < 0) return [];
+  return [...new Set(segments.slice(first, last + 1).map((s) => s.speaker_id))];
+}
