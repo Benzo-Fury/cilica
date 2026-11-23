@@ -65,25 +65,29 @@ export interface Turn {
 export const TURN_GAP_MS = 90_000;
 
 /**
- * Group consecutive segments by one speaker under one header. With `pendingAlone` (speakers are
- * told apart live) each line without a speaker yet gets a row of its own, so placing one never
- * moves the pending lines after it.
+ * Group consecutive segments by one speaker under one header. With `pending` (speakers are told
+ * apart live) every run of lines without a speaker yet sits under one "Pending" header, whatever
+ * channel they came from and however long the pause, until Cilica places them. A pending row is
+ * keyed by how many pending runs come before it, not by its first line, so it stays the same row
+ * as its lines leave for their speakers.
  */
-export function groupTurns(segments: readonly Segment[], pendingAlone = false): Turn[] {
+export function groupTurns(segments: readonly Segment[], pending = false): Turn[] {
   const turns: Turn[] = [];
+  let pendingRuns = 0;
   for (const segment of segments) {
     const last = turns[turns.length - 1];
+    const isPending = pending && segment.speaker_id === null;
     const sameSpeaker =
       last &&
       last.speakerId === segment.speaker_id &&
-      (segment.speaker_id !== null || (!pendingAlone && last.channel === segment.channel));
-    if (last && sameSpeaker && segment.start_ms - last.endMs < TURN_GAP_MS) {
+      (segment.speaker_id !== null || pending || last.channel === segment.channel);
+    if (last && sameSpeaker && (isPending || segment.start_ms - last.endMs < TURN_GAP_MS)) {
       last.segments.push(segment);
       last.endMs = Math.max(last.endMs, segment.end_ms);
       last.partial ||= !segment.is_final;
     } else {
       turns.push({
-        id: segment.id,
+        id: isPending ? `pending:${pendingRuns++}` : segment.id,
         speakerId: segment.speaker_id,
         channel: segment.channel,
         startMs: segment.start_ms,

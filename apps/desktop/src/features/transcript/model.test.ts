@@ -249,17 +249,35 @@ describe("nextPersonLabel", () => {
 });
 
 describe("pending rows", () => {
-  it("gives each pending line its own row while speakers are told apart live", () => {
+  it("puts every pending line under one row while speakers are told apart live", () => {
     const segments = [seg("a", "s1", 0), seg("b", null, 3000), seg("c", null, 6000)];
     expect(groupTurns(segments, true).map((t) => t.segments.map((s) => s.id))).toEqual([
       ["a"],
-      ["b"],
-      ["c"],
+      ["b", "c"],
     ]);
     expect(groupTurns(segments).map((t) => t.segments.map((s) => s.id))).toEqual([
       ["a"],
       ["b", "c"],
     ]);
+  });
+
+  it("keeps pending lines together across channels and long pauses", () => {
+    const mic = { ...seg("b", null, 3000), channel: "mic" as const };
+    const segments = [seg("a", "s1", 0), mic, seg("c", null, 3000 + TURN_GAP_MS * 2)];
+    expect(groupTurns(segments, true).map((t) => t.segments.map((s) => s.id))).toEqual([
+      ["a"],
+      ["b", "c"],
+    ]);
+  });
+
+  it("keeps the pending row's key as its first line is placed", () => {
+    const before = groupTurns(
+      [seg("a", "s1", 0), seg("b", null, 3000), seg("c", null, 6000)],
+      true,
+    );
+    const after = groupTurns([seg("a", "s1", 0), seg("b", "s1", 3000), seg("c", null, 6000)], true);
+    expect(before.map((t) => t.id)).toEqual(["a", "pending:0"]);
+    expect(after.map((t) => t.id)).toEqual(["a", "pending:0"]);
   });
 });
 
