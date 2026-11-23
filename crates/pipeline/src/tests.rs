@@ -470,6 +470,27 @@ async fn missing_model_is_unavailable() {
     assert!(err.message.contains("Deepgram"), "{}", err.message);
 }
 
+/// Pausing stops the clock and resuming carries on; the paused time is left out of the elapsed time.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pause_and_resume() {
+    let h = harness(FakeAudio::meeting(4.0), FakeSpeech::scripted()).await;
+    assert!(h.svc.pause().is_err(), "nothing to pause while idle");
+    h.svc.start(manual(None, None)).await.unwrap();
+    let paused = h.svc.pause().unwrap();
+    assert!(paused.paused_at.is_some());
+    assert_eq!(h.svc.pause().unwrap(), paused, "pausing twice changes nothing");
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let resumed = h.svc.resume().unwrap();
+    assert!(resumed.paused_at.is_none());
+    assert!(resumed.paused_ms >= 350, "paused for {} ms", resumed.paused_ms);
+    assert!(resumed.elapsed_ms(cilica_domain::now()) < 400);
+    h.svc.pause().unwrap();
+    let stopping = h.svc.stop().await.unwrap();
+    assert!(stopping.paused_at.is_none(), "stopping ends the pause");
+    assert!(h.svc.resume().is_err());
+    h.wait_idle(Duration::from_secs(20)).await;
+}
+
 /// Both channels fail the same way when a service refuses the key: one warning, not one each.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_refused_key_is_reported_once_for_both_channels() {
@@ -737,12 +758,20 @@ async fn detection_asks_first_or_starts() {
     h.svc.handle_detect_event(zoom()).await;
     assert!(h.svc.is_capturing());
     assert_eq!(h.svc.state().meeting_app.as_deref(), Some("Zoom"));
+    // Zoom is still in the call, so Stop asks first.
+    assert_eq!(h.svc.state().meeting_live.as_deref(), Some("Zoom"));
     assert!(h.toasts().iter().any(|t| t.action == Some(ToastAction::StopRecording)));
 
-    // The meeting ends, then the person keeps recording: no auto-stop.
+    // The meeting ends, then the person keeps recording: no auto-stop, and no meeting is live.
     h.svc.handle_detect_event(DetectEvent::Ended { app_name: "Zoom".into() }).await;
     assert!(h.svc.state().auto_stop_at.is_some());
-    assert!(h.svc.keep_recording().auto_stop_at.is_none());
+    assert_eq!(h.svc.state().meeting_live, None);
+    let kept = h.svc.keep_recording();
+    assert!(kept.auto_stop_at.is_none());
+    assert_eq!(kept.meeting_live, None);
+    // The meeting comes back: it is live again.
+    h.svc.handle_detect_event(zoom()).await;
+    assert_eq!(h.svc.state().meeting_live.as_deref(), Some("Zoom"));
     tokio::time::sleep(Duration::from_millis(1_200)).await;
     assert!(h.svc.is_capturing(), "kept recording");
     // A manual toggle stops it.

@@ -62,15 +62,13 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::settings::finish_onboarding,
             commands::settings::open_onboarding,
             commands::settings::title_bar_double_click,
-            commands::settings::show_island,
-            commands::settings::hide_island,
-            commands::settings::set_island_size,
-            commands::settings::get_island_info,
             commands::settings::perform_haptic,
             commands::recording::get_recording_state,
             commands::recording::start_recording,
             commands::recording::stop_recording,
             commands::recording::keep_recording,
+            commands::recording::pause_recording,
+            commands::recording::resume_recording,
             commands::recording::list_input_devices,
             commands::recording::get_permissions,
             commands::recording::request_permission,
@@ -92,6 +90,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::recording::rename_speaker,
             commands::recording::link_speaker,
             commands::recording::merge_speakers,
+            commands::recording::move_words,
+            commands::recording::restore_moved_words,
             commands::recording::save_speaker_as_person,
             commands::recording::list_speaker_suggestions,
             commands::recording::list_people,
@@ -199,7 +199,7 @@ pub fn run() {
             // Size and position of the main window only; never visibility or decorations.
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(tauri_plugin_window_state::StateFlags::SIZE | tauri_plugin_window_state::StateFlags::POSITION)
-                .with_denylist(&[shell::island::LABEL, shell::onboarding::LABEL])
+                .with_denylist(&[shell::onboarding::LABEL])
                 .build(),
         )
         .invoke_handler(builder.invoke_handler())

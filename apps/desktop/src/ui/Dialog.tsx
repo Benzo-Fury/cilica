@@ -77,6 +77,8 @@ export interface ConfirmDialogProps {
   confirmLabel: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Where focus starts. Defaults to Cancel when destructive, else the confirm button. */
+  initialFocus?: "cancel" | "confirm";
   onConfirm: () => void;
   confirmShortcut?: readonly string[];
 }
@@ -90,6 +92,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel = "Cancel",
   destructive = false,
+  initialFocus = destructive ? "cancel" : "confirm",
   onConfirm,
   confirmShortcut,
 }: ConfirmDialogProps) {
@@ -100,7 +103,7 @@ export function ConfirmDialog({
       <DialogSurface
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          (destructive ? cancelRef : confirmRef).current?.focus();
+          (initialFocus === "cancel" ? cancelRef : confirmRef).current?.focus();
         }}
       >
         <D.Title>{title}</D.Title>

@@ -92,6 +92,14 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// End a pause at `at`: its length joins `paused_ms`.
+fn fold_pause(state: &mut RecordingState, at: cilica_domain::Timestamp) {
+    if let Some(since) = state.paused_at.take() {
+        let ms = (at - since).num_milliseconds().max(0);
+        state.paused_ms = state.paused_ms.saturating_add(ms.min(u32::MAX as i64) as u32);
+    }
+}
+
 /// "Zoom meeting · 14:05", "Google Meet · 14:05", "Recording · 14:05".
 pub fn default_title(app: Option<&str>, at: chrono::DateTime<Local>) -> String {
     let time = at.format("%H:%M");
@@ -104,7 +112,14 @@ pub fn default_title(app: Option<&str>, at: chrono::DateTime<Local>) -> String {
 
 impl Inner {
     pub fn state(&self) -> RecordingState {
-        lock(&self.shared).state.clone()
+        let sh = lock(&self.shared);
+        let mut state = sh.state.clone();
+        // Lock order: `shared`, then `meetings` (nothing takes them the other way round).
+        state.meeting_live = sh.live.as_ref().and_then(|live| {
+            let meetings = lock(&self.meetings);
+            live.apps.iter().find(|app| meetings.contains(app)).cloned()
+        });
+        state
     }
 
     pub fn emit_state(&self) {
@@ -289,6 +304,9 @@ impl RecordingService {
                 started_at: Some(started_at),
                 auto_stop_at: None,
                 live_speakers: settings.transcription.speaker_labels() != cilica_domain::SpeakerSource::Off,
+                paused_at: None,
+                paused_ms: 0,
+                meeting_live: None,
             };
             sh.generation
         };
@@ -392,6 +410,7 @@ impl RecordingService {
             let Some(live) = sh.live.take() else { return Ok(sh.state.clone()) };
             sh.state.phase = RecordingPhase::Stopping;
             sh.state.auto_stop_at = None;
+            fold_pause(&mut sh.state, now());
             sh.auto_stop_seq += 1;
             (live, sh.generation)
         };
@@ -440,6 +459,42 @@ impl RecordingService {
         tracing::error!(%message, "capture failed");
         self.inner.toast(ToastKind::Error, "Recording stopped", format!("Cilica stopped recording because {message}. Check that the disk has space; what was recorded so far is kept."), None);
         let _ = self.stop().await;
+    }
+
+    /// Pause capture: nothing is kept until [`resume`](Self::resume). Does nothing unless recording.
+    pub fn pause(&self) -> AppResult<RecordingState> {
+        self.set_paused(true)
+    }
+
+    /// Carry on capturing after [`pause`](Self::pause).
+    pub fn resume(&self) -> AppResult<RecordingState> {
+        self.set_paused(false)
+    }
+
+    fn set_paused(&self, paused: bool) -> AppResult<RecordingState> {
+        let changed = {
+            let mut sh = lock(&self.inner.shared);
+            let Shared { state, live, .. } = &mut *sh;
+            let Some(live) = live.as_ref() else {
+                return Err(AppError::invalid(if paused { "There is no recording to pause." } else { "There is no recording to resume." }));
+            };
+            if state.paused_at.is_some() == paused {
+                false
+            } else {
+                live.session.set_paused(paused);
+                if paused {
+                    state.paused_at = Some(now());
+                } else {
+                    fold_pause(state, now());
+                }
+                true
+            }
+        };
+        if changed {
+            tracing::info!(paused, "recording paused or resumed");
+            self.inner.emit_state();
+        }
+        Ok(self.state())
     }
 
     /// Cancel a pending auto-stop.
@@ -498,6 +553,9 @@ impl RecordingService {
                         started_at: Some(sidecar.started_at),
                         auto_stop_at: None,
                         live_speakers: false,
+                        paused_at: None,
+                        paused_ms: 0,
+                        meeting_live: None,
                     };
                     sh.generation
                 }
@@ -592,23 +650,20 @@ impl RecordingService {
                 if self.is_capturing() {
                     // The meeting came back (or another one joined in): it now ends this recording
                     // too, and a pending auto-stop for it is called off.
-                    let cancelled = {
+                    {
                         let mut sh = lock(&inner.shared);
                         if let Some(live) = sh.live.as_mut()
                             && !live.apps.contains(&name)
                         {
                             live.apps.push(name.clone());
                         }
-                        let pending = sh.state.auto_stop_at.is_some();
-                        if pending {
+                        if sh.state.auto_stop_at.is_some() {
                             sh.auto_stop_seq += 1;
                             sh.state.auto_stop_at = None;
                         }
-                        pending
-                    };
-                    if cancelled {
-                        inner.emit_state();
                     }
+                    // Always: the state now says a meeting is live (Stop asks first).
+                    inner.emit_state();
                     return;
                 }
                 let Ok(settings) = inner.db.get_settings().await else { return };

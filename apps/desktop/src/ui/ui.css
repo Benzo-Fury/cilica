@@ -611,6 +611,20 @@ mark {
   justify-content: center;
   gap: var(--space-2);
 }
+/* Starts the end column, right after the centred control: what it holds can change width
+   without moving that control. It gives way before the end actions when the band is narrow. */
+.nt-band-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-right: auto;
+  /* Sits space-2 after the centred control, as it did beside it: pulls back across the band's
+     space-3 column gap, plus the space-1 inset that keeps a focus ring clear of the clip. */
+  margin-left: calc(var(--space-2) - var(--space-3) - var(--space-1));
+  padding-left: var(--space-1);
+  overflow-x: clip;
+}
 /* The band measures itself so its controls can shrink to icons when it gets narrow. */
 .nt-band-canvas {
   container: band / inline-size;
@@ -646,6 +660,101 @@ mark {
     animation: none;
   }
 }
+/* Recording control in the note's band (RecordingControl, RecordingStatus doc): a status pill,
+   then round Pause and Stop. Neutral: no red in the app, and nothing pulses. */
+.nt-recctl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  transform-origin: left center;
+}
+.nt-recctl-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  box-shadow: inset 0 0 0 1px transparent;
+  color: var(--ink);
+  font: 550 12px / 16px var(--font-sans);
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+/* Paused: the pill empties to an outline and the text steps back. */
+.nt-recctl-status-paused {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+}
+.nt-recctl-status-plain {
+  padding: 0 var(--space-3);
+}
+/* Two glyphs in one cell: data-on="a" shows the first, "b" the second. */
+.nt-recctl-swap {
+  display: inline-grid;
+  place-items: center;
+}
+.nt-recctl-swap > * {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--spring-bouncy-dur) var(--spring-bouncy);
+}
+.nt-recctl-swap[data-on="a"] > :last-child,
+.nt-recctl-swap[data-on="b"] > :first-child {
+  opacity: 0;
+  transform: scale(0.4) rotate(-45deg);
+}
+.nt-recctl-solid {
+  fill: currentColor;
+}
+.nt-recctl-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fill-press);
+  color: var(--ink);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-recctl-btn:hover {
+  background: var(--line-strong);
+}
+.nt-recctl-btn:active {
+  transform: scale(0.92);
+  transition-duration: var(--dur-instant), var(--dur-instant);
+}
+.nt-recctl-btn .lucide {
+  width: 12px;
+  height: 12px;
+}
+.nt-recctl-stop .lucide {
+  width: 11px;
+  height: 11px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-recctl-swap > * {
+    transition: opacity var(--dur-fast) linear;
+  }
+  .nt-recctl-swap[data-on="a"] > :last-child,
+  .nt-recctl-swap[data-on="b"] > :first-child {
+    transform: none;
+  }
+}
+
 /* Narrow band: first the record control, then the Notes / Transcript switch, drop to icons.
    The labels stay in the accessibility tree. */
 @container band (max-width: 640px) {
@@ -930,9 +1039,9 @@ mark {
 .nt-iconbtn-rec[aria-pressed="true"] {
   color: var(--rec);
 }
-/* The recording note's mic stays `rec` even on the current row, which tints icons accent. */
+/* The recording note's mic. Neutral: inside the app recording is never red (RecordingStatus doc). */
 .nt-row.nt-note-row .nt-ico.nt-note-rec {
-  color: var(--rec);
+  color: var(--ink-2);
 }
 .nt-sidebar-search {
   padding: 0 0 var(--space-2);
@@ -1321,7 +1430,7 @@ mark {
   position: absolute;
   top: var(--space-2);
   right: var(--space-4);
-  z-index: var(--z-capsule);
+  z-index: var(--z-float);
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -1832,20 +1941,6 @@ mark {
   }
 }
 
-/* ───────── Dynamic Island window (placeholder) ───────── */
-:root[data-window="island"],
-:root[data-window="island"] body {
-  background: transparent;
-}
-.nt-island-host {
-  height: 100%;
-  display: grid;
-  place-items: start center;
-}
-.nt-island-compact {
-  justify-content: center;
-}
-
 /* ───────── Note view extras ───────── */
 .nt-note-body {
   position: relative;
@@ -1877,7 +1972,7 @@ mark {
   position: absolute;
   top: var(--space-2);
   right: var(--space-4);
-  z-index: var(--z-capsule);
+  z-index: var(--z-float);
   transform-origin: top right;
 }
 .nt-findbar-wrap .nt-findbar {
@@ -2023,211 +2118,10 @@ mark {
 
 /* ═════════════════════════ Phase 2 ═════════════════════════ */
 
-/* ───────── Recorder capsule ───────── */
-.nt-capsule-dock {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: var(--space-6);
-  z-index: var(--z-capsule);
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-.nt-capsule-dock > * {
-  pointer-events: auto;
-}
-.nt-capsule-app {
-  position: relative;
-  overflow: hidden;
-  padding: 0 var(--space-1) 0 var(--space-3);
-  transition: none;
-}
-.nt-capsule-content {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 100%;
-  white-space: nowrap;
-}
-.nt-capsule-app-idle {
-  padding: 0;
-}
-.nt-capsule-start {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--size-control-lg);
-  padding: 0 var(--space-4) 0 var(--space-3);
-  border-radius: var(--radius-pill);
-  font: 550 14px / 1 var(--font-sans);
-  color: var(--ink);
-}
-.nt-capsule-start:hover {
-  background: var(--fill-hover);
-  transition: background-color var(--dur-fast) var(--ease-out);
-}
-.nt-capsule-start:focus-visible {
-  box-shadow: var(--focus);
-}
-.nt-capsule-start .nt-kbd-group {
-  margin-left: var(--space-1-5);
-}
-.nt-capsule-start:active {
-  transform: scale(0.97);
-  transition: transform var(--dur-instant) var(--ease-out);
-}
-.nt-capsule-label {
-  font: 550 14px / 1 var(--font-sans);
-  color: var(--ink);
-  padding-right: var(--space-3);
-}
-.nt-capsule-hint {
-  font: 450 13px / 1 var(--font-sans);
-  color: var(--ink-2);
-}
+/* ───────── Recording timer ───────── */
 .nt-timer {
   font-size: 13px;
   min-width: 44px;
-}
-.nt-capsule-live .nt-wave {
-  color: var(--ink);
-}
-.nt-capsule .nt-btn-sm {
-  border-radius: var(--radius-pill);
-}
-/* Stop: the white square shrinks away as a drawn tick takes its place. */
-.nt-stop-app {
-  position: relative;
-  flex: none;
-}
-.nt-stop-app::before {
-  transition:
-    transform var(--spring-snappy-dur) var(--spring-snappy),
-    opacity var(--dur-fast) var(--ease-out);
-}
-.nt-stop-check {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 16;
-  stroke-dashoffset: 16;
-  transition: stroke-dashoffset var(--dur-base) var(--ease-out);
-}
-.nt-stop-done,
-.nt-stop-done:hover {
-  background: var(--fill-press);
-  color: var(--ink);
-  transform: none;
-  box-shadow: none;
-  cursor: default;
-  transition:
-    background-color var(--dur-base) var(--ease-out),
-    color var(--dur-base) var(--ease-out);
-}
-.nt-stop-done::before {
-  transform: scale(0);
-  opacity: 0;
-}
-.nt-stop-done .nt-stop-check {
-  stroke-dashoffset: 0;
-  transition-delay: 80ms;
-}
-.nt-stop:focus-visible {
-  box-shadow: var(--focus);
-}
-.nt-stop-lg {
-  width: 34px;
-  height: 34px;
-}
-.nt-countdown {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font: 450 13px / 1 var(--font-sans);
-  color: var(--ink-2);
-}
-.nt-countdown .nt-ring {
-  width: 22px;
-  height: 22px;
-}
-.nt-countdown .nt-ring svg {
-  width: 22px;
-  height: 22px;
-}
-
-/* ───────── Dynamic Island window ───────── */
-.nt-island-app {
-  cursor: default;
-  outline: none;
-  user-select: none;
-}
-.nt-island-app:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--rec),
-    0 8px 24px -8px rgb(0 0 0 / 0.5);
-}
-.nt-island-app .nt-island-compact {
-  justify-content: flex-start;
-}
-.nt-island-app .nt-mono {
-  font-variant-numeric: tabular-nums;
-}
-.nt-island-title {
-  font: 600 14px / 18px var(--font-sans);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nt-island-status {
-  font: 450 12px / 16px var(--font-mono);
-  opacity: 0.65;
-  font-variant-numeric: tabular-nums;
-}
-.nt-island-text {
-  flex: 1;
-  min-width: 0;
-}
-.nt-island-btn {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  border: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #f5f3f1;
-  background: rgb(255 255 255 / 0.12);
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    transform var(--spring-snappy-dur) var(--spring-snappy);
-}
-.nt-island-btn:hover {
-  background: rgb(255 255 255 / 0.2);
-}
-.nt-island-btn:active {
-  transform: scale(0.92);
-}
-.nt-island-btn:focus-visible,
-.nt-island-app .nt-stop:focus-visible {
-  box-shadow: 0 0 0 2px #f5f3f1;
-}
-.nt-island-host {
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-:root[data-window="island"] .nt-island-host[data-preview] {
-  padding-top: var(--space-6);
 }
 
 /* ───────── Playback ───────── */
@@ -2601,6 +2495,12 @@ mark {
 .nt-popover .nt-menu-heading {
   padding-left: var(--space-1);
 }
+/* A field in a popover is already the focus of a small, open surface: it keeps its resting
+   look when selected, with no ring, and its caret shows where typing goes. */
+.nt-popover .nt-field:is(:hover, :focus-within) {
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
 .nt-popover-actions {
   display: flex;
   justify-content: flex-end;
@@ -2828,6 +2728,10 @@ mark {
 .nt-speaker-btn:focus-visible {
   box-shadow: var(--focus);
 }
+/* Words someone selected to say who said them, washed like the selection while their menu is open. */
+::highlight(nt-words) {
+  background-color: var(--accent-soft);
+}
 .nt-seg-text {
   border-radius: 3px;
   transition:
@@ -2928,7 +2832,7 @@ mark {
   left: 0;
   right: 0;
   bottom: 84px;
-  z-index: var(--z-capsule);
+  z-index: var(--z-float);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -3051,9 +2955,7 @@ mark {
 .nt-diff[data-state="resolved"] .nt-diff-foot {
   background: transparent;
 }
-.nt-capsule-source {
-  background: transparent;
-}
+
 .nt-consent-icon {
   width: 36px;
   height: 36px;
@@ -3120,25 +3022,36 @@ mark {
   color: var(--accent-text);
   margin-left: auto;
 }
-/* Speaker popup: who this speaker is now. */
-.nt-who {
+/* Speaker popup: it asks one question; who they are now is the washed, checked row below
+   (or, before they are a Saved person, their name on the right of the title). */
+.nt-speaker-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-1) var(--space-1-5);
+  padding: var(--space-1) var(--space-1) var(--space-0-5);
 }
-.nt-who-text {
-  min-width: 0;
-  display: grid;
-}
-.nt-who-name {
+.nt-speaker-question {
+  flex: none;
+  white-space: nowrap;
   font: 600 13px / 18px var(--font-sans);
   color: var(--ink);
+}
+.nt-speaker-current {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font: 400 12px / 16px var(--font-sans);
+  color: var(--ink-3);
 }
-.nt-who-state {
+.nt-popover button.nt-menu-item[data-current]:not(:hover, [data-highlighted]) {
+  background: var(--fill-hover);
+}
+/* A line of help at the foot of a popover. */
+.nt-popover-foot {
+  margin: 0;
+  padding: var(--space-1) var(--space-1) 0;
   font: 400 12px / 16px var(--font-sans);
   color: var(--ink-3);
 }
@@ -3148,9 +3061,7 @@ mark {
   font: 400 12px / 16px var(--font-sans);
   color: var(--ink-3);
 }
-.nt-capsule-playback {
-  padding: 0 var(--space-1);
-}
+
 .nt-menu-item .nt-accent-ico {
   color: var(--accent-text);
 }
@@ -4189,38 +4100,7 @@ button.nt-suggest-row:active {
     corner-shape: squircle;
   }
 }
-.nt-island-time {
-  margin-left: auto;
-}
-.nt-island-dot {
-  width: 10px;
-  height: 10px;
-}
-.nt-island-app .nt-island-full {
-  gap: var(--space-2);
-}
-.nt-island-app .nt-island-full .nt-island-text {
-  margin-right: var(--space-1);
-}
-.nt-island-btn .nt-ico {
-  width: 16px;
-  height: 16px;
-}
-:root[data-window="island"] .nt-island-host[data-preview] {
-  min-height: 100vh;
-  background:
-    radial-gradient(
-      60% 70% at 15% 20%,
-      color-mix(in oklab, var(--speaker-1) 60%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      50% 60% at 85% 30%,
-      color-mix(in oklab, var(--accent) 55%, transparent),
-      transparent 70%
-    ),
-    var(--bg-window);
-}
+
 ol.nt-transcript-list,
 ul.nt-virtual {
   list-style: none;
@@ -5087,16 +4967,11 @@ button.nt-searchbar:focus-visible {
 .nt-window[data-intro] {
   --spring-gentle-dur: 910ms;
 }
-.nt-window[data-intro="hold"] :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock) {
-  opacity: 0;
-  pointer-events: none;
-}
+
 .nt-window[data-intro="reveal"] .nt-band-canvas {
   animation: nt-intro-down var(--spring-gentle-dur) var(--spring-gentle) 120ms both;
 }
-.nt-window[data-intro="reveal"] :is(.nt-glance-footer, .nt-capsule-dock) {
-  animation: nt-intro-up var(--spring-gentle-dur) var(--spring-gentle) 280ms both;
-}
+
 @keyframes nt-intro-down {
   from {
     opacity: 0;
@@ -5111,10 +4986,6 @@ button.nt-searchbar:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   /* No travel: a short crossfade (beats the global 1ms animation cap). */
-  .nt-window[data-intro="reveal"] :is(.nt-band-canvas, .nt-glance-footer, .nt-capsule-dock) {
-    /* biome-ignore lint/complexity/noImportantStyles: the global reduced-motion cap is !important too. */
-    animation: nt-fade-in var(--dur-fast) linear both !important;
-  }
 }
 
 /* ───────── Scaled preview: a live miniature of a screen ───────── */
@@ -5514,13 +5385,12 @@ button.nt-searchbar:focus-visible {
   box-shadow: inset 0 0 0 1px var(--ink-4);
 }
 
-/* The jar that rises from the canvas corner. Bottom-left keeps it clear of toasts (bottom-right)
-   and the recorder capsule (bottom-centre). */
+/* The jar that rises from the canvas corner. Bottom-left keeps it clear of toasts (bottom-right). */
 .nt-swearjar {
   position: absolute;
   left: var(--space-4);
   bottom: var(--space-4);
-  z-index: var(--z-capsule);
+  z-index: var(--z-float);
   width: 64px;
   pointer-events: none;
   /* Hidden below the edge and faded, so it is gone. */
@@ -6400,6 +6270,15 @@ fieldset.nt-import-speakers {
   height: 100%;
   image-rendering: pixelated;
 }
+/* Each scene theme washes its art towards the page by its own `scene-dim`, so the brightest
+   parts of the scene never fight the text over them. */
+.nt-scene-dim,
+.nt-theme-pane-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-canvas);
+  opacity: var(--scene-dim);
+}
 /* The top of the window stays the plain page, so text there never sits on the art. */
 .nt-scene-veil,
 .nt-theme-pane-veil {
@@ -6527,7 +6406,7 @@ fieldset.nt-import-speakers {
 .nt-theme-pane-note i:nth-of-type(3) {
   width: 64%;
 }
-/* The recorder capsule, in the theme's accent. */
+/* A small pill at the foot of the miniature note, in the theme's accent. */
 .nt-theme-pane-note u {
   position: absolute;
   left: 50%;

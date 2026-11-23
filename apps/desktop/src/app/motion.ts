@@ -10,7 +10,7 @@ export const springs = {
   snappy: { type: "spring", visualDuration: 0.2, bounce: 0.15 },
   /** Panels and sidebar collapse, segmented thumb, active-row pill, palette and dialog open. */
   smooth: { type: "spring", visualDuration: 0.3, bounce: 0.1 },
-  /** Record button morph, capsule widening, toasts entering, drag-and-drop settling, switch knob. */
+  /** Recording chip, toasts entering, drag-and-drop settling, switch knob. */
   bouncy: { type: "spring", visualDuration: 0.35, bounce: 0.3 },
   /** View changes: Notes ⇄ Transcript, opening a note, settings pages. */
   gentle: { type: "spring", visualDuration: 0.45, bounce: 0 },

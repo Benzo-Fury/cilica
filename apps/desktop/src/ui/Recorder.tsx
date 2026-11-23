@@ -1,119 +1,123 @@
 /**
- * The recorder capsule's parts (RecorderCapsule doc): a glass pill docked bottom-centre of the
- * canvas whose width springs (`bouncy`) as its content changes, the Stop button that morphs to
- * a check, and the idle "Start recording" label. The feature decides what goes inside.
+ * Recording parts shared by features: the tabular timer and the recording control in the note's
+ * title band (RecordingStatus doc).
  */
+import { Mic, Pause, Play, Square } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { reducedTransition, springs } from "@/app/motion";
+import type { ReactNode } from "react";
+import { reducedTransition, springs, tweens } from "@/app/motion";
+import { Button } from "./Button";
 import { cn } from "./cn";
-import { useSpecular } from "./useSpecular";
-
-export function CapsuleDock({ children }: { children: ReactNode }) {
-  return <div className="nt-capsule-dock">{children}</div>;
-}
-
-/** The glass pill. Its size animates with Motion `layout` so content can change freely. */
-export function Capsule({
-  children,
-  className,
-  label,
-  live = false,
-}: {
-  children: ReactNode;
-  className?: string;
-  label: string;
-  /** Recording: the pill reveals its extra controls on hover or focus. */
-  live?: boolean;
-}) {
-  const reduced = useReducedMotion();
-  const specular = useSpecular<HTMLDivElement>();
-  return (
-    <motion.div
-      layout
-      role="group"
-      aria-label={label}
-      className={cn(
-        "nt-capsule nt-glass nt-specular nt-capsule-app",
-        live && "nt-capsule-live",
-        className,
-      )}
-      style={{ borderRadius: 999 }}
-      transition={reduced ? reducedTransition : springs.bouncy}
-      onPointerMove={specular}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/** One state's content inside the capsule; crossfades and keeps its position while the pill resizes. */
-export function CapsuleContent({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div
-      layout="position"
-      className={cn("nt-capsule-content", className)}
-      initial={{ opacity: 0, filter: reduced ? "none" : "blur(4px)" }}
-      animate={{
-        opacity: 1,
-        filter: "blur(0px)",
-        transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
-      }}
-      exit={{ opacity: 0, transition: { duration: 0.1, ease: [0.55, 0, 1, 0.45] } }}
-      transition={reduced ? reducedTransition : springs.bouncy}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/** The recording dot as a shared element: it travels from the idle label to the live timer. */
-export function CapsuleDot({ still = false }: { still?: boolean }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.span
-      layoutId="capsule-dot"
-      className={cn("nt-rec-dot", still && "nt-rec-dot-still")}
-      transition={reduced ? reducedTransition : springs.bouncy}
-      aria-hidden
-    />
-  );
-}
-
-export interface StopButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  /** After Stop: the square morphs into a tick and the button goes quiet. */
-  done?: boolean;
-  size?: "md" | "lg";
-}
-
-/** `rec` round button with a white square; morphs to a drawn check once stopping. */
-export function StopButton({ done = false, size = "md", className, ...props }: StopButtonProps) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "nt-stop nt-stop-app",
-        size === "lg" && "nt-stop-lg",
-        done && "nt-stop-done",
-        className,
-      )}
-      {...props}
-    >
-      <svg viewBox="0 0 12 12" aria-hidden className="nt-stop-check">
-        <path d="M2.5 6.5l2.3 2.3 4.7-5" />
-      </svg>
-    </button>
-  );
-}
+import { Icon } from "./Icon";
+import { Shimmer } from "./Skeleton";
+import { Tooltip } from "./Tooltip";
 
 /** A tabular, monospaced timer. */
 export function Timecode({ children, className }: { children: ReactNode; className?: string }) {
   return <span className={cn("nt-mono nt-timer", className)}>{children}</span>;
+}
+
+export type RecordingControlStatus =
+  | { kind: "starting" }
+  | { kind: "finishing"; label: string }
+  | {
+      kind: "live";
+      /** Already formatted, "12:04". */
+      elapsed: string;
+      paused: boolean;
+      /** Whole seconds until a detected meeting's recording stops on its own. */
+      stopsIn: number | null;
+    };
+
+export interface RecordingControlProps {
+  status: RecordingControlStatus;
+  onPause: () => void;
+  /** The feature decides whether to ask first (a meeting still in its call). */
+  onStop: () => void;
+  onKeep: () => void;
+  stopShortcut?: readonly string[];
+}
+
+/**
+ * The recording control: a status pill, then round Pause and Stop buttons. Neutral like the rest
+ * of the band: no red in the app, and nothing pulses. Wrap in `AnimatePresence`.
+ */
+export function RecordingControl({
+  status,
+  onPause,
+  onStop,
+  onKeep,
+  stopShortcut,
+}: RecordingControlProps) {
+  const reduced = useReducedMotion();
+  const live = status.kind === "live" ? status : null;
+  const paused = live?.paused ?? false;
+  return (
+    <motion.span
+      className="nt-recctl"
+      initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1, transition: reduced ? reducedTransition : springs.bouncy }}
+      exit={{ opacity: 0, scale: reduced ? 1 : 0.94, transition: tweens.exit }}
+    >
+      <span
+        className={cn(
+          "nt-recctl-status",
+          paused && "nt-recctl-status-paused",
+          status.kind === "finishing" && "nt-recctl-status-plain",
+        )}
+        aria-live={live?.stopsIn != null || status.kind === "finishing" ? "polite" : undefined}
+      >
+        {status.kind !== "finishing" && (
+          <span className="nt-recctl-swap" data-on={paused ? "b" : "a"} aria-hidden>
+            <Icon icon={Mic} size="sm" />
+            <Icon icon={Pause} size="sm" />
+          </span>
+        )}
+        {status.kind === "starting" && <Shimmer>Starting…</Shimmer>}
+        {status.kind === "finishing" && <Shimmer>{status.label}</Shimmer>}
+        {live &&
+          (live.stopsIn !== null ? (
+            <span>Stops in {live.stopsIn}s</span>
+          ) : (
+            <span>
+              <span className="nt-sr-only">{paused ? "Paused at" : "Recording for"} </span>
+              {paused && <span aria-hidden>Paused · </span>}
+              <Timecode>{live.elapsed}</Timecode>
+            </span>
+          ))}
+      </span>
+      {live && (
+        <>
+          {live.stopsIn !== null && (
+            <Button size="sm" variant="secondary" onClick={onKeep}>
+              Keep recording
+            </Button>
+          )}
+          <Tooltip label={paused ? "Resume recording" : "Pause recording"}>
+            <button
+              type="button"
+              className="nt-recctl-btn"
+              aria-label={paused ? "Resume recording" : "Pause recording"}
+              onClick={onPause}
+            >
+              <span className="nt-recctl-swap" data-on={paused ? "b" : "a"} aria-hidden>
+                <Icon icon={Pause} size="sm" className="nt-recctl-solid" />
+                <Icon icon={Play} size="sm" className="nt-recctl-solid" />
+              </span>
+            </button>
+          </Tooltip>
+          <Tooltip label="Stop recording" shortcut={stopShortcut}>
+            <button
+              type="button"
+              className="nt-recctl-btn nt-recctl-stop"
+              aria-label="Stop recording"
+              onClick={onStop}
+            >
+              <Icon icon={Square} size="sm" className="nt-recctl-solid" />
+            </button>
+          </Tooltip>
+        </>
+      )}
+    </motion.span>
+  );
 }

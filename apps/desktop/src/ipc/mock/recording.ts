@@ -17,6 +17,7 @@ import type {
   AudioChannel,
   AudioDevice,
   HardwareProfile,
+  MovedLine,
   Note,
   PermissionKind,
   PermissionStatus,
@@ -36,6 +37,9 @@ import type {
   Transcript,
   TranscriptionSettings,
   TranscriptionTest,
+  WordPoint,
+  WordsMoved,
+  WordsTarget,
 } from "@/ipc/types";
 import { requireLiveNote, requireNote, writeBody } from "./notes";
 import type { MockContext } from "./state";
@@ -176,7 +180,7 @@ export function recordingCommands({ state, emit }: MockContext) {
   const scheduleAutoStop = () => {
     if (state.recording.phase !== "recording") return;
     const at = Date.now() + 10_000;
-    setRecording({ auto_stop_at: iso(at) });
+    setRecording({ auto_stop_at: iso(at), meeting_live: null });
     const app = state.recording.meeting_app ?? "The meeting app";
     emit({ type: "meeting_ended", app_name: app });
     emit({
@@ -237,7 +241,8 @@ export function recordingCommands({ state, emit }: MockContext) {
       return;
     }
     const line = SCRIPT[scriptIndex % SCRIPT.length];
-    if (!line || state.recording.phase !== "recording") return;
+    // Paused: nothing is heard until Resume plays the next line.
+    if (!line || state.recording.phase !== "recording" || state.recording.paused_at) return;
     scriptIndex += 1;
     const transcript = liveTranscript(noteId);
     const labels = speakerLabels(state.settings.transcription);
@@ -306,7 +311,11 @@ export function recordingCommands({ state, emit }: MockContext) {
 
   const tickLevels = () => {
     const target = (channel: AudioChannel) =>
-      speaking === channel ? 0.35 + Math.random() * 0.6 : Math.random() * 0.08;
+      state.recording.paused_at
+        ? 0
+        : speaking === channel
+          ? 0.35 + Math.random() * 0.6
+          : Math.random() * 0.08;
     levels = {
       mic: levels.mic * 0.55 + target("mic") * 0.45,
       system: levels.system * 0.55 + target("system") * 0.45,
@@ -485,6 +494,10 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         started_at: iso(now),
         auto_stop_at: null,
         live_speakers: speakerLabels(t) !== "off",
+        paused_at: null,
+        paused_ms: 0,
+        // A meeting app named at the start is taken to be in its call until it lets go.
+        meeting_live: app,
       });
       const noteId = note.id;
       const title = note.title;
@@ -524,7 +537,15 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
         transcript.segments = transcript.segments.filter((s) => s.is_final);
         transcript.duration_ms = Date.now() - startedMs;
       }
-      setRecording({ phase: "stopping", auto_stop_at: null });
+      const pausedAt = state.recording.paused_at;
+      setRecording({
+        phase: "stopping",
+        auto_stop_at: null,
+        paused_at: null,
+        paused_ms:
+          state.recording.paused_ms +
+          (pausedAt ? Math.max(0, Date.now() - Date.parse(pausedAt)) : 0),
+      });
       // Lines still pending keep no speaker; speakers left with nothing said are dropped.
       if (transcript) {
         transcript.speakers = transcript.speakers.filter((p) =>
@@ -548,6 +569,32 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
           });
         });
       });
+      return state.recording;
+    },
+
+    pauseRecording(): RecordingState {
+      if (state.recording.phase !== "recording" && state.recording.phase !== "starting") {
+        throw appError("invalid", "There is no recording to pause.");
+      }
+      if (!state.recording.paused_at) {
+        setRecording({ paused_at: iso() });
+        speaking = null;
+      }
+      return state.recording;
+    },
+
+    resumeRecording(): RecordingState {
+      const { phase, paused_at: pausedAt, note_id: noteId } = state.recording;
+      if ((phase !== "recording" && phase !== "starting") || !noteId) {
+        throw appError("invalid", "There is no recording to resume.");
+      }
+      if (pausedAt) {
+        const pausedFor = Math.max(0, Date.now() - Date.parse(pausedAt));
+        // Paused time is not on the transcript's timeline.
+        startedMs += pausedFor;
+        setRecording({ paused_at: null, paused_ms: state.recording.paused_ms + pausedFor });
+        timers.later(PAUSE_MS, () => playUtterance(noteId));
+      }
       return state.recording;
     },
 
@@ -837,6 +884,132 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
       return foldSpeaker(findSpeaker(from), findSpeaker(into));
     },
 
+    /** The store's `move_words`: split each line at the selection and move the middle piece. */
+    moveWords(noteId: string, from: WordPoint, to: WordPoint, target: WordsTarget): WordsMoved {
+      requireNote(state, noteId);
+      const transcript = state.transcripts.get(noteId);
+      if (!transcript) throw notFound("note");
+      if (state.recording.note_id === noteId && state.recording.phase !== "idle") {
+        throw appError(
+          "invalid",
+          "Cilica is still working on this meeting. Try again once the recording is done.",
+        );
+      }
+      const speakerFor = (person: Person): Speaker => {
+        const here = transcript.speakers.find(
+          (s) => s.person_id === person.id || (person.is_self && s.is_self),
+        );
+        if (here) return here;
+        const speaker: Speaker = {
+          id: newId("spk"),
+          note_id: noteId,
+          label: person.name,
+          person_id: person.id,
+          color_index: person.color_index,
+          is_self: person.is_self,
+        };
+        transcript.speakers.push(speaker);
+        return speaker;
+      };
+      let speaker: Speaker;
+      if (target.type === "speaker") speaker = findSpeaker(target.speaker_id);
+      else if (target.type === "person") speaker = speakerFor(requirePerson(target.person_id));
+      else {
+        const name = target.name.trim();
+        if (!name) throw appError("invalid", "They need a name. Type one and try again.");
+        if (target.type === "new_person") {
+          const person: Person = {
+            id: newId("person"),
+            name,
+            color_index: (state.people.length % 8) + 1,
+            sample_count: 0,
+            meeting_count: 1,
+            created_at: iso(),
+            is_self: false,
+            last_met: null,
+          };
+          state.people.push(person);
+          speaker = speakerFor(person);
+        } else {
+          const used = new Set(transcript.speakers.map((s) => s.color_index));
+          speaker = {
+            id: newId("spk"),
+            note_id: noteId,
+            label: name,
+            person_id: null,
+            color_index: [1, 2, 3, 4, 5, 6, 7, 8].find((c) => !used.has(c)) ?? 8,
+            is_self: false,
+          };
+          transcript.speakers.push(speaker);
+        }
+      }
+      let first = transcript.segments.findIndex((g) => g.id === from.segment_id);
+      let last = transcript.segments.findIndex((g) => g.id === to.segment_id);
+      if (first < 0 || last < 0) {
+        throw appError(
+          "invalid",
+          "Those words aren't in this transcript any more. Select them again.",
+        );
+      }
+      let [a0, b0] = [from.word, to.word];
+      if (first > last) [first, last, a0, b0] = [last, first, b0, a0];
+      const moved: MovedLine[] = [];
+      const out: Segment[] = [];
+      transcript.segments.forEach((g, i) => {
+        const words = g.text.split(/\s+/).filter(Boolean);
+        const a = i === first ? a0 : 0;
+        const b = Math.min(i === last ? b0 : words.length - 1, words.length - 1);
+        if (i < first || i > last || a > b || g.speaker_id === speaker.id) {
+          out.push(g);
+          return;
+        }
+        const parts = [
+          { text: words.slice(0, a).join(" "), moved: false },
+          { text: words.slice(a, b + 1).join(" "), moved: true },
+          { text: words.slice(b + 1).join(" "), moved: false },
+        ].filter((p) => p.text);
+        const total = parts.reduce((n, p) => n + p.text.length + 1, 0);
+        let chars = 0;
+        parts.forEach((p, k) => {
+          const at = (n: number) => g.start_ms + Math.floor(((g.end_ms - g.start_ms) * n) / total);
+          const start = at(chars);
+          chars += p.text.length + 1;
+          const piece: Segment = {
+            ...g,
+            id: k === 0 ? g.id : newId("seg"),
+            text: p.text,
+            start_ms: start,
+            end_ms: k === parts.length - 1 ? g.end_ms : at(chars),
+            speaker_id: p.moved ? speaker.id : g.speaker_id,
+          };
+          out.push(piece);
+          if (p.moved) moved.push({ segment_id: piece.id, previous_speaker_id: g.speaker_id });
+        });
+      });
+      transcript.segments = out;
+      // Learning a voice needs a confirmed person and two seconds of speech.
+      const learnt =
+        Boolean(speaker.person_id) &&
+        moved.some((m) => {
+          const g = out.find((x) => x.id === m.segment_id);
+          return g ? g.end_ms - g.start_ms >= 2000 : false;
+        });
+      return { speaker, moved, learnt };
+    },
+
+    restoreMovedWords(
+      noteId: string,
+      lines: { segment_id: string; previous_speaker_id?: string | null }[],
+    ): null {
+      const transcript = state.transcripts.get(noteId);
+      if (!transcript) throw notFound("note");
+      const back = new Map(lines.map((l) => [l.segment_id, l.previous_speaker_id ?? null]));
+      transcript.segments = transcript.segments.map((g) =>
+        back.has(g.id) ? { ...g, speaker_id: back.get(g.id) ?? null } : g,
+      );
+      return null;
+    },
+
     saveSpeakerAsPerson(speakerId: string, name: string): Person {
       const speaker = findSpeaker(speakerId);
       const trimmed = name.trim();
@@ -989,6 +1162,13 @@ _From ${minutes} ${minutes === 1 ? "minute" : "minutes"} of conversation._
     meetingDetected(appName = "Zoom") {
       const meeting = { app_name: appName, app_id: null };
       emit({ type: "meeting_detected", meeting });
+      if (state.recording.phase === "recording") {
+        // As in the backend: the meeting joins this recording and calls off a pending auto-stop.
+        if (autoStopTimer) timers.stop(autoStopTimer);
+        autoStopTimer = null;
+        setRecording({ meeting_live: appName, auto_stop_at: null });
+        return;
+      }
       if (
         state.settings.recording.detect_mode === "auto_start" &&
         state.recording.phase === "idle"

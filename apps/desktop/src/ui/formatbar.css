@@ -1,5 +1,5 @@
 /* ───────── Format bar: the toolbar that floats over a text selection ─────────
-   Sized like the recorder capsule, the other floating glass pill: a 40px bar (size-control-lg)
+   A floating glass pill: a 40px bar (size-control-lg)
    holding 32px buttons (size-control) with 18px glyphs, never the 22px small icon button. */
 .nt-formatbar {
   position: fixed;

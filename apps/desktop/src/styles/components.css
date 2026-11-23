@@ -286,37 +286,10 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 @keyframes nt-word-in { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: blur(0); } }
 .nt-word-playing { background: var(--accent-soft); border-radius: 3px; box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* ───────── Recorder capsule (in-app) ───────── */
-.nt-capsule { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--size-control-lg); padding: 0 var(--space-1) 0 var(--space-3);
-  border-radius: var(--radius-pill); color: var(--ink);
-  transition: width var(--spring-bouncy-dur) var(--spring-bouncy), padding var(--spring-bouncy-dur) var(--spring-bouncy); }
-.nt-capsule .nt-iconbtn { border-radius: var(--radius-pill); width: 32px; height: 32px; }
-.nt-stop { width: 32px; height: 32px; border-radius: var(--radius-pill); border: 0; display: grid; place-items: center; cursor: pointer; background: var(--rec); color: #fff;
-  transition: transform var(--spring-snappy-dur) var(--spring-snappy), box-shadow var(--dur-base) var(--ease-out); }
-.nt-stop::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: currentColor; }
-.nt-stop:hover { transform: scale(1.06); box-shadow: 0 0 0 4px var(--rec-soft); }
-.nt-stop:active { transform: scale(.92); }
+/* ───────── Level meter ───────── */
+
 .nt-wave { display: inline-flex; align-items: center; gap: 2px; height: 20px; }
 .nt-wave i { width: 3px; height: var(--h, 30%); min-height: 3px; border-radius: 2px; background: currentColor; opacity: .85; transition: height 90ms linear; }
-.nt-capsule-extra { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 0; opacity: 0; overflow: hidden;
-  transition: max-width var(--spring-bouncy-dur) var(--spring-bouncy), opacity var(--dur-base) var(--ease-out); }
-.nt-capsule:hover .nt-capsule-extra, .nt-capsule:focus-within .nt-capsule-extra { max-width: 220px; opacity: 1; }
-.nt-capsule-idle { padding: 0 var(--space-4) 0 var(--space-3); cursor: pointer; border: 0; font: 550 14px/1 var(--font-sans); }
-.nt-capsule-idle .nt-rec-dot { animation: none; }
-
-/* ───────── Dynamic Island (separate always-on-top window) ───────── */
-.nt-island { --w: 168px; --h: 32px; position: relative; width: var(--w); height: var(--h); border-radius: calc(var(--h) / 2); overflow: hidden;
-  display: flex; align-items: center; color: #f5f3f1; background: #000;
-  box-shadow: 0 0 0 0.5px rgb(255 255 255 / .08), 0 8px 24px -8px rgb(0 0 0 / .5);
-  transition: width var(--spring-bouncy-dur) var(--spring-bouncy), height var(--spring-bouncy-dur) var(--spring-bouncy), border-radius var(--spring-bouncy-dur) var(--spring-bouncy); }
-.nt-island[data-glass] { background: rgb(28 27 26 / .72); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 0 0 0.5px rgb(255 255 255 / .1), 0 8px 24px -8px rgb(0 0 0 / .5); }
-.nt-island[data-expanded] { --w: 360px; --h: 76px; border-radius: 26px; }
-.nt-island-compact, .nt-island-full { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 12px; gap: 8px; transition: opacity var(--dur-base) var(--ease-out), transform var(--spring-bouncy-dur) var(--spring-bouncy), filter var(--dur-base) var(--ease-out); }
-.nt-island-full { padding: 0 14px 0 18px; gap: 12px; opacity: 0; transform: scale(.92); filter: blur(4px); }
-.nt-island[data-expanded] .nt-island-compact { opacity: 0; transform: scale(1.08); filter: blur(4px); }
-.nt-island[data-expanded] .nt-island-full { opacity: 1; transform: none; filter: none; }
-.nt-island .nt-wave { color: var(--rec); height: 14px; }
-.nt-island .nt-mono { font-size: 12px; color: #f5f3f1; }
 
 /* ───────── Assistant ───────── */
 .nt-thread { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -394,10 +367,6 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 .nt-toast-title { font: 600 14px/20px var(--font-sans); }
 .nt-toast-desc { font: 450 13px/18px var(--font-sans); color: var(--ink-2); }
 .nt-toast > .lucide { margin-top: 1px; }
-.nt-ring { position: relative; width: 28px; height: 28px; display: grid; place-items: center; flex: none; }
-.nt-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-.nt-ring circle { fill: none; stroke: var(--accent-text); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 75.4; animation: nt-countdown var(--t, 5s) linear forwards; }
-@keyframes nt-countdown { to { stroke-dashoffset: 75.4; } }
 
 /* ───────── Dialog ───────── */
 .nt-dialog { width: min(420px, 100%); border-radius: calc(var(--radius-xl) * var(--sq)); background: var(--bg-raised); box-shadow: inset 0 0 0 0.5px var(--line), var(--shadow-overlay);
@@ -435,7 +404,7 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 /* ───────── Reduced motion: keep feedback, drop travel ───────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
-  .nt-btn, .nt-iconbtn, .nt-switch::after, .nt-seg-thumb, .nt-toast, .nt-island, .nt-capsule, .nt-diff, .nt-chevron, .nt-collapse { transition-duration: var(--dur-fast) !important; transition-timing-function: linear !important; }
+  .nt-btn, .nt-iconbtn, .nt-switch::after, .nt-seg-thumb, .nt-toast, .nt-diff, .nt-chevron, .nt-collapse { transition-duration: var(--dur-fast) !important; transition-timing-function: linear !important; }
   .nt-btn-primary::after { display: none; }
   .nt-rec-dot { animation: none; }
   .nt-shimmer { animation: none; color: var(--ink-3); background: none; }

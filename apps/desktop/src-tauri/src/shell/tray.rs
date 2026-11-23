@@ -1,53 +1,127 @@
-//! The tray (menu bar) icon and its menu:
-//! Open Cilica · Start/Stop recording · Listening for meetings · Quit Cilica.
+//! The tray (menu bar) icon and its menu. Idle: Open Cilica · Start recording · Listening for
+//! meetings · Quit Cilica. While recording, the menu bar shows the elapsed time next to the glyph
+//! and the menu leads with what is happening and what you can do about it (RecordingStatus doc):
+//! the status line · Keep recording (only while a detected meeting is ending) · Pause or Resume ·
+//! Stop and write notes · Open note.
 
-use cilica_domain::{RecordingPhase, RecordingTrigger, Settings};
+use cilica_domain::{RecordingTrigger, Settings};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Wry};
 
 use super::Shell;
+use super::status::{Mode, Status};
 
 const OPEN: &str = "cilica.tray.open";
+const OPEN_NOTE: &str = "cilica.tray.open-note";
 const RECORD: &str = "cilica.tray.record";
+const STOP: &str = "cilica.tray.stop";
+const KEEP: &str = "cilica.tray.keep";
+const PAUSE: &str = "cilica.tray.pause";
+const STATUS: &str = "cilica.tray.status";
 const LISTEN: &str = "cilica.tray.listen";
 const QUIT: &str = "cilica.tray.quit";
+
+/// What the menu was built for. A new shape rebuilds the menu; anything else updates it in place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Shape {
+    mode: Mode,
+    has_note: bool,
+    paused: bool,
+}
+
+impl Shape {
+    fn of(status: &Status) -> Self {
+        Self { mode: status.mode, has_note: status.has_note, paused: status.paused }
+    }
+}
 
 /// Handles kept to update the menu and icon.
 pub struct Items {
     tray: TrayIcon,
-    record: MenuItem<Wry>,
     listen: CheckMenuItem<Wry>,
+    /// The disabled status line, while not idle.
+    headline: Option<MenuItem<Wry>>,
+    shape: Shape,
+}
+
+/// The menu for one shape, and the items that change while it is up.
+struct Built {
+    menu: Menu<Wry>,
+    listen: CheckMenuItem<Wry>,
+    headline: Option<MenuItem<Wry>>,
 }
 
 pub fn create(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, OPEN, "Open Cilica", true, None::<&str>)?;
-    let record = MenuItem::with_id(app, RECORD, "Start recording", true, None::<&str>)?;
-    let listen = CheckMenuItem::with_id(app, LISTEN, "Listening for meetings", true, settings.recording.auto_detect, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT, "Quit Cilica", true, None::<&str>)?;
-    let menu = Menu::with_items(
-        app,
-        &[&open, &record, &PredefinedMenuItem::separator(app)?, &listen, &PredefinedMenuItem::separator(app)?, &quit],
-    )?;
+    let idle = Status::idle();
+    let shape = Shape::of(&idle);
+    let built = build_menu(app, shape, &idle, settings.recording.auto_detect)?;
     let tray = TrayIconBuilder::with_id("cilica")
         .icon(icon(app, false))
         .icon_as_template(cfg!(target_os = "macos"))
-        .tooltip("Cilica")
-        .menu(&menu)
+        .tooltip(&idle.tooltip)
+        .menu(&built.menu)
         .show_menu_on_left_click(true)
         .build(app)?;
     if let Ok(mut items) = app.state::<Shell>().tray.lock() {
-        *items = Some(Items { tray, record, listen });
+        *items = Some(Items { tray, listen: built.listen, headline: built.headline, shape });
     }
     Ok(())
+}
+
+fn build_menu(app: &AppHandle, shape: Shape, status: &Status, listening: bool) -> tauri::Result<Built> {
+    let listen = CheckMenuItem::with_id(app, LISTEN, "Listening for meetings", true, listening, None::<&str>)?;
+    let quit = MenuItem::with_id(app, QUIT, "Quit Cilica", true, None::<&str>)?;
+    let separator = || PredefinedMenuItem::separator(app);
+    let headline = match &status.headline {
+        Some(text) if shape.mode != Mode::Idle => Some(MenuItem::with_id(app, STATUS, text, false, None::<&str>)?),
+        _ => None,
+    };
+    // Open note when there is one to open, otherwise Open Cilica.
+    let open = if shape.has_note {
+        MenuItem::with_id(app, OPEN_NOTE, "Open note", true, None::<&str>)?
+    } else {
+        MenuItem::with_id(app, OPEN, "Open Cilica", true, None::<&str>)?
+    };
+    let item = |id: &str, text: &str| MenuItem::with_id(app, id, text, true, None::<&str>);
+    let menu = Menu::new(app)?;
+    if let Some(headline) = &headline {
+        menu.append(headline)?;
+        menu.append(&separator()?)?;
+    }
+    match shape.mode {
+        Mode::Idle => {
+            menu.append(&open)?;
+            menu.append(&item(RECORD, "Start recording")?)?;
+        }
+        Mode::Recording | Mode::Ending => {
+            if shape.mode == Mode::Ending {
+                menu.append(&item(KEEP, "Keep recording")?)?;
+            }
+            menu.append(&item(PAUSE, if shape.paused { "Resume" } else { "Pause" })?)?;
+            menu.append(&item(STOP, "Stop and write notes")?)?;
+            menu.append(&separator()?)?;
+            menu.append(&open)?;
+        }
+        Mode::Finishing => menu.append(&open)?,
+    }
+    menu.append(&separator()?)?;
+    menu.append(&listen)?;
+    menu.append(&separator()?)?;
+    menu.append(&quit)?;
+    Ok(Built { menu, listen, headline })
 }
 
 /// Handle a click on one of the tray's items. Returns false for other menu ids.
 pub fn on_menu_event(app: &AppHandle, id: &str) -> bool {
     match id {
         OPEN => super::show_main(app),
+        OPEN_NOTE => super::open_recording_note(app),
         RECORD => super::toggle_recording(app, RecordingTrigger::Tray),
+        STOP => super::stop_recording(app),
+        KEEP => super::keep_recording(app),
+        PAUSE => super::toggle_pause(app),
         LISTEN => {
             let on = !app.state::<Shell>().settings().recording.auto_detect;
             // Reflect the click at once; the SettingsChanged round trip confirms it.
@@ -60,21 +134,46 @@ pub fn on_menu_event(app: &AppHandle, id: &str) -> bool {
     true
 }
 
-/// Follow the recording phase: the label says what a click will do.
-pub fn set_recording(app: &AppHandle, phase: RecordingPhase) {
+/// Bring the icon, title, tooltip and menu in line with `status`. `prev` is what they show now.
+pub fn refresh(app: &AppHandle, status: &Status, prev: &Status) {
     let shell = app.state::<Shell>();
-    let Ok(items) = shell.tray.lock() else { return };
-    let Some(items) = items.as_ref() else { return };
-    let (label, enabled, live) = match phase {
-        RecordingPhase::Starting | RecordingPhase::Recording => ("Stop recording", true, true),
-        RecordingPhase::Stopping => ("Stopping…", false, true),
-        RecordingPhase::Idle | RecordingPhase::Summarizing => ("Start recording", true, false),
+    let shape = Shape::of(status);
+    // Take what is needed and let go of the lock: building a menu hops to the main thread, which
+    // may be waiting on this lock in a menu click.
+    let Some((tray, old_shape, headline)) =
+        shell.tray.lock().ok().and_then(|items| items.as_ref().map(|i| (i.tray.clone(), i.shape, i.headline.clone())))
+    else {
+        return;
     };
-    let _ = items.record.set_text(label);
-    let _ = items.record.set_enabled(enabled);
-    let _ = items.tray.set_icon(Some(icon(app, live)));
-    let _ = items.tray.set_icon_as_template(cfg!(target_os = "macos"));
-    let _ = items.tray.set_tooltip(Some(if live { "Cilica · Recording" } else { "Cilica" }));
+    if shape != old_shape {
+        match build_menu(app, shape, status, shell.settings().recording.auto_detect) {
+            Ok(built) => {
+                let _ = tray.set_menu(Some(built.menu.clone()));
+                if let Ok(mut items) = shell.tray.lock()
+                    && let Some(items) = items.as_mut()
+                {
+                    items.listen = built.listen;
+                    items.headline = built.headline;
+                    items.shape = shape;
+                }
+            }
+            Err(error) => tracing::warn!(%error, "could not rebuild the tray menu"),
+        }
+    } else if status.headline != prev.headline
+        && let (Some(item), Some(text)) = (headline, &status.headline)
+    {
+        let _ = item.set_text(text);
+    }
+    if status.capturing() != prev.capturing() || shape != old_shape {
+        let _ = tray.set_icon(Some(icon(app, status.capturing())));
+        let _ = tray.set_icon_as_template(cfg!(target_os = "macos"));
+    }
+    if status.tray_title != prev.tray_title {
+        let _ = tray.set_title(status.tray_title.as_deref());
+    }
+    if status.tooltip != prev.tooltip {
+        let _ = tray.set_tooltip(Some(&status.tooltip));
+    }
 }
 
 pub fn set_listening(app: &AppHandle, on: bool) {
@@ -86,12 +185,18 @@ pub fn set_listening(app: &AppHandle, on: bool) {
     }
 }
 
-/// On macOS a template glyph drawn here (the ridgeline mark, with a larger sun while recording); elsewhere the app icon.
+/// On macOS a template glyph drawn here (the ridgeline mark, with a larger sun while recording);
+/// elsewhere the app icon, with a red dot in its corner while recording.
 fn icon(app: &AppHandle, recording: bool) -> Image<'static> {
     if !cfg!(target_os = "macos")
         && let Some(icon) = app.default_window_icon()
     {
-        return icon.clone().to_owned();
+        let (width, height) = (icon.width(), icon.height());
+        let mut rgba = icon.rgba().to_vec();
+        if recording {
+            super::taskbar::stamp_rec_dot(&mut rgba, width, height);
+        }
+        return Image::new_owned(rgba, width, height);
     }
     let (rgba, size) = draw_glyph(recording);
     Image::new_owned(rgba, size, size)

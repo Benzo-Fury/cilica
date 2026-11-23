@@ -19,6 +19,7 @@ import { useWindowControls } from "./useWindowControls";
 export function CanvasBand({
   start,
   center,
+  trail,
   end,
   back = Boolean(start),
 }: {
@@ -26,6 +27,8 @@ export function CanvasBand({
   back?: boolean;
   start?: ReactNode;
   center?: ReactNode;
+  /** Right after the centred control, without moving it (CanvasBandLayout). */
+  trail?: ReactNode;
   end?: ReactNode;
 }) {
   const sidebarOpen = usePanels((s) => s.sidebarOpen);
@@ -57,6 +60,7 @@ export function CanvasBand({
         </>
       }
       center={center}
+      trail={trail}
       end={
         <>
           {end}

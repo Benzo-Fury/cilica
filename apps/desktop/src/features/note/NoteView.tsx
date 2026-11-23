@@ -36,6 +36,7 @@ import {
 } from "@/features/notes/hooks";
 import { useHasSelection } from "@/features/notes/selection";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
+import { RecordingChip } from "@/features/recorder/RecordingChip";
 import { CanvasBand } from "@/features/shell/CanvasBand";
 import { usePanels } from "@/features/shell/panels";
 import { useTranscript } from "@/features/transcript/hooks";
@@ -59,7 +60,6 @@ import {
   MenuSub,
   MenuTrigger,
   PageColumn,
-  RecDot,
   ScrollArea,
   SegmentedControl,
   Shimmer,
@@ -261,14 +261,19 @@ function LoadedNote({ note }: { note: Note }) {
           mode === "history" ? (
             <span className="nt-band-title">History</span>
           ) : (
+            <SegmentedControl
+              label="Note panel"
+              options={PANELS}
+              value={panel}
+              onChange={switchPanel}
+              segmentWidth="wide"
+            />
+          )
+        }
+        trail={
+          mode === "history" ? undefined : (
             <>
-              <SegmentedControl
-                label="Note panel"
-                options={PANELS}
-                value={panel}
-                onChange={switchPanel}
-                segmentWidth="wide"
-              />
+              <RecordingChip noteId={note.id} />
               <span ref={setBandSlot} className="nt-band-slot" />
             </>
           )
@@ -406,11 +411,6 @@ function LoadedNote({ note }: { note: Note }) {
                               new Date(note.ended_at).getTime() -
                                 new Date(note.started_at).getTime(),
                             )}
-                          </Chip>
-                        )}
-                        {isRecordingHere && (
-                          <Chip tone="rec" leading={<RecDot size="sm" />}>
-                            Recording
                           </Chip>
                         )}
                         {people.length > 0 && (

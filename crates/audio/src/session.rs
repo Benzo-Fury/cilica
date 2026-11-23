@@ -72,6 +72,9 @@ pub struct CaptureSummary {
 /// A running capture. [`stop`](Self::stop) finishes the file; dropping it also stops.
 pub struct CaptureSession {
     stop: Arc<AtomicBool>,
+    /// While set, audio is read and thrown away: nothing is written or handed on, and the
+    /// recording's timeline does not move.
+    paused: Arc<AtomicBool>,
     stop_at: Arc<AtomicU64>,
     started: Instant,
     handle: Option<JoinHandle<AudioResult<CaptureSummary>>>,
@@ -82,10 +85,12 @@ impl CaptureSession {
     /// opened or the file cannot be created; a missing system source is reported as an event.
     pub fn start(config: CaptureConfig, events: Sender<CaptureEvent>) -> AudioResult<Self> {
         let stop = Arc::new(AtomicBool::new(false));
+        let paused = Arc::new(AtomicBool::new(false));
         let stop_at = Arc::new(AtomicU64::new(u64::MAX));
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<AudioResult<Instant>>();
         let thread_stop = stop.clone();
         let thread_stop_at = stop_at.clone();
+        let thread_paused = paused.clone();
         let handle = std::thread::Builder::new()
             .name("cilica-capture".into())
             .spawn(move || {
@@ -98,17 +103,23 @@ impl CaptureSession {
                     }
                 };
                 let _ = ready_tx.send(Ok(worker.started));
-                worker.run(&thread_stop, &thread_stop_at)
+                worker.run(&thread_stop, &thread_stop_at, &thread_paused)
             })
             .map_err(AudioError::Io)?;
         match ready_rx.recv() {
-            Ok(Ok(started)) => Ok(Self { stop, stop_at, started, handle: Some(handle) }),
+            Ok(Ok(started)) => Ok(Self { stop, paused, stop_at, started, handle: Some(handle) }),
             Ok(Err(e)) => {
                 let _ = handle.join();
                 Err(e)
             }
             Err(_) => Err(AudioError::Device("the capture thread stopped unexpectedly".into())),
         }
+    }
+
+    /// Pause or resume. Paused audio is not kept, so the file and the transcript simply carry on
+    /// from where they stopped.
+    pub fn set_paused(&self, paused: bool) {
+        self.paused.store(paused, Ordering::SeqCst);
     }
 
     /// Milliseconds since capture started.
@@ -279,8 +290,10 @@ impl Worker {
         })
     }
 
-    fn run(&mut self, stop: &AtomicBool, stop_at: &AtomicU64) -> AudioResult<CaptureSummary> {
+    fn run(&mut self, stop: &AtomicBool, stop_at: &AtomicU64, paused: &AtomicBool) -> AudioResult<CaptureSummary> {
+        // Frames taken off the sources (wall clock) and frames kept (the recording's timeline).
         let mut emitted: u64 = 0;
+        let mut kept: u64 = 0;
         let mut last_level = Instant::now();
         let mut last_probe = Instant::now();
         let mut mic_frame = vec![0.0f32; FRAME_SAMPLES];
@@ -308,9 +321,14 @@ impl Worker {
             } else {
                 wall.saturating_sub(LATENCY)
             };
+            let pausing = paused.load(Ordering::SeqCst) && !stopping;
             while emitted + FRAME_SAMPLES as u64 <= target {
                 self.mic.take_frame(&mut mic_frame);
                 self.sys.take_frame(&mut sys_frame);
+                if pausing {
+                    emitted += FRAME_SAMPLES as u64;
+                    continue;
+                }
                 if self.sys.stream.is_some() {
                     self.aec.process(&sys_frame, &mut mic_frame);
                 }
@@ -332,7 +350,7 @@ impl Worker {
                         continue;
                     }
                     if lane.chunk.is_empty() {
-                        lane.chunk_start = emitted;
+                        lane.chunk_start = kept;
                     }
                     lane.chunk.extend_from_slice(frame);
                     if lane.chunk.len() >= FRAME_SAMPLES * CHUNK_FRAMES {
@@ -341,6 +359,7 @@ impl Worker {
                     }
                 }
                 emitted += FRAME_SAMPLES as u64;
+                kept += FRAME_SAMPLES as u64;
             }
 
             // A fixed cadence (not "50 ms after the last one"), so sleep overshoot does not
@@ -500,6 +519,46 @@ mod tests {
 
     fn tone(rate: u32, freq: f32, secs: f32) -> Arc<Vec<f32>> {
         Arc::new((0..(rate as f32 * secs) as usize).map(|i| 0.3 * (2.0 * std::f32::consts::PI * freq * i as f32 / rate as f32).sin()).collect())
+    }
+
+    #[test]
+    fn paused_audio_is_not_kept() {
+        let dir = std::env::temp_dir().join(format!("cilica-session-pause-{}", std::process::id()));
+        let wav = dir.join("rec.wav");
+        let config = CaptureConfig {
+            mic: Box::new(FakeSource {
+                kind: SourceKind::Mic,
+                rate: 16_000,
+                clip: tone(16_000, 300.0, 5.0),
+                fail_after: None,
+                opens: Arc::new(Mutex::new(0)),
+            }),
+            system: None,
+            wav_path: wav.clone(),
+            echo_cancel: false,
+            follow_default_input: false,
+            mute_start_ms: 0,
+        };
+        let (tx, rx) = crossbeam_channel::unbounded();
+        let session = CaptureSession::start(config, tx).unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+        session.set_paused(true);
+        std::thread::sleep(Duration::from_millis(800));
+        session.set_paused(false);
+        std::thread::sleep(Duration::from_millis(500));
+        let summary = session.stop().unwrap();
+        // About a second kept of the 1.8 s that passed.
+        assert!((700..1_300).contains(&summary.duration_ms), "kept {} ms", summary.duration_ms);
+        // Chunks follow each other on the kept timeline, with no gap where the pause was.
+        let mut next = 0u64;
+        for event in rx.try_iter() {
+            if let CaptureEvent::Audio { start, samples, .. } = event {
+                assert_eq!(start, next);
+                next = start + samples.len() as u64;
+            }
+        }
+        assert!(next > 0);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

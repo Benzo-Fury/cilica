@@ -30,6 +30,7 @@ import type {
   Message_Serialize,
   MessagePart_Serialize,
   ModelDownloadProgress_Serialize,
+  MovedLine_Serialize,
   NearWord_Serialize,
   Note_Serialize,
   NoteQuery_Deserialize,
@@ -71,6 +72,9 @@ import type {
   UpdateInfo_Serialize,
   UpdateSettings_Serialize,
   ViewContext_Deserialize,
+  WordPoint,
+  WordsMoved_Serialize,
+  WordsTarget,
 } from "./bindings";
 
 export type {
@@ -98,7 +102,6 @@ export type {
   ImportPhase,
   ImportRunStatus,
   ImportSample,
-  IslandInfo,
   LinkReason,
   LinkSuggestion,
   LocalLlmModel,
@@ -194,6 +197,9 @@ export type SwearJar = SwearJar_Serialize;
 export type SwearPerson = SwearPerson_Serialize;
 export type Segment = Segment_Serialize;
 export type Speaker = Speaker_Serialize;
+export type MovedLine = MovedLine_Serialize;
+export type WordsMoved = WordsMoved_Serialize;
+export type { WordPoint, WordsTarget };
 export type Person = Person_Serialize;
 export type PersonMeeting = PersonMeeting_Serialize;
 export type PersonVoice = PersonVoice_Serialize;

@@ -1,17 +1,20 @@
-//! The native shell around the webview: window material, theme, tray, global hotkey, the Dynamic
-//! Island window, the first-run setup window, the macOS app menu, the spell checker, close and quit behaviour, haptics. Owner: Core agent.
+//! The native shell around the webview: window material, theme, tray, taskbar and Dock, global
+//! hotkey, the first-run setup window, the macOS app menu, the spell checker, close and quit behaviour, haptics. Owner: Core agent.
 //!
 //! State lives in one managed [`Shell`]. It learns about recording and settings changes by
 //! listening to backend events (see [`crate::events`]), so other areas never call into it.
 
 pub mod haptics;
 pub mod hotkey;
-pub mod island;
 pub mod material;
 pub mod onboarding;
 #[cfg(target_os = "macos")]
 pub mod menu;
 pub mod spelling;
+pub mod status;
+pub mod taskbar;
+#[cfg(target_os = "windows")]
+pub mod thumbbar;
 pub mod titlebar;
 pub mod tray;
 
@@ -45,7 +48,10 @@ pub struct Shell {
     pub(crate) material: Mutex<material::State>,
     pub(crate) hotkey: Mutex<Option<hotkey::Registered>>,
     pub(crate) tray: Mutex<Option<tray::Items>>,
-    pub(crate) island_visible: AtomicBool,
+    /// What the tray and taskbar show now.
+    status: Mutex<status::Status>,
+    /// The once-a-second refresh of the tray and taskbar is running.
+    ticking: AtomicBool,
     /// Setup is closing; a second Open Cilica or close does nothing until it is done.
     pub(crate) onboarding_finishing: AtomicBool,
 }
@@ -63,7 +69,8 @@ impl Shell {
             material: Mutex::new(material::State::default()),
             hotkey: Mutex::new(None),
             tray: Mutex::new(None),
-            island_visible: AtomicBool::new(false),
+            status: Mutex::new(status::Status::idle()),
+            ticking: AtomicBool::new(false),
             onboarding_finishing: AtomicBool::new(false),
         }
     }
@@ -108,7 +115,7 @@ pub fn error_toast(title: impl Into<String>, description: impl Into<String>) -> 
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 
-/// Build the shell: theme and material on the main window, the island window, the tray, the
+/// Build the shell: theme and material on the main window, the tray, the taskbar buttons, the
 /// global hotkey, launch at login, and the event listener that keeps them in step.
 pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
     let mut settings = tauri::async_runtime::block_on(core.db.get_settings())?;
@@ -117,9 +124,6 @@ pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
 
     apply_theme(app, settings.appearance.theme);
     material::sync(app);
-    if let Err(error) = island::create(app) {
-        tracing::warn!(%error, "could not create the island window");
-    }
     // First launch: setup gets its own window and the main window waits until it is done.
     if !settings.onboarding_done
         && let Err(error) = onboarding::create(app)
@@ -128,6 +132,10 @@ pub fn setup(app: &AppHandle, core: &Core) -> cilica_domain::AppResult<()> {
     }
     if let Err(error) = tray::create(app, &settings) {
         tracing::warn!(%error, "could not create the tray icon");
+    }
+    #[cfg(target_os = "windows")]
+    if let Some(window) = app.get_webview_window(MAIN) {
+        thumbbar::install(&window);
     }
     hotkey::sync(app, &settings);
     // Keep the login item pointing at this copy of the app. Skipped in debug builds so a dev
@@ -165,8 +173,8 @@ fn reload_focused_window(app: &AppHandle) {
     }
 }
 
-/// React to backend events: recording state drives the tray label and the island; settings
-/// changes apply their side effects.
+/// React to backend events: recording state drives the tray and the taskbar; settings changes
+/// apply their side effects.
 fn on_app_event(app: &AppHandle, event: &AppEvent) {
     match event {
         AppEvent::RecordingStateChanged { state } => {
@@ -174,8 +182,8 @@ fn on_app_event(app: &AppHandle, event: &AppEvent) {
             if let Ok(mut current) = shell.recording.lock() {
                 *current = state.clone();
             }
-            tray::set_recording(app, state.phase);
-            island::sync(app);
+            refresh_status(app);
+            start_ticking(app);
         }
         AppEvent::SettingsChanged { settings } => apply_settings(app, settings),
         _ => {}
@@ -230,7 +238,7 @@ pub(crate) fn window_theme(mode: ThemeMode) -> Option<Theme> {
     mode.is_dark().map(|dark| if dark { Theme::Dark } else { Theme::Light })
 }
 
-/// The main and setup windows follow the theme setting; the island is always dark.
+/// The main and setup windows follow the theme setting.
 fn apply_theme(app: &AppHandle, mode: ThemeMode) {
     let theme = window_theme(mode);
     for label in [MAIN, onboarding::LABEL] {
@@ -268,6 +276,84 @@ fn sync_autostart(app: &AppHandle, enabled: bool) {
             if enabled { "Cilica could not turn on Open at login" } else { "Cilica could not turn off Open at login" },
             "Check Login Items in your system settings and try again.",
         ));
+    }
+}
+
+// ── Recording status in the tray and taskbar ───────────────────────────────
+
+/// How often the tray and taskbar re-read the clock while a recording is going. Only what changed
+/// is pushed to the OS, so this mostly costs a comparison.
+const TICK: Duration = Duration::from_millis(250);
+
+/// Work out what the tray and taskbar should say now and push whatever changed.
+fn refresh_status(app: &AppHandle) {
+    let shell = app.state::<Shell>();
+    let Some(recording) = shell.recording.lock().ok().map(|r| r.clone()) else { return };
+    let next = status::status(&recording, cilica_domain::now());
+    let Some(prev) = shell.status.lock().ok().map(|mut current| std::mem::replace(&mut *current, next.clone())) else { return };
+    if next == prev {
+        return;
+    }
+    tray::refresh(app, &next, &prev);
+    taskbar::refresh(app, &next, &prev);
+}
+
+/// Keep the timer moving while a recording is going; stops by itself once it is idle.
+fn start_ticking(app: &AppHandle) {
+    let shell = app.state::<Shell>();
+    if shell.recording_phase() == RecordingPhase::Idle || shell.ticking.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(TICK).await;
+            refresh_status(&app);
+            let shell = app.state::<Shell>();
+            if shell.recording_phase() == RecordingPhase::Idle {
+                shell.ticking.store(false, Ordering::SeqCst);
+                // A recording may have started between the check and the store.
+                if shell.recording_phase() == RecordingPhase::Idle || shell.ticking.swap(true, Ordering::SeqCst) {
+                    return;
+                }
+            }
+        }
+    });
+}
+
+/// Open the recording's note in the main window (tray, taskbar), or just the window if it has none.
+pub fn open_recording_note(app: &AppHandle) {
+    let shell = app.state::<Shell>();
+    let note_id = shell.recording.lock().ok().and_then(|r| r.note_id);
+    show_main(app);
+    if let Some(note_id) = note_id {
+        shell.events.emit(AppEvent::OpenNote { note_id });
+    }
+}
+
+/// Stop capture and write the notes (tray, taskbar). Unlike [`toggle_recording`] it never starts one.
+pub fn stop_recording(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = crate::commands::recording::stop(&app).await {
+            app.state::<Shell>().toast(error_toast("Recording did not stop", error.message));
+        }
+    });
+}
+
+/// Pause, or resume a paused recording (tray, taskbar).
+pub fn toggle_pause(app: &AppHandle) {
+    let paused = app.state::<Shell>().recording.lock().is_ok_and(|r| r.paused_at.is_some());
+    if let Err(error) = crate::commands::recording::toggle_pause(app) {
+        let title = if paused { "Recording did not resume" } else { "Recording did not pause" };
+        app.state::<Shell>().toast(error_toast(title, error.message));
+    }
+}
+
+/// Cancel the auto-stop after a detected meeting ended (tray, taskbar).
+pub fn keep_recording(app: &AppHandle) {
+    if let Err(error) = crate::commands::recording::keep(app) {
+        app.state::<Shell>().toast(error_toast("Recording will still stop", error.message));
     }
 }
 
@@ -333,7 +419,6 @@ pub fn on_window_event(window: &Window, event: &WindowEvent) {
         }
         WindowEvent::Focused(focused) => {
             shell.main_focused.store(*focused, Ordering::Relaxed);
-            island::sync(app);
             if *focused {
                 // Picks up a Reduce transparency change made while Cilica was in the background.
                 material::sync(app);

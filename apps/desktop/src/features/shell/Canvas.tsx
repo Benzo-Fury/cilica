@@ -1,6 +1,6 @@
 /**
  * The canvas content for the current view. Views cross-fade with a short slide (`springs.gentle`);
- * a note opened from the sidebar slides in from the left. The recorder capsule floats above.
+ * a note opened from the sidebar slides in from the left.
  * At launch the first view rises in on its own while the intro holds (intro.ts).
  */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -12,7 +12,6 @@ import { HomeView } from "@/features/home/HomeView";
 import { GraphView } from "@/features/links/GraphView";
 import { NoteView } from "@/features/note/NoteView";
 import { PeopleView } from "@/features/people/PeopleView";
-import { RecorderCapsule } from "@/features/recorder/RecorderCapsule";
 import { SettingsView } from "@/features/settings/SettingsView";
 import { SwearJarLayer } from "@/features/swearjar/SwearJarLayer";
 import { TasksView } from "@/features/tasks/TasksView";
@@ -83,7 +82,6 @@ export function Canvas() {
           {renderView(view)}
         </motion.div>
       </AnimatePresence>
-      <RecorderCapsule />
       <SwearJarLayer />
     </>
   );

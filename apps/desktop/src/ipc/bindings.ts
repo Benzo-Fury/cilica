@@ -112,15 +112,6 @@ export const commands = {
 	 *  title-bar double-clicks asks (fill, zoom, minimise or nothing), with the system's animation.
 	 */
 	titleBarDoubleClick: () => __TAURI_INVOKE<null>("title_bar_double_click"),
-	/**
-	 *  Show the Dynamic Island top-centre of the active display, without taking focus.
-	 *  It also shows and hides by itself: while recording with the main window unfocused.
-	 */
-	showIsland: () => __TAURI_INVOKE<null>("show_island"),
-	hideIsland: () => __TAURI_INVOKE<null>("hide_island"),
-	/**  Resize the island window in points (compact 168 × 32, expanded 360 × 76); it stays centred. */
-	setIslandSize: (width: number | null, height: number | null) => __TAURI_INVOKE<null>("set_island_size", { width, height }),
-	getIslandInfo: () => __TAURI_INVOKE<IslandInfo>("get_island_info"),
 	/**  Trackpad feedback on macOS (`alignment`, `generic`, `level_change`); does nothing elsewhere. */
 	performHaptic: (kind: HapticKind) => __TAURI_INVOKE<null>("perform_haptic", { kind }),
 	getRecordingState: () => __TAURI_INVOKE<RecordingState_Serialize>("get_recording_state"),
@@ -129,6 +120,9 @@ export const commands = {
 	stopRecording: () => __TAURI_INVOKE<RecordingState_Serialize>("stop_recording"),
 	/**  Cancel a pending auto-stop after the meeting app released the mic. */
 	keepRecording: () => __TAURI_INVOKE<RecordingState_Serialize>("keep_recording"),
+	/**  Pause capture: nothing is recorded or transcribed until it resumes. */
+	pauseRecording: () => __TAURI_INVOKE<RecordingState_Serialize>("pause_recording"),
+	resumeRecording: () => __TAURI_INVOKE<RecordingState_Serialize>("resume_recording"),
 	listInputDevices: () => __TAURI_INVOKE<AudioDevice[]>("list_input_devices"),
 	getPermissions: () => __TAURI_INVOKE<Permissions>("get_permissions"),
 	/**  Trigger the OS prompt where one exists. */
@@ -178,6 +172,17 @@ export const commands = {
 	linkSpeaker: (speakerId: string, personId: string | null) => __TAURI_INVOKE<Speaker_Serialize>("link_speaker", { speakerId, personId }),
 	/**  "This speaker is that one": every line of `from` moves to `into`, which is returned. */
 	mergeSpeakers: (from: string, into: string) => __TAURI_INVOKE<Speaker_Serialize>("merge_speakers", { from, into }),
+	/**
+	 *  "These words were said by someone else": the words from `from` to `to` (both included) move
+	 *  to `target`, splitting the lines they were in. If that is someone confirmed as a Saved person,
+	 *  Cilica learns their voice from the words when the recording is still there.
+	 */
+	moveWords: (noteId: string, from: WordPoint, to: WordPoint, target: WordsTarget) => __TAURI_INVOKE<WordsMoved_Serialize>("move_words", { noteId, from, to, target }),
+	/**
+	 *  Undo [`move_words`]: each moved line goes back to who said it before, and any voice Cilica
+	 *  learnt from it is taken back.
+	 */
+	restoreMovedWords: (noteId: string, lines: MovedLine_Deserialize[]) => __TAURI_INVOKE<null>("restore_moved_words", { noteId, lines }),
 	saveSpeakerAsPerson: (speakerId: string, name: string) => __TAURI_INVOKE<Person_Serialize>("save_speaker_as_person", { speakerId, name }),
 	listSpeakerSuggestions: (noteId: string) => __TAURI_INVOKE<SpeakerSuggestion[]>("list_speaker_suggestions", { noteId }),
 	listPeople: () => __TAURI_INVOKE<Person_Serialize[]>("list_people"),
@@ -1117,15 +1122,6 @@ export type ImportSample_Serialize = {
 	excerpt: string,
 };
 
-/**  Where the Dynamic Island sits, for its styling. */
-export type IslandInfo = {
-	/**
-	 *  The active display has a camera notch: paint true black, flush under the menu bar.
-	 *  Otherwise use dark glass.
-	 */
-	has_notch: boolean,
-};
-
 export type LinkGraph = LinkGraph_Serialize | LinkGraph_Deserialize;
 
 export type LinkGraph_Deserialize = {
@@ -1317,6 +1313,21 @@ export type MoveGroup_Serialize = {
 	/**  `None` moves the notes out of every category. */
 	category_id: string | null,
 	category_name: string,
+};
+
+/**  A line that words were moved into, and who said it before, so the move can be undone. */
+export type MovedLine = MovedLine_Serialize | MovedLine_Deserialize;
+
+/**  A line that words were moved into, and who said it before, so the move can be undone. */
+export type MovedLine_Deserialize = {
+	segment_id: string,
+	previous_speaker_id?: string | null,
+};
+
+/**  A line that words were moved into, and who said it before, so the move can be undone. */
+export type MovedLine_Serialize = {
+	segment_id: string,
+	previous_speaker_id: string | null,
 };
 
 /**  Who put a Saved person's name on a meeting's speaker. */
@@ -1997,6 +2008,15 @@ export type RecordingState_Deserialize = {
 	 *  and the call is "Others".
 	 */
 	live_speakers?: boolean,
+	/**  Set while the recording is paused: nothing is captured until it resumes. */
+	paused_at?: string | null,
+	/**  Time spent paused before `paused_at`, so the elapsed time leaves pauses out. */
+	paused_ms?: number,
+	/**
+	 *  While recording: a meeting app in this recording that is still in its call. Stop asks
+	 *  before ending the recording while this is set.
+	 */
+	meeting_live?: string | null,
 };
 
 export type RecordingState_Serialize = {
@@ -2012,6 +2032,15 @@ export type RecordingState_Serialize = {
 	 *  and the call is "Others".
 	 */
 	live_speakers: boolean,
+	/**  Set while the recording is paused: nothing is captured until it resumes. */
+	paused_at: string | null,
+	/**  Time spent paused before `paused_at`, so the elapsed time leaves pauses out. */
+	paused_ms: number,
+	/**
+	 *  While recording: a meeting app in this recording that is still in its call. Stop asks
+	 *  before ending the recording while this is set.
+	 */
+	meeting_live: string | null,
 };
 
 export type RecordingTrigger = "manual" | "hotkey" | "tray" | "detected";
@@ -2626,7 +2655,11 @@ export type ThemeMode = "system" | "light" | "dark" |
 /**  A sage light palette over a pine forest. */
 "pines" | 
 /**  A sand light palette over desert buttes. */
-"mesa";
+"mesa" | 
+/**  A sea-glass light palette over open sea, a headland and a lighthouse. */
+"ocean" | 
+/**  A navy dark palette over the same sea by moonlight. */
+"ocean_night";
 
 export type Thread = {
 	id: string,
@@ -3053,6 +3086,46 @@ export type VoiceShape_Serialize = {
 	/**  Newest first. */
 	samples: VoiceSampleShape_Serialize[],
 };
+
+/**  One word of a line: the `word`-th word (0-based, counted by whitespace) of a segment's text. */
+export type WordPoint = {
+	segment_id: string,
+	word: number,
+};
+
+/**  What moving words to someone did. */
+export type WordsMoved = WordsMoved_Serialize | WordsMoved_Deserialize;
+
+/**  What moving words to someone did. */
+export type WordsMoved_Deserialize = {
+	/**  The speaker the words are theirs now. */
+	speaker: Speaker_Deserialize,
+	/**  The lines they became, empty when they were theirs already. */
+	moved: MovedLine_Deserialize[],
+	/**  Cilica learnt the person's voice from these words. */
+	learnt: boolean,
+};
+
+/**  What moving words to someone did. */
+export type WordsMoved_Serialize = {
+	/**  The speaker the words are theirs now. */
+	speaker: Speaker_Serialize,
+	/**  The lines they became, empty when they were theirs already. */
+	moved: MovedLine_Serialize[],
+	/**  Cilica learnt the person's voice from these words. */
+	learnt: boolean,
+};
+
+/**  Who words someone selected were said by. */
+export type WordsTarget = 
+/**  Someone already heard in this meeting. */
+{ type: "speaker"; speaker_id: string } | 
+/**  A Saved person, whether or not they were heard in this meeting yet. */
+{ type: "person"; person_id: string } | 
+/**  A new Saved person with this name. */
+{ type: "new_person"; name: string } | 
+/**  Someone named for this meeting only. */
+{ type: "label"; name: string };
 
 export type WritingHours = {
 	/**  Saves per hour of the day, local time, midnight first. Always 24 long. */

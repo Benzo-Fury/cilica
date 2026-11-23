@@ -187,5 +187,8 @@ export function idleRecording(): RecordingState {
     started_at: null,
     auto_stop_at: null,
     live_speakers: false,
+    paused_at: null,
+    paused_ms: 0,
+    meeting_live: null,
   };
 }

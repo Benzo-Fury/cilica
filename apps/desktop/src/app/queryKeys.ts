@@ -54,7 +54,6 @@ export const qk = {
   ollamaStatus: ["ollama_status"] as const,
   permissions: ["permissions"] as const,
   inputDevices: ["input_devices"] as const,
-  islandInfo: ["island_info"] as const,
   homeGlance: ["home_glance"] as const,
   swearJar: ["swear_jar"] as const,
   swearWords: ["swear_words"] as const,

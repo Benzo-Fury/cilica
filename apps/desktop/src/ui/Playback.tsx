@@ -1,6 +1,6 @@
 /**
- * Playback controls for a recorded meeting (AppTranscript mockup): they take over the capsule's
- * place after recording. Back 15s, play/pause, forward 15s, time, a scrubber and speed.
+ * Playback controls for a recorded meeting (AppTranscript mockup), shown
+ * after recording. Back 15s, play/pause, forward 15s, time, a scrubber and speed.
  */
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, useRef, useState } from "react";

@@ -52,6 +52,23 @@ pub async fn toggle_recording(app: &AppHandle, trigger: RecordingTrigger) -> App
     service.toggle(trigger).await
 }
 
+/// Stop capture and write the notes. The tray and the taskbar's Stop button (Core) call this.
+pub async fn stop(app: &AppHandle) -> AppResult<RecordingState> {
+    let service = area(app)?.service.clone();
+    service.stop().await
+}
+
+/// Pause if recording, resume if paused. The tray and the taskbar's Pause button (Core) call this.
+pub fn toggle_pause(app: &AppHandle) -> AppResult<RecordingState> {
+    let area = area(app)?;
+    if area.service.state().paused_at.is_some() { area.service.resume() } else { area.service.pause() }
+}
+
+/// Cancel a pending auto-stop. The tray and the taskbar's Keep recording button (Core) call this.
+pub fn keep(app: &AppHandle) -> AppResult<RecordingState> {
+    Ok(area(app)?.service.keep_recording())
+}
+
 /// True from the moment a recording starts until its summary is written. The scheduler (AI) checks
 /// this so tasks never run during a meeting.
 pub fn is_recording(app: &AppHandle) -> bool {
@@ -115,6 +132,19 @@ pub async fn start_recording(area: State<'_, RecordingArea>, options: StartRecor
 #[specta::specta]
 pub async fn stop_recording(area: State<'_, RecordingArea>) -> AppResult<RecordingState> {
     area.service.stop().await
+}
+
+/// Pause capture: nothing is recorded or transcribed until it resumes.
+#[tauri::command]
+#[specta::specta]
+pub async fn pause_recording(area: State<'_, RecordingArea>) -> AppResult<RecordingState> {
+    area.service.pause()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn resume_recording(area: State<'_, RecordingArea>) -> AppResult<RecordingState> {
+    area.service.resume()
 }
 
 /// Cancel a pending auto-stop after the meeting app released the mic.
@@ -402,6 +432,50 @@ pub async fn merge_speakers(core: State<'_, Core>, from: Id, into: Id) -> AppRes
     let speaker = core.db.merge_speaker_into(from, into).await?;
     people_changed(&core);
     Ok(speaker)
+}
+
+/// "These words were said by someone else": the words from `from` to `to` (both included) move
+/// to `target`, splitting the lines they were in. If that is someone confirmed as a Saved person,
+/// Cilica learns their voice from the words when the recording is still there.
+#[tauri::command]
+#[specta::specta]
+pub async fn move_words(core: State<'_, Core>, area: State<'_, RecordingArea>, note_id: Id, from: WordPoint, to: WordPoint, target: WordsTarget) -> AppResult<WordsMoved> {
+    if area.service.is_working_on(note_id) {
+        return Err(AppError::invalid("Cilica is still working on this meeting. Try again once the recording is done."));
+    }
+    let speaker = match target {
+        WordsTarget::Speaker { speaker_id } => core.db.get_speaker(speaker_id).await?,
+        WordsTarget::Person { person_id } => core.db.speaker_for_person(note_id, person_id).await?,
+        WordsTarget::NewPerson { name } => {
+            let person = core.db.create_person(&name, None).await?;
+            core.db.speaker_for_person(note_id, person.id).await?
+        }
+        WordsTarget::Label { name } => core.db.speaker_named(note_id, &name).await?,
+    };
+    let moved = core.db.move_words(note_id, from, to, speaker.id).await?;
+    let mut learnt = false;
+    if let Some(first) = moved.first()
+        && core.db.learns_from_words(speaker.id).await?
+    {
+        let ids: Vec<Id> = moved.iter().map(|m| m.segment_id).collect();
+        let lines: Vec<Segment> = core.db.list_segments(note_id).await?.into_iter().filter(|s| ids.contains(&s.id)).collect();
+        if let Some((embedding, speech_ms)) = area.service.voiceprint_of_lines(note_id, &lines).await {
+            learnt = core.db.learn_moved_words(speaker.id, first.segment_id, &embedding, speech_ms).await?;
+        }
+    }
+    people_changed(&core);
+    let speaker = core.db.get_speaker(speaker.id).await?;
+    Ok(WordsMoved { speaker, moved, learnt })
+}
+
+/// Undo [`move_words`]: each moved line goes back to who said it before, and any voice Cilica
+/// learnt from it is taken back.
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_moved_words(core: State<'_, Core>, note_id: Id, lines: Vec<MovedLine>) -> AppResult<()> {
+    core.db.restore_moved_words(note_id, &lines).await?;
+    people_changed(&core);
+    Ok(())
 }
 
 #[tauri::command]

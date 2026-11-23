@@ -164,6 +164,12 @@ impl LiveSession {
         Ok(Self { capture, stopping, draining: Draining { router: Some(router), stt: Some(stt), speakers, persister: Some(persister) } })
     }
 
+    /// Pause or resume capture. Paused audio is dropped, so the transcript's timeline carries on
+    /// from where it stopped.
+    pub fn set_paused(&self, paused: bool) {
+        self.capture.set_paused(paused);
+    }
+
     /// Stop capturing now and finish the audio file. Blocking (joins the capture thread). The
     /// returned [`Draining`] completes once the transcript has caught up.
     pub fn stop(self) -> (Result<CaptureSummary, String>, Draining) {

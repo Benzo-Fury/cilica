@@ -1,5 +1,5 @@
 //! Bridges `cilica_domain::AppEvent` to the webview as one typed tauri-specta event, and fans each
-//! event out to in-process listeners in the shell (tray label, quit guard, Dynamic Island).
+//! event out to in-process listeners in the shell (tray and taskbar, quit guard).
 //!
 //! Crates keep calling `core.events.emit(...)` as before; listeners are added with
 //! [`crate::core::Core::on_event`] and never change how anything else emits.

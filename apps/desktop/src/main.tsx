@@ -5,7 +5,6 @@ import "@/styles/index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 const windowKind = new URLSearchParams(window.location.search).get("window");
-const isIsland = windowKind === "island";
 const isOnboarding = windowKind === "onboarding";
 const isInstaller = windowKind === "installer";
 
@@ -17,16 +16,7 @@ function showWhenRendered(show: () => Promise<unknown>, name: string) {
   }, 0);
 }
 
-// The Dynamic Island is a second window loading this same bundle; it renders only the island.
-if (isIsland) {
-  void import("@/features/island/IslandWindow").then(({ IslandWindow }) =>
-    root.render(
-      <React.StrictMode>
-        <IslandWindow />
-      </React.StrictMode>,
-    ),
-  );
-} else if (isInstaller) {
+if (isInstaller) {
   // Cilica Setup's window on Windows (apps/setup), a separate program with its own commands.
   void Promise.all([
     import("@/features/installer/InstallerWindow"),

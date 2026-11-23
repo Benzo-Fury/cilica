@@ -28,11 +28,40 @@ pub struct RecordingState {
     /// and the call is "Others".
     #[serde(default)]
     pub live_speakers: bool,
+    /// Set while the recording is paused: nothing is captured until it resumes.
+    #[serde(default)]
+    pub paused_at: Option<Timestamp>,
+    /// Time spent paused before `paused_at`, so the elapsed time leaves pauses out.
+    #[serde(default)]
+    pub paused_ms: u32,
+    /// While recording: a meeting app in this recording that is still in its call. Stop asks
+    /// before ending the recording while this is set.
+    #[serde(default)]
+    pub meeting_live: Option<String>,
 }
 
 impl RecordingState {
     pub fn idle() -> Self {
-        Self { phase: RecordingPhase::Idle, note_id: None, meeting_app: None, started_at: None, auto_stop_at: None, live_speakers: false }
+        Self {
+            phase: RecordingPhase::Idle,
+            note_id: None,
+            meeting_app: None,
+            started_at: None,
+            auto_stop_at: None,
+            live_speakers: false,
+            paused_at: None,
+            paused_ms: 0,
+            meeting_live: None,
+        }
+    }
+
+    /// Milliseconds recorded so far at `now`, leaving out time spent paused.
+    pub fn elapsed_ms(&self, now: Timestamp) -> i64 {
+        let Some(started) = self.started_at else {
+            return 0;
+        };
+        let until = self.paused_at.unwrap_or(now);
+        ((until - started).num_milliseconds() - self.paused_ms as i64).max(0)
     }
 }
 

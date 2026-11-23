@@ -1,5 +1,5 @@
 /**
- * Recording state and actions: the capsule, sidebar, island and ⌘⇧R all go through these.
+ * Recording state and actions: the note's recording chip, the sidebar and ⌘⇧R all go through these.
  * State comes from `getRecordingState` and stays current through `recording_state_changed`
  * (the event bridge writes it into the query cache).
  */
@@ -15,7 +15,13 @@ import type { AudioLevels, RecordingState, RecordingTrigger, Settings } from "@/
 import { cue } from "@/lib/sound";
 import { toast } from "@/lib/toast";
 
-export { type CapsuleMode, capsuleMode, isFinishing } from "./model";
+export {
+  elapsedMs,
+  isFinishing,
+  type RecorderMode,
+  recorderMode,
+  stopNeedsConfirm,
+} from "./model";
 
 const IDLE: RecordingState = {
   phase: "idle",
@@ -24,6 +30,9 @@ const IDLE: RecordingState = {
   started_at: null,
   auto_stop_at: null,
   live_speakers: false,
+  paused_at: null,
+  paused_ms: 0,
+  meeting_live: null,
 };
 
 /** Live recording state: fetched once, then kept current by `recording_state_changed`. */
@@ -148,6 +157,25 @@ export function useToggleRecording() {
   );
 }
 
+/** Pause, or resume a paused recording. */
+export function usePauseRecording() {
+  const queryClient = useQueryClient();
+  return useCallback(async () => {
+    const state = queryClient.getQueryData<RecordingState>(qk.recording) ?? IDLE;
+    const paused = state.paused_at !== null;
+    try {
+      queryClient.setQueryData(
+        qk.recording,
+        await (paused ? api.resumeRecording() : api.pauseRecording()),
+      );
+    } catch (error) {
+      toast.error(paused ? "Recording did not resume" : "Recording did not pause", {
+        description: errorMessage(error),
+      });
+    }
+  }, [queryClient]);
+}
+
 export function useKeepRecording() {
   const queryClient = useQueryClient();
   return useCallback(async () => {
@@ -199,12 +227,6 @@ export function useAudioLevels(active: boolean): AudioLevels {
     if (!active) setLevels({ mic: 0, system: 0 });
   }, [active]);
   return levels;
-}
-
-/** A per-bar wobble that changes with each level update, so a steady level still looks alive. */
-export function useJitter(levels: AudioLevels, bars = 12): number[] {
-  const seed = (levels.mic ?? 0) * 13.7 + (levels.system ?? 0) * 7.3;
-  return Array.from({ length: bars }, (_, i) => 0.5 + 0.5 * Math.abs(Math.sin(seed * 9 + i * 1.9)));
 }
 
 /** The current time, ticking every second while `active`. */
