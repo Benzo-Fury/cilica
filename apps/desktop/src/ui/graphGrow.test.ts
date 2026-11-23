@@ -5,7 +5,7 @@ describe("graph grow replay", () => {
     const g = new GraphGrowth([2, 0, 1, 1]);
     expect(g.steps).toBe(3);
     // The lead-in shows nothing.
-    expect(g.advance(0.1)).toEqual([0, 0]);
+    expect(g.advance(0.05)).toEqual([0, 0]);
     let shown = 0;
     let frames = 0;
     while (!g.done && frames < 10_000) {
@@ -18,8 +18,8 @@ describe("graph grow replay", () => {
     expect(g.done).toBe(true);
     expect(g.shown).toBe(3);
     // Short graphs still take a moment, never longer than the cap.
-    expect(frames / 60).toBeGreaterThan(2);
-    expect(frames / 60).toBeLessThan(13);
+    expect(frames / 60).toBeGreaterThan(1);
+    expect(frames / 60).toBeLessThan(5.5);
   });
 
   it("caps a long replay and shows several steps a frame", () => {
@@ -29,7 +29,7 @@ describe("graph grow replay", () => {
       g.advance(1 / 60);
       seconds += 1 / 60;
     }
-    expect(seconds).toBeLessThan(12.5);
+    expect(seconds).toBeLessThan(5.5);
   });
 
   it("shows everything when stopped", () => {

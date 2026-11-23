@@ -2,18 +2,18 @@
  * The graph's "grow" replay: nodes appear one step at a time, in the order the caller gives
  * (for the full graph, when each note was created), and each pops in on a spring.
  *
- * The clock runs on frame time, so the replay takes as long at any refresh rate. A small graph
- * takes about a third of a second per step; a big one is capped so the whole replay stays short,
- * and several steps can land in one frame.
+ * The clock runs on frame time, so the replay takes as long at any refresh rate. The pace follows
+ * Obsidian's time-lapse: brisk, about a dozen notes a second, and never more than a few seconds
+ * in all however big the graph, so several steps can land in one frame.
  */
 
 /** Seconds per step when there are few of them. */
-const STEP = 0.35;
+const STEP = 0.08;
 /** The whole replay never runs shorter or longer than this, in seconds. */
-const MIN_TOTAL = 2.5;
-const MAX_TOTAL = 12;
+const MIN_TOTAL = 1.2;
+const MAX_TOTAL = 5;
 /** A beat before the first step, so the empty canvas reads as the start. */
-const LEAD_IN = 0.25;
+const LEAD_IN = 0.1;
 
 /** The bouncy spring preset (motion.md): visualDuration 0.35s, bounce 0.3. */
 const SPRING_DURATION = 0.35;
