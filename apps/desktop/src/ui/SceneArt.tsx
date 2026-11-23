@@ -1,7 +1,7 @@
 /**
  * Dithered pixel scenes: the setup window's background and the art behind the scene themes. The
  * ridgeline has drifting clouds, dawn in a light theme and night with stars in a dark one; the pine
- * forest and the desert are still. Drawn in code at a third of the window's size and scaled up
+ * forest, the desert and the open sea are still. The sea also has a light and a dark version. Drawn in code at a third of the window's size and scaled up
  * without smoothing, so they ship no image and cost nothing in the installer.
  *
  * Every colour comes from the theme tokens (`bg-canvas`, `ink`, `scene-tint`), mixed per layer, so
@@ -188,7 +188,7 @@ export interface SceneTones {
   tint: Rgb;
 }
 
-export type SceneKind = "ridgeline" | "pines" | "mesa";
+export type SceneKind = "ridgeline" | "pines" | "mesa" | "ocean";
 
 const at = (a: ArrayLike<number>, i: number) => a[i] ?? 0;
 const bayer = (x: number, y: number) => BAYER[(y & 3) * 4 + (x & 3)] ?? 0.5;
@@ -364,6 +364,134 @@ export function paintMesa(img: ImageData, { canvas, ink, tint }: SceneTones) {
   }
 }
 
+/**
+ * Open sea: swell that spreads toward you, a headland with a lighthouse, one sail and foam. A low
+ * sun with its glitter on the water in a light theme; a moon, stars and a lit lamp in a dark one.
+ */
+export function paintOcean(img: ImageData, { canvas, ink, tint }: SceneTones) {
+  const { width: W, height: H, data } = img;
+  const dark = luminance(canvas) < 0.5;
+  const unit = H / 267;
+  const horizon = Math.round(H * 0.7);
+
+  // ── Colours ──
+  const sky = [0, 0.05, 0.11, 0.18, 0.26].map((t) => mix(canvas, tint, dark ? t * 0.75 : t));
+  const sea = Array.from({ length: 5 }, (_, k) =>
+    dark
+      ? mix(mix(canvas, tint, 0.16 - 0.02 * k), ink, 0.07 - 0.012 * k)
+      : mix(mix(canvas, tint, 0.34 + 0.09 * k), ink, 0.08 + 0.08 * k),
+  );
+  const crest = sea.map((c) => mix(c, dark ? ink : canvas, dark ? 0.12 : 0.26));
+  const foam = dark ? mix(sea[4] as Rgb, ink, 0.22) : mix(sea[4] as Rgb, canvas, 0.45);
+  const land = dark ? canvas : mix(mix(canvas, tint, 0.24), ink, 0.26);
+  const landEdge = mix(land, dark ? ink : canvas, dark ? 0.1 : 0.18);
+  const tower = mix(canvas, ink, dark ? 0.22 : 0.08);
+  const lamp = dark ? mix(ink, tint, 0.15) : mix(canvas, tint, 0.45);
+  const beam = dark ? mix(mix(canvas, tint, 0.2), ink, 0.14) : null;
+  const sunCore = dark ? mix(ink, tint, 0.08) : mix(canvas, tint, 0.1);
+  const sunGlow = dark ? mix(canvas, ink, 0.28) : mix(canvas, tint, 0.26);
+  const glint = mix(sea[2] as Rgb, dark ? ink : canvas, dark ? 0.22 : 0.4);
+  const streak = dark ? mix(canvas, ink, 0.08) : mix(canvas, tint, 0.06);
+  const star = dark ? mix(ink, tint, 0.2) : null;
+  const sail = mix(canvas, ink, dark ? 0.3 : 0.06);
+  const hull = dark ? mix(canvas, ink, 0.05) : mix(sea[1] as Rgb, ink, 0.45);
+
+  // ── Shapes ──
+  const sunX = W * 0.72;
+  const sunY = horizon - H * (dark ? 0.16 : 0.07);
+  const sunR = W * (dark ? 0.035 : 0.05);
+  // The headland rises from the left, clear of the sidebar, and runs into the sea.
+  const peak = 0.27;
+  const span = 0.24;
+  const head = Float32Array.from({ length: W }, (_, x) => {
+    const d = Math.abs(x / W - peak) / span;
+    if (d >= 1) return H;
+    const fall = (1 - d * d) * (x / W < peak ? 1 : 1 - d * 0.35);
+    return horizon - H * 0.1 * fall * (0.7 + 0.3 * fbm((x / W) * 9 + 2, 71)) + 1;
+  });
+  const towerX = Math.round(W * (peak - 0.012));
+  const towerBase = at(head, towerX);
+  const towerTop = Math.round(towerBase) - Math.round(14 * unit);
+  const lampY = towerTop + Math.round(1.5 * unit);
+  const towerW = Math.max(1, Math.round(1.6 * unit));
+  const boatX = Math.round(W * 0.47);
+  const boatY = horizon + Math.round(5 * unit);
+  const sailH = Math.max(5, Math.round(16 * unit));
+  const hullW = Math.round(6 * unit);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const b = bayer(x, y);
+      let c: Rgb | null = null;
+
+      // The boat: a main sail, a jib and the hull.
+      const sy = boatY - y;
+      const sx = x - boatX;
+      if (sy >= 1 && sy <= sailH && sx >= 0 && sx <= Math.round((sailH - sy) * 0.55)) c = sail;
+      else if (
+        sy >= 1 &&
+        sy <= Math.round(sailH * 0.8) &&
+        sx < 0 &&
+        sx >= -Math.round((sailH * 0.8 - sy) * 0.35)
+      )
+        c = sail;
+      else if (sy >= -1 && sy <= 0 && Math.abs(sx + 1) <= hullW - (sy === -1 ? 1 : 0)) c = hull;
+
+      // The lighthouse: a tapering tower under its lamp.
+      if (!c && y >= towerTop && y <= towerBase + 1) {
+        const k = (y - towerTop) / (towerBase - towerTop);
+        if (Math.abs(x - towerX) <= towerW * (0.7 + 0.5 * k)) c = k < 0.18 ? lamp : tower;
+      }
+
+      // The headland.
+      const top = at(head, x);
+      if (!c && y >= top && y < horizon + 2) c = y - top < 2 + (b > 0.5 ? 1 : 0) ? landEdge : land;
+
+      // The sea: banded water, dashed crests, the glitter path and a lace of foam.
+      if (!c && y >= horizon) {
+        const t = (y - horizon) / (H - horizon);
+        c = band(sea, t * (sea.length - 1) + 0.2, b);
+        const spacing = 2 + t * 8 * unit;
+        const row = Math.floor((y - horizon) / spacing);
+        const inRow = y - horizon - row * spacing;
+        const dash = fbm(x / (W * (0.025 + 0.03 * t)) + row * 3.7, 90 + (row % 7));
+        if (inRow < 1 + t && dash > 0.56 + b * 0.16)
+          c = crest[Math.min(4, Math.floor(t * 5))] as Rgb;
+        const half = sunR * (0.8 + 3 * t);
+        const off = Math.abs(x - sunX);
+        if (off < half && inRow < 2 && rnd(x * 13 + y * 7, 4) > 0.55 + (off / half) * 0.45)
+          c = glint;
+        const lace = H * 0.955 - H * 0.02 * fbm(x / (W * 0.08), 97);
+        if (y > lace && y < lace + 2 * unit + 1 && b > 0.3) c = foam;
+      }
+
+      // The sky: sun or moon, the lamp's beam at night, stars, two thin clouds.
+      if (!c && y < horizon) c = disc(x, y, b, sunX, sunY, sunR, sunCore, sunGlow);
+      if (!c && beam && y < horizon) {
+        const dx = x - towerX;
+        const reach = W * 0.34;
+        const spread = dx * 0.1 + 1;
+        const dy = Math.abs(y - lampY);
+        if (dx > 0 && dx < reach && dy < spread && (1 - dx / reach) * (1 - dy / spread) * 0.95 > b)
+          c = beam;
+      }
+      if (!c && star && y < horizon - 4 && rnd(x * 31 + y * 17, 2) > 0.994) c = star;
+      if (!c) {
+        for (const [cy, cx, len] of [
+          [0.5, 0.42, 0.24],
+          [0.58, 0.88, 0.18],
+        ] as const) {
+          const ex = (x / W - cx) / len;
+          const ey = (y / H - cy) / 0.012;
+          if (ex * ex + ey * ey < 1 - b * 0.35) c = streak;
+        }
+      }
+      c ??= band(sky, (y / (H * 0.86)) * (sky.length - 1), b);
+      put(data, (y * W + x) * 4, c);
+    }
+  }
+}
+
 /** Paints a scene at time `t` in ms. Only the ridgeline has a sun that moves; the others ignore it. */
 type Painter = (img: ImageData, tones: SceneTones, t: number, sun: number) => void;
 
@@ -372,6 +500,7 @@ const PAINTERS: Record<SceneKind, Painter> = {
     paintScene(img, scenePalette(canvas, ink, tint), t, sun),
   pines: paintPines,
   mesa: paintMesa,
+  ocean: paintOcean,
 };
 
 /** The tokens in effect on `el`, so a preview inside a themed element paints that theme. */
@@ -481,11 +610,15 @@ export function SceneArt({
   return <canvas ref={ref} />;
 }
 
-/** A scene theme's art behind the whole window: the still scene under a veil that keeps the top clear. */
+/**
+ * A scene theme's art behind the whole window: the still scene, washed towards the page by the
+ * look's `scene-dim`, under a veil that keeps the top clear.
+ */
 export function SceneBackdrop({ scene }: { scene: SceneKind }) {
   return (
     <div className="nt-scene" aria-hidden>
       <SceneArt scene={scene} still />
+      <div className="nt-scene-dim" />
       <div className="nt-scene-veil" />
     </div>
   );

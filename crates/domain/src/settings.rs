@@ -24,6 +24,10 @@ pub enum ThemeMode {
     Pines,
     /// A sand light palette over desert buttes.
     Mesa,
+    /// A sea-glass light palette over open sea, a headland and a lighthouse.
+    Ocean,
+    /// A navy dark palette over the same sea by moonlight.
+    OceanNight,
 }
 
 impl ThemeMode {
@@ -31,8 +35,13 @@ impl ThemeMode {
     pub fn is_dark(self) -> Option<bool> {
         match self {
             Self::System => None,
-            Self::Light | Self::RidgelineDawn | Self::Tide | Self::Pines | Self::Mesa => Some(false),
-            Self::Dark | Self::RidgelineNight | Self::Dusk => Some(true),
+            Self::Light
+            | Self::RidgelineDawn
+            | Self::Tide
+            | Self::Pines
+            | Self::Mesa
+            | Self::Ocean => Some(false),
+            Self::Dark | Self::RidgelineNight | Self::Dusk | Self::OceanNight => Some(true),
         }
     }
 }
@@ -136,9 +145,19 @@ impl Default for RecordingSettings {
         Self {
             auto_detect: true,
             detect_mode: DetectMode::AskFirst,
-            meeting_apps: ["Zoom", "Microsoft Teams", "Google Meet", "Slack", "WhatsApp", "FaceTime", "Webex", "Discord", "Around"]
-                .map(String::from)
-                .to_vec(),
+            meeting_apps: [
+                "Zoom",
+                "Microsoft Teams",
+                "Google Meet",
+                "Slack",
+                "WhatsApp",
+                "FaceTime",
+                "Webex",
+                "Discord",
+                "Around",
+            ]
+            .map(String::from)
+            .to_vec(),
             input_device_id: None,
             audio_retention_days: 30,
             consent_notice_seen: false,
@@ -167,7 +186,10 @@ impl SttEngine {
 
     /// The service can say who is speaking while the meeting is live.
     pub fn has_live_speakers(self) -> bool {
-        matches!(self, SttEngine::Soniox | SttEngine::Deepgram | SttEngine::AssemblyAi)
+        matches!(
+            self,
+            SttEngine::Soniox | SttEngine::Deepgram | SttEngine::AssemblyAi
+        )
     }
 }
 
@@ -285,7 +307,10 @@ impl AiSettings {
     /// ones came from another provider (for example "qwen3:8b" left over after switching from Ollama).
     /// Returns whether anything changed.
     pub fn fit_models_to_provider(&mut self) -> bool {
-        if !matches!(self.provider, ProviderKind::Anthropic | ProviderKind::ClaudeCode) {
+        if !matches!(
+            self.provider,
+            ProviderKind::Anthropic | ProviderKind::ClaudeCode
+        ) {
             return false;
         }
         let defaults = Self::default();
@@ -329,7 +354,13 @@ pub struct SoundSettings {
 
 impl Default for SoundSettings {
     fn default() -> Self {
-        Self { enabled: true, recording_start_stop: true, notes_ready: true, notes_ready_sound: ReadySound::Chime, interface_sounds: false }
+        Self {
+            enabled: true,
+            recording_start_stop: true,
+            notes_ready: true,
+            notes_ready_sound: ReadySound::Chime,
+            interface_sounds: false,
+        }
     }
 }
 
@@ -355,7 +386,15 @@ pub struct SwearJarSettings {
 
 impl Default for SwearJarSettings {
     fn default() -> Self {
-        Self { enabled: true, transcripts: true, notes: true, mild: true, popup: true, price_cents: 100, clink: false }
+        Self {
+            enabled: true,
+            transcripts: true,
+            notes: true,
+            mild: true,
+            popup: true,
+            price_cents: 100,
+            clink: false,
+        }
     }
 }
 
@@ -369,7 +408,9 @@ pub struct WritingSettings {
 
 impl Default for WritingSettings {
     fn default() -> Self {
-        Self { check_spelling: true }
+        Self {
+            check_spelling: true,
+        }
     }
 }
 
@@ -427,6 +468,9 @@ mod tests {
         assert_eq!(serde_json::to_string(&ThemeMode::Tide).unwrap(), "\"tide\"");
         assert_eq!(ThemeMode::System.is_dark(), None);
         assert_eq!(ThemeMode::Mesa.is_dark(), Some(false));
+        assert_eq!(ThemeMode::Ocean.is_dark(), Some(false));
+        assert_eq!(ThemeMode::OceanNight.is_dark(), Some(true));
+        assert_eq!(serde_json::to_string(&ThemeMode::OceanNight).unwrap(), "\"ocean_night\"");
         assert_eq!(ThemeMode::Dusk.is_dark(), Some(true));
     }
 
@@ -446,7 +490,10 @@ mod tests {
 
     #[test]
     fn safe_for_work_puts_the_swear_jar_away() {
-        let settings = Settings { safe_for_work: true, ..Settings::default() };
+        let settings = Settings {
+            safe_for_work: true,
+            ..Settings::default()
+        };
         assert!(settings.swear_jar.enabled);
         assert!(!settings.swear_jar_on());
     }
@@ -464,7 +511,11 @@ mod ai_model_tests {
 
     #[test]
     fn ollama_models_are_replaced_for_anthropic() {
-        let mut ai = AiSettings { model: "qwen3:8b".into(), fast_model: "qwen3:8b".into(), ..AiSettings::default() };
+        let mut ai = AiSettings {
+            model: "qwen3:8b".into(),
+            fast_model: "qwen3:8b".into(),
+            ..AiSettings::default()
+        };
         assert!(ai.fit_models_to_provider());
         assert_eq!(ai.model, AiSettings::default().model);
         assert_eq!(ai.fast_model, AiSettings::default().fast_model);
@@ -472,9 +523,16 @@ mod ai_model_tests {
 
     #[test]
     fn claude_models_and_other_providers_are_left_alone() {
-        let mut ai = AiSettings { model: "claude-opus-5-5".into(), ..AiSettings::default() };
+        let mut ai = AiSettings {
+            model: "claude-opus-5-5".into(),
+            ..AiSettings::default()
+        };
         assert!(!ai.fit_models_to_provider());
-        let mut ai = AiSettings { provider: ProviderKind::Ollama, model: "qwen3:8b".into(), ..AiSettings::default() };
+        let mut ai = AiSettings {
+            provider: ProviderKind::Ollama,
+            model: "qwen3:8b".into(),
+            ..AiSettings::default()
+        };
         assert!(!ai.fit_models_to_provider());
         assert_eq!(ai.model, "qwen3:8b");
     }

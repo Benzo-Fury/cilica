@@ -25,6 +25,8 @@ export const THEMES: readonly ThemeOption[] = [
   { value: "dusk", label: "Dusk", scheme: "dark", scene: "ridgeline" },
   { value: "pines", label: "Pines", scheme: "light", scene: "pines" },
   { value: "mesa", label: "Mesa", scheme: "light", scene: "mesa" },
+  { value: "ocean", label: "Ocean", scheme: "light", scene: "ocean" },
+  { value: "ocean_night", label: "Ocean night", scheme: "dark", scene: "ocean" },
 ];
 
 const SYSTEM = THEMES[0] as ThemeOption;

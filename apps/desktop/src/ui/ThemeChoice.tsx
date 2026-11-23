@@ -44,6 +44,7 @@ export function ThemeChoice({ title, schemes, look, scene, checked, onSelect }: 
             data-scene={scene ?? undefined}
           >
             {scene && <SceneArt scene={scene} still pixel={1} />}
+            {scene && <span className="nt-theme-pane-dim" />}
             {scene && <span className="nt-theme-pane-veil" />}
             <span className="nt-theme-pane-side">
               <i />
