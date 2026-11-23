@@ -1,6 +1,38 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "cilica-web", "runtimeExecutable": "bun", "runtimeArgs": ["run", "dev:web"], "port": 1420 }
+    {
+      "name": "cilica-web",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:web"
+      ],
+      "port": 1420
+    },
+    {
+      "name": "cilica-site",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "--cwd=/Users/neo/Documents/Projects/cilica-site",
+        "dev",
+        "--port",
+        "4321"
+      ],
+      "port": 4321
+    },
+    {
+      "name": "mobile-design-system",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4400",
+        "--directory",
+        "docs/design-system-mobile"
+      ],
+      "port": 4400
+    }
   ]
 }
