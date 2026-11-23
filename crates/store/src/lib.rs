@@ -17,6 +17,7 @@
 //! | `imports`     | writes imported notes (import_* on notes)      |
 //! | `links`       | note_links (the link index behind the graph)   |
 //! | `welcome`     | writes the welcome note after setup (none)     |
+//! | `quotable`    | cuts a sentence to the line worth quoting      |
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -29,6 +30,7 @@ mod home;
 mod imports;
 pub mod links;
 mod near;
+mod quotable;
 mod search;
 pub mod notes;
 mod settings;

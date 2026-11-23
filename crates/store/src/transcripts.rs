@@ -86,7 +86,9 @@ impl Db {
         let duration_ms = duration_ms.map(|d| d.clamp(0, u32::MAX as i64) as u32).or_else(|| segments.iter().map(|s| s.end_ms).max());
         let quotes_json: Option<String> = row.try_get("quotes_json")?;
         // Quotes only make sense beside the words they came from.
-        let quotes = if segments.is_empty() { Vec::new() } else { quotes_json.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default() };
+        let quotes = if segments.is_empty() { Vec::new() } else { quotes_json.and_then(|j| serde_json::from_str::<Vec<Quote>>(&j).ok()).unwrap_or_default() };
+        // Saved as Cilica picked them; shown cut to the point, so older notes improve too.
+        let quotes: Vec<Quote> = quotes.into_iter().map(|q| Quote { text: crate::quotable::tighten(&q.text), ..q }).collect();
         let timed: bool = row.try_get("transcript_timed")?;
         let detection: Option<String> = row.try_get("speaker_detection")?;
         let speaker_detection = match detection.as_deref() {

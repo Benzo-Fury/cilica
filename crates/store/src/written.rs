@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use cilica_domain::{Author, BareNote, Ghostwriter, Id, NoteLine, SpellFix, Timestamp, WritingHours, chrono, now};
 use sqlx::Row;
 
+use crate::quotable;
+
 use crate::codec::{parse_id, parse_ts};
 use crate::{Db, StoreResult};
 
@@ -17,45 +19,6 @@ const NOTE_LIMIT: i64 = 200;
 const LINE_LIMIT: usize = 12;
 /// Fewer saves than this say nothing about when you write.
 const MIN_SAVES: u32 = 6;
-/// A sentence shorter or longer than this is a fragment or a paragraph, not a line to quote.
-const MIN_WORDS: usize = 5;
-const MAX_WORDS: usize = 30;
-
-/// Phrases that mark a sentence as someone thinking aloud or deciding. Each one found adds a point.
-const CUES: &[&str] = &[
-    "i think",
-    "i feel",
-    "i like",
-    "i love",
-    "i hate",
-    "i want",
-    "i wonder",
-    "i believe",
-    "i'd",
-    "i'm sure",
-    "we should",
-    "we need",
-    "we decided",
-    "decided",
-    "the problem",
-    "the real",
-    "the point",
-    "the trick",
-    "what if",
-    "maybe",
-    "probably",
-    "should",
-    "must",
-    "never",
-    "always",
-    "because",
-    "turns out",
-    "honestly",
-    "the best",
-    "the worst",
-    "matters",
-];
-
 /// A Markdown line as plain text: list, heading and quote markers, emphasis and links removed.
 /// None for lines that are not prose (checkboxes, code, tables, links on their own).
 fn plain(line: &str) -> Option<String> {
@@ -182,18 +145,13 @@ pub fn own_lines(body: &str) -> Vec<(String, u32, Option<String>)> {
                 None => (line.clone(), None),
             },
         };
-        // Score each sentence by the cues it contains
+        // Each sentence gives up its best clause, if any part of it reads as a thought
         for s in sentences(&text) {
-            let words = s.split_whitespace().count();
-            if s.ends_with('?') || !(MIN_WORDS..=MAX_WORDS).contains(&words) {
+            if s.ends_with('?') {
                 continue;
             }
-            // Whole words only: "should" is not in "shoulder".
-            let words: String = s.to_lowercase().replace('’', "'").chars().map(|c| if c.is_alphanumeric() || c == '\'' { c } else { ' ' }).collect();
-            let padded = format!(" {} ", words.split_whitespace().collect::<Vec<_>>().join(" "));
-            let score = CUES.iter().filter(|cue| padded.contains(&format!(" {cue} "))).count() as u32;
-            if score > 0 {
-                out.push((s, score, said_by.clone()));
+            if let Some((line, score)) = quotable::pick(&s) {
+                out.push((line, score, said_by.clone()));
             }
         }
     }
@@ -564,11 +522,19 @@ mod tests {
         let lines = own_lines(body);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].0, "I think the onboarding problem is really a pricing problem.");
-        assert_eq!(lines[0].1, 1);
         assert_eq!(lines[0].2, None);
         assert!(own_lines("My shoulder hurts after the long flight home.").is_empty());
         assert_eq!(questions(body), vec!["Do we need a free tier at all?".to_string()]);
         assert!(questions("```sql\nSELECT * FROM notes WHERE id = ?\n```").is_empty());
+    }
+
+    #[test]
+    fn a_run_on_note_gives_one_line_cut_to_its_point() {
+        let body = "## Privacy\n\n- Absolutely everything that can be encrypted should be, if possible, only store decryption keys locally - not doable with everything (eg notes) because cloud requires access to notes.";
+        let lines = own_lines(body);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].0, "Absolutely everything that can be encrypted should be.");
+        assert_eq!(lines[0].2, None);
     }
 
     #[test]
@@ -579,7 +545,7 @@ mod tests {
         assert_eq!(said_by("\"We should ship before the pricing change.\" — Sam"), sam("We should ship before the pricing change."));
         assert_eq!(said_by("“We should ship before the pricing change,” said Sam."), sam("We should ship before the pricing change"));
         assert_eq!(said_by("\"We should ship before the pricing change,\" Sam said."), sam("We should ship before the pricing change"));
-        assert_eq!(said_by("Sam said \"we should ship before the pricing change.\""), sam("we should ship before the pricing change."));
+        assert_eq!(said_by("Sam said \"we should ship before the pricing change.\""), sam("We should ship before the pricing change."));
         assert_eq!(said_by("- Sam: \"We should ship before the pricing change.\""), sam("We should ship before the pricing change."));
         assert_eq!(said_by("We should ship before the pricing change. — Sam"), sam("We should ship before the pricing change."));
         // A blockquote signed on the line below

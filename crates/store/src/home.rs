@@ -372,7 +372,7 @@ impl Db {
                     note_title: note_title.clone(),
                     held_at,
                     at_ms: q.at_ms,
-                    text: q.text,
+                    text: crate::quotable::tighten(&q.text),
                     speaker: speaker.and_then(|sp| display.get(&sp.id).cloned()),
                     color_index: speaker.map(|sp| sp.color_index),
                 });
