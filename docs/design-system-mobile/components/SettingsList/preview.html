@@ -1,0 +1,25 @@
+<!-- @dsCard group="Surfaces" height=440 subtitle="Grouped rows with leading icons. Appearance uses three thumbnail cards." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SettingsList</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const r = (i, t, end, desc) => `<div class="row ${desc?"":"one"}"><span class="lead">${I(i,"sm")}</span><div class="txt"><div class="t">${t}</div>${desc?`<div class="m">${desc}</div>`:""}</div>${end||""}</div>`;
+const theme = p === "ios"
+ ? `<div class="group"><div class="appear"><div class="o"><div class="th" style="background:#fdfbfa;color:#1c1a18"><i></i><i style="width:60%"></i></div>Light</div><div class="o"><div class="th" style="background:#1b1917;color:#ebe9e7"><i></i><i style="width:60%"></i></div>Dark</div><div class="o on"><div class="th" style="background:linear-gradient(135deg,#fdfbfa 50%,#1b1917 50%);color:#888"><i></i><i style="width:60%"></i></div>System</div></div></div>`
+ : `<div class="group">${r("sun","Theme","","System")}</div>`;
+return `<div><div class="sec" style="padding-top:0">Recording</div><div class="group">${r("mic","Transcription",`<span style="color:var(--ink-3)">${p==="ios"?"On iPhone":""}</span>`, p==="and"?"On this phone":"")}${r("bell","Start and stop sounds",'<span class="sw on"></span>')}${r("vibe","Haptic feedback",'<span class="sw"></span>')}</div>
+<div class="group-foot">${p==="ios"?"Audio stays on this iPhone.":"Audio stays on this phone."}</div>
+<div class="sec">Appearance</div>${theme}</div>`;
+}, { sunken: true });
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!-- @dsCard group="Cilica" height=300 subtitle="Home: empty shows Record, typing morphs it to Send. Notes: a one-line pill." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Composer</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const g = p === "ios" ? "glass" : "";
+return `
+<div class="composer ${g}"><div class="ph">Ask Cilica</div><div class="acts"><button class="ibtn">${I("plus","sm")}</button><span class="chip">${I("doc","sm")}All notes</span><span class="sp"></span><button class="send rec" aria-label="Record"></button></div></div>
+<div class="composer ${g}"><div class="val">What did Marco agree to on Monday?</div><div class="acts"><button class="ibtn">${I("plus","sm")}</button><span class="chip">${I("doc","sm")}All notes</span><span class="sp"></span><button class="send" aria-label="Send">${I("up","sm")}</button></div></div>
+<div class="composer pill ${g}"><div class="ph">Ask about this note</div><button class="send" style="opacity:.4" aria-label="Send">${I("up","sm")}</button></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

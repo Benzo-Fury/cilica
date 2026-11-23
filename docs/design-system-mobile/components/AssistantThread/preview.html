@@ -1,0 +1,25 @@
+<!-- @dsCard group="Cilica" height=560 subtitle="Bubbles for you, plain text for Cilica, tool steps on one line, citations as chips." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AssistantThread</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return `<div style="display:grid;gap:12px">
+<div class="bubble">Tighten the decisions section and add owners.</div>
+<div class="step">${I("doc","sm")}Read Call with Marco</div>
+<div class="reply"><p>Here is a tighter version. Marco took the guide at <span class="cite">${I("wave","sm")}<span class="tc">12:14</span></span>.</p></div>
+<div class="diff"><div class="h">${I("doc","sm")}Call with Marco</div><div class="body"><del>Ship the importer behind a flag on 4 Dec</del> <ins>Ship the importer behind a flag on 4 Dec (Marco)</ins></div><div class="acts"><button class="btn ghost">Reject</button><button class="btn primary">Accept</button></div></div>
+<div class="reply-acts"><button class="ibtn">${I("copy","sm")}</button><button class="ibtn">${I("retry","sm")}</button></div>
+<div class="step"><span class="shimmer">Thinking…</span></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

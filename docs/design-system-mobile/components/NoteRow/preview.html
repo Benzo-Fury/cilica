@@ -1,0 +1,24 @@
+<!-- @dsCard group="Lists" height=360 subtitle="Two-line rows under date sections. Swipe for Pin, Move and Delete." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoteRow</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const row = (t, m, w) => `<div class="row"><div class="txt"><div class="t">${t}</div><div class="m">${w ? I("wave","sm") : ""}${m}</div></div></div>`;
+return `<div><div class="sec" style="padding-top:0">Today</div>
+${row("Design review notes","9:12 · Product")}${row("Standup","8:30 · 12 min",1)}
+<div class="row"><div class="txt"><div class="t">Q3 planning sync</div><div class="m"><span class="shimmer">Writing notes…</span></div></div></div>
+<div class="sec">Swiped</div>
+<div class="swipe"><div class="row"><div class="txt"><div class="t">Call with Marco</div><div class="m">${I("wave","sm")}Mon · 42 min</div></div></div><div class="act neutral">Move</div><div class="act del">Delete</div></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!-- @dsCard group="Controls" height=150 subtitle="Notes ⇄ Transcript on a meeting note." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SegmentedControl</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return p === "and" ? `<div class="seg"><b class="on">${I("check","sm")}Notes</b><b>Transcript</b></div>` : `<div class="seg"><b class="on">Notes</b><b>Transcript</b></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

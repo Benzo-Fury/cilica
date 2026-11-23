@@ -1,0 +1,26 @@
+<!-- @dsCard group="Navigation" height=560 subtitle="Places, not actions. Opens from ☰ or an edge swipe on the root screen." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawer</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const s = p === "ios" ? "plain" : "";
+return `<div style="position:relative;height:500px;margin:0 -16px -16px;overflow:hidden;border-radius:0 0 20px 20px"><div class="drawer" style="width:100%;padding-top:12px;position:absolute">
+<div class="word">Cilica</div>
+<div class="search ${s}" style="flex:none;margin-bottom:10px">${I("search","sm")}Search</div>
+<div class="nav on">${I("home")}Home</div><div class="nav">${I("doc")}Notes</div><div class="nav">${I("wave")}Meetings</div>
+<div class="sec">Folders</div><div class="item">Product</div><div class="item">Team</div>
+<div class="sec">Recents</div><div class="item">Design review notes</div><div class="item">Call with Marco</div>
+<div class="foot"><span class="avatar">S</span><button class="btn primary">${I("edit","sm")}New note</button></div></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

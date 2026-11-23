@@ -1,0 +1,22 @@
+<!-- @dsCard group="Notes" height=520 subtitle="Note fonts inside native chrome. The format bar docks above the keyboard." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoteEditor</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const fmt = p === "ios" ? "glass" : "";
+return `<div class="note-title">Call with Marco</div>
+<div class="note-body"><h3>Decisions</h3><ul><li>Ship the importer behind a flag on 4 Dec</li><li><span class="ins">Marco owns the migration guide</span></li></ul><p>Pricing is still open.</p></div>
+<div class="fmt ${fmt}"><button class="ibtn aa">Aa</button><button class="ibtn">${I("checklist","sm")}</button><button class="ibtn">${I("list","sm")}</button><button class="ibtn">${I("link","sm")}</button><button class="ibtn">${I("clip","sm")}</button><span class="ask">${I("spark","sm")}Ask</span></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

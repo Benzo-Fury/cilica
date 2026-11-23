@@ -1,0 +1,21 @@
+<!-- @dsCard group="Controls" height=340 subtitle="Pills on both. One accent button per screen. Android adds the extended FAB." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Button</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return `<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button class="btn primary">New note</button><button class="btn secondary">Move</button><button class="btn outline">Share</button><button class="btn ghost">Undo</button><button class="btn danger">Delete note</button></div>
+${p === "and" ? `<div><button class="fab">${I("edit")}New note</button></div>` : `<div style="display:flex;gap:8px"><button class="btn primary lg">Start recording</button></div>`}`;
+}, { sunken: false });
+</script>
+</body>
+</html>

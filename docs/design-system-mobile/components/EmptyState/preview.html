@@ -1,0 +1,19 @@
+<!-- @dsCard group="Feedback" height=300 subtitle="A glyph, a headline, one sentence and one action." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EmptyState</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return `<div class="empty"><div class="glyph">${I("doc")}</div><div class="h">No notes yet</div><div class="b">Write one, or record a meeting and Cilica will write it for you.</div><button class="btn primary" style="margin-top:8px">New note</button></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

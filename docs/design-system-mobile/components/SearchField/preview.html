@@ -1,0 +1,22 @@
+<!-- @dsCard group="Lists" height=190 subtitle="iOS: a glass pill in the bottom toolbar. Android: an M3 search bar at the top." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SearchField</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return p === "ios"
+? `<div style="display:flex;gap:10px;align-items:center"><div class="search glass">${I("search","sm")}Search</div><button class="ibtn glass" style="width:48px;height:48px">${I("edit")}</button></div>
+<div class="search plain" style="flex:none">${I("search","sm")}Search</div>`
+: `<div class="search">${I("search")}Search notes</div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

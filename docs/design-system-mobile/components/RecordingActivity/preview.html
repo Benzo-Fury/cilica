@@ -1,0 +1,25 @@
+<!-- @dsCard group="Recording" height=420 subtitle="What recording looks like outside the app: Live Activity on iOS, an ongoing notification on Android." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecordingActivity</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+if (p === "ios") return `<div style="display:grid;gap:14px;justify-items:center">
+<div class="island"><span class="rdot"></span><span style="font-variant-numeric:tabular-nums">12:14</span></div>
+<div class="island expanded"><div style="display:flex;justify-content:space-between;align-items:center"><span style="display:flex;gap:8px;align-items:center"><span class="rdot"></span>Q3 planning sync</span><span style="font-variant-numeric:tabular-nums;color:#f85452">12:14</span></div><div style="display:flex;gap:8px;justify-content:flex-end"><span style="background:#ffffff26;border-radius:999px;padding:8px 14px">Pause</span><span style="background:#fff;color:#000;border-radius:999px;padding:8px 14px">Stop</span></div></div>
+<div class="lock"><div style="display:flex;justify-content:space-between"><b>Q3 planning sync</b><span style="font-variant-numeric:tabular-nums">12:14</span></div><div style="opacity:.7;font-size:12px">Audio stays on this iPhone</div></div></div>`;
+return `<div style="display:grid;gap:14px;justify-items:start">
+<span class="chipbar"><span style="width:7px;height:7px;border-radius:50%;background:#fff"></span>12:14</span>
+<div class="notif"><div class="hd"><span style="color:var(--rec)">●</span>Cilica · Recording</div><div><b style="font-weight:500">Q3 planning sync</b><div style="color:var(--ink-2)">Recording · 12:14</div></div><div class="acts"><button class="btn secondary" style="height:36px">Pause</button><button class="btn primary" style="height:36px">Stop</button></div></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

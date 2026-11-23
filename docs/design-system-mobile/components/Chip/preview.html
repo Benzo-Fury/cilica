@@ -1,0 +1,19 @@
+<!-- @dsCard group="Controls" height=170 subtitle="Meta under a note title, and context in the composer." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chip</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return `<div class="note-meta" style="margin:0"><span class="chip">${I("cal","sm")}Mon 16:04</span><span class="chip"><span class="dot" style="background:var(--speaker-1-soft);box-shadow:0 0 0 1.5px var(--speaker-1);color:var(--ink)">M</span>Marco</span><span class="chip">${I("folder","sm")}Product</span></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!-- @dsCard group="Surfaces" height=380 subtitle="Cilica over a note, pickers and Settings (iOS)." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheet</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const part = p === "ios" ? "partial" : "";
+return `<div style="position:relative;height:320px;margin:0 -16px -16px;overflow:hidden;border-radius:0 0 20px 20px;background:var(--bg-canvas)">
+<div style="padding:8px 16px;opacity:.5" class="note-title">Call with Marco</div>
+${p==="and"?'<div class="scrim"></div>':""}
+<div class="sheet ${part}" style="height:250px"><div class="grab"></div>
+<div style="font:var(--t-bar);${p==="ios"?"text-align:center":"font:500 16px/24px var(--ui)"};margin-bottom:8px">Move to folder</div>
+<div class="row one"><span class="lead">${I("folder","sm")}</span><div class="txt"><div class="t">Product</div></div>${I("check","sm")}</div>
+<div class="row one"><span class="lead">${I("folder","sm")}</span><div class="txt"><div class="t">Team</div></div></div>
+<div class="row one"><span class="lead">${I("folder","sm")}</span><div class="txt"><div class="t">Personal</div></div></div></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

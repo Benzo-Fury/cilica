@@ -1,0 +1,21 @@
+<!-- @dsCard group="Feedback" height=200 subtitle="Past tense, with one action. iOS: glass pill. Android: M3 snackbar." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toast</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return p === "ios"
+ ? `<div class="toast glass">Deleted note<span class="sp"></span><button class="btn secondary">Undo</button></div><div class="toast glass">${I("wave","sm")}Notes ready · 42 min<span class="sp"></span><button class="btn secondary">Open</button></div>`
+ : `<div class="toast">Deleted note<span class="sp"></span><button class="btn">Undo</button></div><div class="toast">Notes ready · 42 min<span class="sp"></span><button class="btn">Open</button></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

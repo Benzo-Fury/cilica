@@ -1,0 +1,19 @@
+<!-- @dsCard group="Feedback" height=260 subtitle="Only for irreversible actions with no Undo." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dialog</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+return `<div class="dialog"><div class="h">Empty Trash?</div><div class="b">12 notes will be deleted for good. This can't be undone.</div><div class="acts"><button class="btn ${p==="ios"?"secondary":"ghost"}">Cancel</button><button class="btn ${p==="ios"?"secondary":"ghost"}" style="color:var(--danger)">Empty Trash</button></div></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

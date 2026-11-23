@@ -1,0 +1,20 @@
+<!-- @dsCard group="Surfaces" height=380 subtitle="Long-press a note or tap More. Destructive actions last." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const it = (i, t, d) => `<div class="mi ${d?"danger":""}">${I(i,"sm")}<span style="flex:1">${t}</span></div>`;
+return `<div class="menu">${it("pin","Pin")}${it("folder","Move to folder")}${it(p==="ios"?"share":"shareA","Share")}${it("copy","Copy as Markdown")}<hr>${it("trash","Delete note",1)}</div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

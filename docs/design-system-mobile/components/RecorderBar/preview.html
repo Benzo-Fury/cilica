@@ -1,0 +1,23 @@
+<!-- @dsCard group="Recording" height=260 subtitle="The composer's Record button grows into this bar. Stop is the one accent control." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecorderBar</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const g = p === "ios" ? "glass" : "";
+const lv = Array.from({length:14},(_,i)=>`<i style="height:${20+Math.round(70*Math.abs(Math.sin(i*1.7)*Math.cos(i*.6)))}%"></i>`).join("");
+return `<div class="recorder ${g}"><span class="rdot"></span><span class="time">12:14</span><span class="lvl">${lv}</span><button class="ibtn">${I("pause","sm")}</button><button class="stopbtn">Stop</button></div>
+<div class="recorder ${g}"><span class="rdot" style="animation:none;background:var(--ink-3)"></span><span class="time" style="color:var(--ink-3)">12:14</span><span class="lvl"></span><button class="ibtn">${I("mic","sm")}</button><button class="stopbtn">Stop</button></div>
+<div class="recorder ${g}" style="padding-right:18px"><span class="lead" style="color:var(--success)">${I("check","sm")}</span><span class="shimmer" style="flex:1">Writing notes…</span></div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>

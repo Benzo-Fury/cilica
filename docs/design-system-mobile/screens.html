@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cilica mobile screens</title>
+<link rel="stylesheet" href="components/bundle.css">
+<style>
+  body { padding: 24px 16px 64px; }
+  header { max-width: 1100px; margin: 0 auto 24px; display: flex; flex-wrap: wrap; align-items: end; gap: 16px; justify-content: space-between; }
+  header h1 { font: 640 28px/34px var(--note); letter-spacing: -.022em; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--ink-2); max-width: 560px; }
+  .toggle { display: inline-flex; padding: 2px; border-radius: 999px; background: var(--fill-press); }
+  .toggle button { border: 0; background: none; font: 500 13px/1 var(--note); padding: 8px 14px; border-radius: 999px; color: var(--ink-2); }
+  .toggle button.on { background: var(--bg-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+  section { max-width: 1100px; margin: 0 auto 48px; }
+  section h2 { font: 600 18px/24px var(--note); margin: 0 0 4px; }
+  section > p { margin: 0 0 16px; color: var(--ink-2); max-width: 720px; }
+  .pair { display: flex; flex-wrap: wrap; gap: 32px; }
+  .pair figure { margin: 0; display: grid; gap: 10px; justify-items: center; }
+  .pair figcaption { font: 600 11px/14px var(--note); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+  @media (max-width: 720px) { .phone { transform: scale(.9); transform-origin: top center; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Cilica mobile</h1>
+    <p>The key screens on iOS (Liquid Glass) and Android (Material 3 Expressive), side by side. Native chrome, Cilica content. Mock data.</p>
+  </div>
+  <div class="toggle" role="group" aria-label="Theme"><button data-t="light" class="on">Light</button><button data-t="dark">Dark</button></div>
+</header>
+<main id="out"></main>
+
+<script src="components/icons.js"></script>
+<script>
+const I = (n, c) => cicon(n, c);
+const lvl = (n = 14) => Array.from({ length: n }, (_, i) => `<i style="height:${20 + Math.round(70 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * .6)))}%"></i>`).join("");
+const status = p => `<div class="status"><span>9:41</span><span>${p === "ios" ? "●●● ▮" : "▾ ▮"}</span></div>`;
+const phone = (p, body) => `<div class="phone ${p}">${status(p)}<div class="screen">${body}</div><div class="home-ind"></div></div>`;
+const more = p => p === "ios" ? "more" : "moreV";
+const shareI = p => p === "ios" ? "share" : "shareA";
+
+const bar = (p, { left = "menu", title = "", right = [] } = {}) => p === "ios"
+  ? `<div class="bar"><button class="ibtn glass" aria-label="${left}">${I(left)}</button><div class="title">${title}</div>${right.length > 1 ? `<span class="ibtn-group glass">${right.map(r => `<button class="ibtn">${I(r)}</button>`).join("")}</span>` : right.map(r => `<button class="ibtn glass">${I(r)}</button>`).join("") || `<span style="width:44px"></span>`}</div>`
+  : `<div class="bar"><button class="ibtn">${I(left === "back" ? "backA" : left)}</button><div class="title">${title}</div>${right.map(r => `<button class="ibtn">${I(r)}</button>`).join("")}</div>`;
+
+const composer = (p, ph = "Ask Cilica", chip = "All notes", rec = true) => `<div class="composer ${p === "ios" ? "glass" : ""}">
+  <div class="ph">${ph}</div>
+  <div class="acts"><button class="ibtn">${I("plus", "sm")}</button><span class="chip">${I("doc", "sm")}${chip}</span><span class="sp"></span>${rec ? `<button class="send rec" aria-label="Record"></button>` : `<button class="send" aria-label="Send" style="opacity:.4">${I("up", "sm")}</button>`}</div></div>`;
+
+const noteRow = (t, m, icon) => `<div class="row"><div class="txt"><div class="t">${t}</div><div class="m">${icon ? I(icon, "sm") : ""}${m}</div></div></div>`;
+
+const S = {
+  home: p => phone(p, `
+    ${bar(p, { left: "menu", right: [p === "ios" ? "edit" : "edit"] })}
+    <div class="scroll">
+      <div class="large-title" style="padding-top:${p === "ios" ? 24 : 16}px">Good morning, Sam</div>
+      <div class="card"><div class="k">Up next · 10:30</div><div class="t">Q3 planning sync</div><div class="m">Marco, Lena and 3 others · 45 min</div></div>
+      <div class="sec">Recent</div>
+      ${noteRow("Design review notes", "Yesterday · Product")}
+      ${noteRow("Call with Marco", "Mon · 42 min", "wave")}
+      ${noteRow("Hiring plan draft", "Sun · Team")}
+    </div>
+    <div class="dock">${composer(p)}</div>`),
+
+  drawer: p => phone(p, `
+    <div class="drawer-peek"></div>
+    <div class="drawer">
+      <div class="word">Cilica</div>
+      <div class="search ${p === "ios" ? "plain" : ""}" style="flex:none;margin-bottom:10px">${I("search", "sm")}Search</div>
+      <div class="nav on">${I("home")}Home</div>
+      <div class="nav">${I("doc")}Notes</div>
+      <div class="nav">${I("wave")}Meetings</div>
+      <div class="sec">Folders</div>
+      <div class="item">Product</div><div class="item">Team</div><div class="item">Personal</div>
+      <div class="sec">Recents</div>
+      <div class="item">Design review notes</div><div class="item">Call with Marco</div>
+      <div class="foot"><span class="avatar">S</span><button class="btn primary">${I("edit", "sm")}New note</button></div>
+    </div>
+    <div class="scrim" style="z-index:15;left:86%"></div>`),
+
+  notes: p => phone(p, `
+    ${p === "ios" ? bar(p, { left: "menu", right: ["filter"] }) : bar(p, { left: "menu", title: "", right: ["filter"] })}
+    <div class="scroll">
+      ${p === "and" ? `<div class="search" style="margin:0 0 4px">${I("search")}Search notes</div>` : ""}
+      <div class="large-title">Notes</div>
+      <div class="sec" style="padding-top:4px">Today</div>
+      ${noteRow("Design review notes", "9:12 · Product")}
+      ${noteRow("Standup", "8:30 · 12 min", "wave")}
+      <div class="sec">Yesterday</div>
+      ${noteRow("Call with Marco", "16:04 · 42 min", "wave")}
+      ${noteRow("Reading list", "11:20 · Personal")}
+      <div class="sec">Previous 7 days</div>
+      ${noteRow("Hiring plan draft", "Sun · Team")}
+    </div>
+    ${p === "ios"
+      ? `<div class="dock" style="display:flex;gap:10px;align-items:center"><div class="search glass">${I("search", "sm")}Search</div><button class="ibtn glass" style="width:48px;height:48px">${I("edit")}</button></div>`
+      : `<div class="dock" style="left:auto;right:16px"><button class="fab">${I("edit")}New note</button></div>`}`),
+
+  note: p => phone(p, `
+    ${bar(p, { left: "back", right: p === "ios" ? [shareI(p), more(p)] : [shareI(p), more(p)] })}
+    <div class="scroll">
+      <div class="seg" style="margin:2px 0 10px">${p === "and" ? `<b class="on">${I("check", "sm")}Notes</b><b>Transcript</b>` : `<b class="on">Notes</b><b>Transcript</b>`}</div>
+      <div class="note-title">Call with Marco</div>
+      <div class="note-meta"><span class="chip">${I("cal", "sm")}Mon 16:04</span><span class="chip"><span class="dot" style="background:var(--speaker-1-soft);box-shadow:0 0 0 1.5px var(--speaker-1)">M</span>Marco</span><span class="chip">${I("folder", "sm")}Product</span></div>
+      <div class="note-body">
+        <h3>Decisions</h3>
+        <ul><li>Ship the importer behind a flag on 4 Dec</li><li>Marco owns the migration guide</li></ul>
+        <h3>Follow-ups</h3>
+        <ul><li>Send pricing draft to Lena by Friday</li><li>Book a review with design</li></ul>
+      </div>
+    </div>
+    <div class="dock"><div class="composer pill ${p === "ios" ? "glass" : ""}"><div class="ph">Ask about this note</div><button class="send" aria-label="Send" style="opacity:.4">${I("up", "sm")}</button></div></div>`),
+
+  recording: p => phone(p, `
+    ${bar(p, { left: "back", right: [more(p)] })}
+    <div class="scroll">
+      <div class="seg" style="margin:2px 0 10px">${p === "and" ? `<b>Notes</b><b class="on" style="border-radius:0 999px 999px 0">${I("check", "sm")}Transcript</b>` : `<b>Notes</b><b class="on">Transcript</b>`}</div>
+      <div class="note-title">Q3 planning sync</div>
+      <div class="tr" style="--sc:var(--speaker-1);--scs:var(--speaker-1-soft)"><span class="av">M</span><span class="who">Marco <span class="tc">12:01</span></span><span class="say">Then the importer ships behind a flag, and we watch the error rate for a week.</span></div>
+      <div class="tr" style="--sc:var(--speaker-2);--scs:var(--speaker-2-soft)"><span class="av">L</span><span class="who">Lena <span class="tc">12:09</span></span><span class="say">Fine by me. Who writes the migration guide?</span></div>
+      <div class="tr live" style="--sc:var(--speaker-1);--scs:var(--speaker-1-soft)"><span class="av">M</span><span class="who">Marco <span class="tc">12:14</span></span><span class="say">I can take that one</span></div>
+    </div>
+    <div class="dock"><div class="recorder ${p === "ios" ? "glass" : ""}"><span class="rdot"></span><span class="time">12:14</span><span class="lvl">${lvl()}</span><button class="ibtn" aria-label="Pause">${I("pause", "sm")}</button><button class="stopbtn">Stop</button></div></div>`),
+
+  ask: p => phone(p, `
+    ${bar(p, { left: "back", right: [shareI(p), more(p)] })}
+    <div class="scroll" style="opacity:.55">
+      <div class="note-title">Call with Marco</div>
+      <div class="note-body"><h3>Decisions</h3><ul><li>Ship the importer behind a flag on 4 Dec</li></ul></div>
+    </div>
+    ${p === "and" ? `<div class="scrim"></div>` : ""}
+    <div class="sheet ${p === "ios" ? "partial" : ""}" style="height:${p === "ios" ? 430 : 450}px;display:flex;flex-direction:column;gap:12px">
+      <div class="grab"></div>
+      <div class="bubble">What did we decide about pricing?</div>
+      <div class="step">${I("search", "sm")}Read this note and the transcript</div>
+      <div class="reply"><p>Nothing was settled. Lena will send a draft by Friday <span class="cite">${I("wave", "sm")}<span class="tc">18:40</span></span>, and you agreed to review it together next week.</p></div>
+      <div class="reply-acts"><button class="ibtn">${I("copy", "sm")}</button><button class="ibtn">${I("retry", "sm")}</button></div>
+      <div style="margin-top:auto">${composer(p, "Ask about this note", "This note", false)}</div>
+    </div>`),
+
+  settings: p => phone(p, p === "ios" ? `
+    <div style="position:absolute;inset:0;background:#0006"></div>
+    <div class="sheet" style="top:12px;background:var(--bg-sunken);border-radius:34px 34px 0 0;padding-top:12px">
+      <div class="bar" style="padding:0"><button class="ibtn glass">${I("close")}</button><div class="title">Settings</div><span style="width:44px"></span></div>
+      <div class="sec" style="padding-left:16px">Recording</div>
+      <div class="group">
+        <div class="row one"><span class="lead">${I("mic", "sm")}</span><div class="txt"><div class="t">Transcription</div></div><span style="color:var(--ink-3)">On iPhone</span></div>
+        <div class="row one"><span class="lead">${I("bell", "sm")}</span><div class="txt"><div class="t">Start and stop sounds</div></div><span class="sw on"></span></div>
+        <div class="row one"><span class="lead">${I("vibe", "sm")}</span><div class="txt"><div class="t">Haptic feedback</div></div><span class="sw on"></span></div>
+      </div>
+      <div class="group-foot">Audio stays on this iPhone.</div>
+      <div class="sec" style="padding-left:16px">Appearance</div>
+      <div class="group"><div class="appear">
+        <div class="o"><div class="th" style="background:#fdfbfa;color:#1c1a18"><i></i><i style="width:60%"></i></div>Light</div>
+        <div class="o"><div class="th" style="background:#1b1917;color:#ebe9e7"><i></i><i style="width:60%"></i></div>Dark</div>
+        <div class="o on"><div class="th" style="background:linear-gradient(135deg,#fdfbfa 50%,#1b1917 50%);color:#888"><i></i><i style="width:60%"></i></div>System</div>
+      </div></div>
+    </div>` : `
+    <div style="background:var(--bg-sunken);position:absolute;inset:0;padding:0 16px">
+      <div class="bar" style="margin:0 -16px">${'<button class="ibtn">' + I("backA") + '</button>'}</div>
+      <div class="large-title">Settings</div>
+      <div class="sec">Recording</div>
+      <div class="group">
+        <div class="row" style="min-height:72px"><span class="lead">${I("mic")}</span><div class="txt"><div class="t">Transcription</div><div class="m">On this phone</div></div></div>
+        <div class="row one"><span class="lead">${I("bell")}</span><div class="txt"><div class="t">Start and stop sounds</div></div><span class="sw on"></span></div>
+        <div class="row one"><span class="lead">${I("vibe")}</span><div class="txt"><div class="t">Haptic feedback</div></div><span class="sw"></span></div>
+      </div>
+      <div class="group-foot" style="padding-left:0">Audio stays on this phone.</div>
+      <div class="sec">Appearance</div>
+      <div class="group">
+        <div class="row one"><span class="lead">${I("sun")}</span><div class="txt"><div class="t">Theme</div><div class="m">System</div></div></div>
+        <div class="row one"><span class="lead">${I("text")}</span><div class="txt"><div class="t">Note font</div><div class="m">Sans</div></div></div>
+      </div>
+    </div>`)
+};
+
+const sections = [
+  ["home", "Home", "Greeting, Up next and recent notes on bg-canvas. The composer is docked at the bottom; its round button is Record while the composer is empty and morphs into Send as you type. iOS: glass circles and a glass composer. Android: a tonal composer, no blur."],
+  ["drawer", "Drawer", "Places, not actions. Search, Home / Notes / Meetings, Folders, Recents, then the avatar (Settings) and New note. iOS: bg-sunken with a peek of the page. Android: ModalNavigationDrawer with a primaryContainer pill on the selected item."],
+  ["notes", "Notes list", "Grouped by date in sentence case. iOS: large title, glass search pill and compose button at the bottom. Android: search bar in the top app bar, an extended FAB for New note."],
+  ["note", "Meeting note", "Note font for the title and body. Meta chips under the title. The Notes / Transcript switch is a segmented control on iOS and an M3 segmented button on Android. Ask about this note is pinned at the bottom."],
+  ["recording", "Recording", "The live transcript with speaker rings and Geist Mono timecodes. The recorder bar replaces the composer: rec dot, timer, level, Pause and Stop. Stop is the one accent control."],
+  ["ask", "Cilica on a note", "Cilica opens as a sheet over the note, so the note stays in view. iOS: a partial-height glass sheet you can keep scrolling behind. Android: a ModalBottomSheet with a scrim."],
+  ["settings", "Settings", "iOS: a sheet with ✕, grouped inset rows and the three Appearance cards (as in Claude). Android: a full-screen page with a large top app bar and M3 list items in rounded groups."]
+];
+
+function render(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("out").innerHTML = sections.map(([k, h, d]) => `
+    <section><h2>${h}</h2><p>${d}</p>
+      <div class="pair">
+        <figure><div class="ios" data-theme="${theme}">${S[k]("ios")}</div><figcaption>iOS</figcaption></figure>
+        <figure><div class="and" data-theme="${theme}">${S[k]("and")}</div><figcaption>Android</figcaption></figure>
+      </div></section>`).join("");
+}
+let t = "light";
+try { t = localStorage.getItem("cilica-mobile-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch (e) {}
+document.querySelectorAll(".toggle button").forEach(b => {
+  b.classList.toggle("on", b.dataset.t === t);
+  b.onclick = () => { t = b.dataset.t; try { localStorage.setItem("cilica-mobile-theme", t); } catch (e) {} document.querySelectorAll(".toggle button").forEach(x => x.classList.toggle("on", x === b)); render(t); };
+});
+render(t);
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!-- @dsCard group="Navigation" height=180 subtitle="Top bars: glass circles on iOS, a Material top app bar on Android." -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AppBar</title>
+<link rel="stylesheet" href="../bundle.css">
+</head>
+<body>
+<script src="../icons.js"></script>
+<script src="../preview.js"></script>
+<script>
+cpreview((p, I) => {
+const glass = p === "ios" ? "glass" : "";
+const more = p === "ios" ? "more" : "moreV", share = p === "ios" ? "share" : "shareA", back = p === "ios" ? "back" : "backA";
+return `
+<div class="bar" style="margin:0 -12px"><button class="ibtn ${glass}">${I("menu")}</button><div class="title">${p==="ios"?"":"Notes"}</div><button class="ibtn ${glass}">${I("filter")}</button></div>
+<div class="bar" style="margin:0 -12px"><button class="ibtn ${glass}">${I(back)}</button><div class="title">Call with Marco</div>${p==="ios"?`<span class="ibtn-group glass"><button class="ibtn">${I(share)}</button><button class="ibtn">${I(more)}</button></span>`:`<button class="ibtn">${I(share)}</button><button class="ibtn">${I(more)}</button>`}</div>`;
+}, { sunken: false });
+</script>
+</body>
+</html>
