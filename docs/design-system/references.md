@@ -4,8 +4,8 @@ What Cilica borrows from the products it was studied against, so later decisions
 
 | Pattern | Seen in | Cilica's version |
 | --- | --- | --- |
-| A small floating pill that shows recording with live bars | Granola ("Transcribing" pill), Notion AI meeting notes (floating mini card), Loom (dark control bar) | Recorder capsule in glass, plus the Dynamic Island when Cilica is in the background |
-| A big black Record capsule bottom-centre | Voicenotes | Idle capsule bottom-centre, but glass and quiet, because it sits over the note |
+| A small floating pill that shows recording with live bars | Granola ("Transcribing" pill), Notion AI meeting notes (floating mini card), Loom (dark control bar) | Not used: a recording chip in the note's title band, nothing floating over the note |
+| Recording state in the menu bar or tray, with the elapsed time | macOS screen recording, CleanShot, Loom | Tray title and menu, plus the Dock badge or taskbar overlay; nothing at the top centre, where meeting apps put their banners and screen shares can see it |
 | Speaker identity as a coloured initial, text stays monochrome | Amie, Fireflies, Grain | Colour only on the avatar ring; Saved People choose theirs |
 | Inset content sheet on a grey window, panels around it | Linear (2025–26), macOS Tahoe | Not used: the shell is one flush sheet split by hairlines |
 | User turns as bubbles, assistant as plain text, tool steps collapsed to one line | Searchable, Mintlify, Perplexity, Linear Ask | Assistant thread |

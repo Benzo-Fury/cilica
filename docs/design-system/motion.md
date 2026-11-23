@@ -10,7 +10,7 @@ Use these four presets in Motion (`transition={springs.snappy}`) and the matchin
 | --- | --- | --- | --- |
 | snappy | `{ type: "spring", visualDuration: 0.2, bounce: 0.15 }` | `--spring-snappy` / `--spring-snappy-dur` | Press release, hover nudges, chevrons, checkbox, menus opening, icon motions |
 | smooth | `{ type: "spring", visualDuration: 0.3, bounce: 0.1 }` | `--spring-smooth` | Panels and sidebar collapse, segmented thumb, active-row pill, palette and dialog open, diff card collapse |
-| bouncy | `{ type: "spring", visualDuration: 0.35, bounce: 0.3 }` | `--spring-bouncy` | The record button morph, recorder capsule widening, Dynamic Island expand, toasts entering, drag-and-drop settling, switch knob |
+| bouncy | `{ type: "spring", visualDuration: 0.35, bounce: 0.3 }` | `--spring-bouncy` | The record button morph, toasts entering, drag-and-drop settling, switch knob |
 | gentle | `{ type: "spring", visualDuration: 0.45, bounce: 0 }` | `--spring-gentle` | View changes: Notes ⇄ Transcript, opening a note, settings pages, setup steps |
 
 Springs keep their velocity when interrupted, so a panel toggled twice reverses smoothly from where it is. Never block input while something animates.
@@ -42,8 +42,8 @@ Linear timing is only for continuous things: progress, level meters, the shimmer
 
 ## Signature moments
 
-- **Start recording**: the idle capsule's dot slides left, "Start recording" fades out, the timer and level meter fade in, the capsule's width springs (`bouncy`), the start sound plays, and the Dynamic Island grows out of the top edge 200ms later.
-- **Stop recording**: Stop morphs to a check, the capsule shows "Writing notes…" in shimmer, the note's summary streams in word by word, then the notes-ready sound plays and the capsule returns to idle.
+- **Start recording**: the recording control appears in the note's title band with its timer running, and the start sound plays. Outside the app, the tray glyph's sun grows and the menu bar title starts counting.
+- **Stop recording**: the chip reads "Writing notes…" in shimmer, the note's summary streams in word by word, then the notes-ready sound plays and the chip fades out.
 - **AI edit accepted**: the diff card lifts away, the changed sentence glows `accent-soft` and fades over 2s, and an Undo toast springs in.
 - **Drop a note into a category**: the row lands with `bouncy`, the category count ticks up with a vertical number roll, and a macOS trackpad gives an alignment haptic.
 - **Notes ⇄ Transcript (⌘E)**: the segmented thumb slides; the outgoing view fades and shifts 8px away; the incoming one slides in from the other side (`gentle`).

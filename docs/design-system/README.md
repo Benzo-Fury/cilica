@@ -2,7 +2,7 @@ Cilica is a private, local-first desktop notes app with an AI assistant and a me
 
 ## Principles
 
-1. **The shell is solid, floating controls are glass.** The sidebar sits on `bg-sunken`; notes, transcripts and the assistant sit on `bg-canvas`, split by hairlines. Glass is only for controls that float: the recorder, menus, toasts, the palette. Never put reading text on glass thinner than `glass-fill-strong`.
+1. **The shell is solid, floating controls are glass.** The sidebar sits on `bg-sunken`; notes, transcripts and the assistant sit on `bg-canvas`, split by hairlines. Glass is only for controls that float: menus, toasts, floating toolbars, the palette. Never put reading text on glass thinner than `glass-fill-strong`.
 2. **Monochrome first, one accent.** Neutrals carry the whole layout. `accent` marks the single most important control on a surface and the current selection. Red (`rec`) means recording and nothing else.
 3. **Everything that moves, springs.** Every change of position, size or state animates, fast enough that it never makes you wait (most settle in under 350ms). See Motion.
 4. **Quiet, with small delights.** No mascots, confetti or colour for its own sake. Delight lives in details: icons that react to hover, the record button morph, a tick that draws itself.
@@ -23,7 +23,7 @@ Cilica is a private, local-first desktop notes app with an AI assistant and a me
 
 Two themes, designed together and following the OS setting (Light, Dark or System in Settings › Appearance).
 
-**Themes.** Light and Dark are the two bases. Every other theme in Settings › Appearance is a *look*: a base plus the handful of tokens it changes (grounds, ink, accent, `scene-tint`), listed under `color.looks` in tokens.json and applied by `data-look` on `<html>` beside `data-theme`. A look never changes layout, radii or motion. The one type change: under a look with a scene, the note title and note headings are set in Newsreader (`data-headings="serif"`), which Settings › Appearance › Serif headings turns off. Most looks also paint a pixel scene behind the window (`SceneBackdrop`): Ridgeline dawn and Ridgeline night keep Light's and Dark's own colours; Tide and Dusk recolour the ridgeline; Pines and Mesa have their own scenes. Under a scene the sheet is clear and both panels carry a 20% `bg-canvas` wash; a veil keeps the top 40% of the window the plain page, so the art reads only towards the bottom. The scene is still in the main window. A look's `ink`, `ink-2` and `ink-3` must meet 4.5:1 on its own grounds, and `ink` must also meet it on the darkest part of its scene.
+**Themes.** Light and Dark are the two bases. Every other theme in Settings › Appearance is a *look*: a base plus the handful of tokens it changes (grounds, ink, accent, `scene-tint`, `scene-dim`), listed under `color.looks` in tokens.json and applied by `data-look` on `<html>` beside `data-theme`. A look never changes layout, radii or motion. The one type change: under a look with a scene, the note title and note headings are set in Newsreader (`data-headings="serif"`), which Settings › Appearance › Serif headings turns off. Most looks also paint a pixel scene behind the window (`SceneBackdrop`): Ridgeline dawn and Ridgeline night keep Light's and Dark's own colours; Tide and Dusk recolour the ridgeline; Pines and Mesa have their own scenes; Ocean and Ocean night share an open-sea scene (a headland with a lighthouse, a sail, swell and foam) under a low sun by day and a moon, stars and a lit lamp by night. Under a scene the sheet is clear and both panels carry a 20% `bg-canvas` wash. The art itself is washed towards `bg-canvas` by the look's own `scene-dim` (0.45 to 0.65; it is not a setting), so text never fights the brightest or darkest part of the scene; a veil keeps the top 40% of the window the plain page, so the art reads only towards the bottom. The scene is still in the main window. A look's `ink`, `ink-2` and `ink-3` must meet 4.5:1 on its own grounds, and over its scene, after `scene-dim` and the veil, `ink-2` must meet 4.5:1 and `ink-3` 3:1 on every pixel (graph labels and secondary text sit there). Raise `scene-dim` until they do; busy scenes such as Pines may need a little more than the minimum.
 
 - **Grounds**: `bg-window` (opaque window, shown where vibrancy is unavailable), `bg-canvas` (the note page), `bg-raised` (cards, dialogs, diff cards), `bg-sunken` (inputs, code). Washes for interaction are `fill-hover` and `fill-press`; edges are `line` and `line-strong`.
 - **Text**: `ink` for primary text, `ink-2` secondary, `ink-3` tertiary (timestamps, counts, kbd), `ink-4` only for placeholders and disabled labels. `ink`, `ink-2` and `ink-3` all meet 4.5:1 on every ground and glass fill in both themes.
@@ -53,21 +53,21 @@ Letter-spacing tightens as size grows (-0.022em at 28px, 0 at 12px, +0.02em on u
 
 - Window: left sidebar (`size-sidebar` 248px) and right assistant (`size-assistant` 380px) sit flush against the note: sidebar on `bg-sunken`, note and assistant on `bg-canvas`, split by `line-strong` hairlines, with no card, radius or shadow.
 - Title band: `size-titlebar` 52px, shared by the traffic lights (or Cilica's own window buttons), the sidebar toggle, the note title and the Notes / Transcript segmented control.
-- Note column: `size-measure` 720px max, centred, `space-12` top padding, `space-16` bottom runway for the recorder capsule.
+- Note column: `size-measure` 720px max, centred, `space-12` top padding, `space-16` bottom runway under the last line.
 - 4px spacing grid (`space-*`). Group siblings with `gap`, not margins.
 - Rows and controls: `size-row` and `size-control` 32px, `size-control-sm` 28px, `size-control-lg` 40px. Icon glyphs 18px (`size-icon`), 16px in chips and menus.
 
 ## Shape
 
-Every rounded rectangle is a **squircle** (continuous corner), as on Apple platforms. Where the WebView supports CSS `corner-shape: squircle` (Chromium 139+, so WebView2 on Windows), bundle.css applies it and multiplies the radius by `--sq` (1.45) so corners keep their visual size. Where it is unsupported (macOS WKWebView and Linux WebKitGTK today) fall back to plain `border-radius`, and for the large surfaces that make the impression (window, sidebar inset, palette, dialogs, recorder capsule, toasts) draw the squircle with an SVG `clip-path` generated by `figma-squircle` (cornerSmoothing 0.6), with shadows on an unclipped parent.
+Every rounded rectangle is a **squircle** (continuous corner), as on Apple platforms. Where the WebView supports CSS `corner-shape: squircle` (Chromium 139+, so WebView2 on Windows), bundle.css applies it and multiplies the radius by `--sq` (1.45) so corners keep their visual size. Where it is unsupported (macOS WKWebView and Linux WebKitGTK today) fall back to plain `border-radius`, and for the large surfaces that make the impression (window, sidebar inset, palette, dialogs, toasts) draw the squircle with an SVG `clip-path` generated by `figma-squircle` (cornerSmoothing 0.6), with shadows on an unclipped parent.
 
 - Radii: `radius-xs` 5 (kbd, checkbox), `radius-sm` 8 (rows, menu items), `radius-md` 10 (buttons, inputs), `radius-lg` 14 (menus, toasts, cards), `radius-xl` 20 (palette, dialogs, composer), `radius-window` 16, `radius-pill`.
 - Nested shapes are concentric: inner radius = outer radius − inset (palette 20 − 12 padding = 8 for rows).
-- Chips, the recorder capsule, the Dynamic Island, switches and avatars are pills or circles.
+- Chips (the recording chip included), switches and avatars are pills or circles.
 
 ## Elevation
 
-Depth comes from material first, shadow second. `shadow-xs` for controls that sit on a surface, `shadow-sm` for cards, `shadow-float` for anything floating (menus, toasts, capsule), `shadow-overlay` for the palette and dialogs. Dark-theme shadows add a 0.5px light rim because a shadow alone disappears on graphite. Glass adds a 0.5px edge (`glass-edge`) and nothing inside it: no inner top highlight or inner glow on any surface.
+Depth comes from material first, shadow second. `shadow-xs` for controls that sit on a surface, `shadow-sm` for cards, `shadow-float` for anything floating (menus, toasts, floating toolbars), `shadow-overlay` for the palette and dialogs. Dark-theme shadows add a 0.5px light rim because a shadow alone disappears on graphite. Glass adds a 0.5px edge (`glass-edge`) and nothing inside it: no inner top highlight or inner glow on any surface.
 
 ## Interaction states
 

@@ -13,6 +13,12 @@ apps/desktop/
       assistant.rs    threads, turns, proposals, audit log, providers
       tasks.rs        scheduled tasks and reports
       import.rs       Settings › Import: detection, previews, imports, keys (keychain `import.<provider>`)
+    shell/            windows, tray, taskbar, app menu, global hotkey, material, haptics, spelling
+      onboarding.rs   the first-run setup window
+      status.rs       recording state + clock → the labels below (pure, unit-tested)
+      tray.rs         tray icon, menu bar title, tooltip and menu
+      taskbar.rs      main window's Dock badge, overlay icon, progress, attention and title
+      thumbbar.rs     Windows only: thumbnail toolbar buttons (ITaskbarList3)
   src/
     app/              root layout, providers, keybind registry, motion presets
     features/         sidebar, note, transcript, recorder, assistant, people, tasks, activity, trash, settings, onboarding, palette, import, installer
@@ -61,7 +67,11 @@ Crates receive an `Events` handle (`Arc<dyn EventSink>`) and call `events.emit(A
 
 `lib.rs` opens the database (`Core::init`), then calls each `commands::<area>::setup(app, &core)` in order: settings, notes, recording, assistant, tasks. Each area builds its own service there and registers it with `app.manage(...)`; commands take it as `State<'_, YourService>` alongside `State<'_, Core>`. The main window starts hidden; the UI calls `showMainWindow` after first paint.
 
-Every window loads the same bundle; `main.tsx` picks the root from `?window=`: the main app, `island` (the Dynamic Island) or `onboarding` (first-run setup). On a first launch (`onboarding_done` false) `shell::setup` also builds the setup window (`shell/onboarding.rs`), and `showMainWindow` leaves the main window hidden while it is open. `finish_onboarding` (Open Cilica, or closing the window) marks setup done, writes the welcome note (`Db::create_welcome_note`), emits `open_note`, closes setup and shows the main window. `open_onboarding` reopens setup from Settings.
+Every window loads the same bundle; `main.tsx` picks the root from `?window=`: the main app or `onboarding` (first-run setup). There is no floating recording window: a recording shows in the note's title band, the tray and the taskbar or Dock (see Recording status below). On a first launch (`onboarding_done` false) `shell::setup` also builds the setup window (`shell/onboarding.rs`), and `showMainWindow` leaves the main window hidden while it is open. `finish_onboarding` (Open Cilica, or closing the window) marks setup done, writes the welcome note (`Db::create_welcome_note`), emits `open_note`, closes setup and shows the main window. `open_onboarding` reopens setup from Settings.
+
+## Recording status
+
+`shell/status.rs` turns the recording state and the clock into every label the shell shows: the tray title (“12:04”, “Paused 12:04”, “Stops in 8s”), the tooltip, the menu's status line, the Dock badge and the window title. It is pure and unit-tested. `tray.rs` applies them to the tray icon, title, tooltip and menu; `taskbar.rs` to the main window (macOS Dock badge, progress and bounce; Windows overlay icon, progress, flash and title; Linux progress through libunity where the desktop has it); `thumbbar.rs` adds the Windows thumbnail toolbar (Pause or Resume, Stop and write notes, Open note, Keep recording). Pause and Resume reach `RecordingService::pause`/`resume`, which flag the capture session (`cilica_audio::CaptureSession::set_paused`) so paused audio is read and dropped without moving the recording's timeline. A once-a-second ticker in the shell refreshes them while a recording is live. Open note shows and focuses the main window on the recording's note. Inside the app the only recording surface is the neutral recording control in the note's title band (`src/features/recorder/RecordingChip.tsx`). The capabilities are `default.json` (main window) and `onboarding.json`.
 
 ## Cross-area seams
 

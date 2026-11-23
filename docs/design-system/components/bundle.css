@@ -287,11 +287,7 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 @keyframes nt-word-in { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: blur(0); } }
 .nt-word-playing { background: var(--accent-soft); border-radius: 3px; box-shadow: 0 0 0 2px var(--accent-soft); }
 
-/* ───────── Recorder capsule (in-app) ───────── */
-.nt-capsule { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--size-control-lg); padding: 0 var(--space-1) 0 var(--space-3);
-  border-radius: var(--radius-pill); color: var(--ink);
-  transition: width var(--spring-bouncy-dur) var(--spring-bouncy), padding var(--spring-bouncy-dur) var(--spring-bouncy); }
-.nt-capsule .nt-iconbtn { border-radius: var(--radius-pill); width: 32px; height: 32px; }
+/* ───────── Recording controls ───────── */
 .nt-stop { width: 32px; height: 32px; border-radius: var(--radius-pill); border: 0; display: grid; place-items: center; cursor: pointer; background: var(--rec); color: #fff;
   transition: transform var(--spring-snappy-dur) var(--spring-snappy), box-shadow var(--dur-base) var(--ease-out); }
 .nt-stop::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: currentColor; }
@@ -299,25 +295,46 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 .nt-stop:active { transform: scale(.92); }
 .nt-wave { display: inline-flex; align-items: center; gap: 2px; height: 20px; }
 .nt-wave i { width: 3px; height: var(--h, 30%); min-height: 3px; border-radius: 2px; background: currentColor; opacity: .85; transition: height 90ms linear; }
-.nt-capsule-extra { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 0; opacity: 0; overflow: hidden;
-  transition: max-width var(--spring-bouncy-dur) var(--spring-bouncy), opacity var(--dur-base) var(--ease-out); }
-.nt-capsule:hover .nt-capsule-extra, .nt-capsule:focus-within .nt-capsule-extra { max-width: 220px; opacity: 1; }
-.nt-capsule-idle { padding: 0 var(--space-4) 0 var(--space-3); cursor: pointer; border: 0; font: 550 14px/1 var(--font-sans); }
-.nt-capsule-idle .nt-rec-dot { animation: none; }
 
-/* ───────── Dynamic Island (separate always-on-top window) ───────── */
-.nt-island { --w: 168px; --h: 32px; position: relative; width: var(--w); height: var(--h); border-radius: calc(var(--h) / 2); overflow: hidden;
-  display: flex; align-items: center; color: #f5f3f1; background: #000;
-  box-shadow: 0 0 0 0.5px rgb(255 255 255 / .08), 0 8px 24px -8px rgb(0 0 0 / .5);
-  transition: width var(--spring-bouncy-dur) var(--spring-bouncy), height var(--spring-bouncy-dur) var(--spring-bouncy), border-radius var(--spring-bouncy-dur) var(--spring-bouncy); }
-.nt-island[data-glass] { background: rgb(28 27 26 / .72); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 0 0 0.5px rgb(255 255 255 / .1), 0 8px 24px -8px rgb(0 0 0 / .5); }
-.nt-island[data-expanded] { --w: 360px; --h: 76px; border-radius: 26px; }
-.nt-island-compact, .nt-island-full { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 12px; gap: 8px; transition: opacity var(--dur-base) var(--ease-out), transform var(--spring-bouncy-dur) var(--spring-bouncy), filter var(--dur-base) var(--ease-out); }
-.nt-island-full { padding: 0 14px 0 18px; gap: 12px; opacity: 0; transform: scale(.92); filter: blur(4px); }
-.nt-island[data-expanded] .nt-island-compact { opacity: 0; transform: scale(1.08); filter: blur(4px); }
-.nt-island[data-expanded] .nt-island-full { opacity: 1; transform: none; filter: none; }
-.nt-island .nt-wave { color: var(--rec); height: 14px; }
-.nt-island .nt-mono { font-size: 12px; color: #f5f3f1; }
+/* ───────── Recording status ───────── */
+.nt-iconbtn-sm { width: 22px; height: 22px; --r: calc(var(--radius-xs) * var(--sq)); }
+.nt-iconbtn-sm .nt-ico { width: var(--size-icon-sm); height: var(--size-icon-sm); }
+/* The neutral recording control in the note's title band: a status chip, then Pause or Resume and Stop. */
+.nt-chip .nt-mono { font-size: 12px; }
+.nt-chip-busy { cursor: default; }
+button.nt-chip-busy:hover { background: var(--fill-press); }
+
+/* OS chrome in previews: the macOS menu bar with Cilica's tray item, and the Windows taskbar. */
+.nt-menubar { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); height: 26px; padding: 0 var(--space-2);
+  background: var(--glass-fill); -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(180%); backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+  color: var(--ink); font: 550 13px/1 var(--font-sans); }
+.nt-menubar-item { display: inline-flex; align-items: center; gap: var(--space-1-5); height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-xs); }
+.nt-menubar-item[data-open] { background: var(--fill-press); }
+.nt-menubar-item .nt-mono { font-size: 13px; }
+.nt-tray-glyph { width: 18px; height: 18px; flex: none; display: block; }
+.nt-menu-item[aria-disabled="true"] { color: var(--ink-3); }
+.nt-menu-item[aria-disabled="true"]:hover { background: transparent; }
+.nt-menu-item-check { padding-left: var(--space-2); }
+.nt-menu-tick { width: 16px; flex: none; display: grid; place-items: center; }
+.nt-menu-tick .lucide { width: 14px; height: 14px; color: var(--ink); }
+
+.nt-taskbar { display: flex; align-items: center; justify-content: center; gap: var(--space-1); height: 48px; padding: 0 var(--space-3);
+  background: var(--glass-fill-strong); -webkit-backdrop-filter: blur(var(--blur-glass-strong)) saturate(180%); backdrop-filter: blur(var(--blur-glass-strong)) saturate(180%);
+  border-top: 0.5px solid var(--line-strong); }
+.nt-taskbtn { position: relative; width: 40px; height: 40px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--ink-2); }
+.nt-taskbtn[data-active] { background: var(--fill-press); }
+.nt-taskbtn[data-active]::after { content: ""; position: absolute; bottom: 2px; left: 50%; width: 16px; height: 3px; margin-left: -8px; border-radius: var(--radius-pill); background: var(--accent); }
+.nt-taskbtn-icon { width: 24px; height: 24px; border-radius: var(--radius-xs); background: var(--bg-raised); box-shadow: inset 0 0 0 0.5px var(--line-strong); display: grid; place-items: center; color: var(--ink); }
+.nt-taskbtn-overlay { position: absolute; right: 6px; bottom: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--rec); box-shadow: 0 0 0 2px var(--bg-raised); }
+.nt-thumb { width: 240px; padding: var(--space-2); border-radius: calc(var(--radius-lg) * var(--sq)); display: grid; gap: var(--space-2); }
+.nt-thumb-title { display: flex; align-items: center; gap: var(--space-2); font: 450 12px/16px var(--font-sans); color: var(--ink); white-space: nowrap; overflow: hidden; }
+.nt-thumb-shot { height: 120px; border-radius: var(--radius-sm); background: var(--bg-canvas); box-shadow: inset 0 0 0 0.5px var(--line); padding: var(--space-3); display: grid; align-content: start; gap: var(--space-1-5); }
+.nt-thumb-shot i { display: block; height: 6px; border-radius: var(--radius-pill); background: var(--fill-press); }
+.nt-thumbbar { display: flex; justify-content: center; gap: var(--space-1); }
+.nt-thumbbar button { width: 36px; height: 28px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out); }
+.nt-thumbbar button:hover, .nt-thumbbar button[data-highlighted] { background: var(--fill-press); }
+.nt-thumbbar .lucide { width: 16px; height: 16px; }
 
 /* ───────── Assistant ───────── */
 .nt-thread { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -439,7 +456,7 @@ button.nt-chip:hover { background: var(--line-strong); color: var(--ink); }
 /* ───────── Reduced motion: keep feedback, drop travel ───────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
-  .nt-btn, .nt-iconbtn, .nt-switch::after, .nt-seg-thumb, .nt-toast, .nt-island, .nt-capsule, .nt-diff, .nt-chevron, .nt-collapse { transition-duration: var(--dur-fast) !important; transition-timing-function: linear !important; }
+  .nt-btn, .nt-iconbtn, .nt-switch::after, .nt-seg-thumb, .nt-toast, .nt-diff, .nt-chevron, .nt-collapse { transition-duration: var(--dur-fast) !important; transition-timing-function: linear !important; }
   .nt-btn-primary::after { display: none; }
   .nt-rec-dot { animation: none; }
   .nt-shimmer { animation: none; color: var(--ink-3); background: none; }

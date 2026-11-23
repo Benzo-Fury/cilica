@@ -85,7 +85,7 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 ### Note view
 
-- Header: editable title, a **SegmentedSlider** (Notes ↔ Transcript, animated thumb, `⌘E`), recording timer and Stop while live, overflow menu (export Markdown, copy, history, move to trash).
+- Header: editable title, a **SegmentedSlider** (Notes ↔ Transcript, animated thumb, `⌘E`), overflow menu (export Markdown, copy, history, move to trash). On the note being recorded, the **recording chip** sits beside the switch (see [Recording status](#recording-status)).
 - **Notes panel**: TipTap Markdown editor. The user can type during a meeting; those jottings are kept and woven into the AI summary, as Granola does.
 - **Spelling**: the webview's own checker underlines misspelt words as you type in the body, the title and the assistant box; right-click a word for suggestions. Code, inline code and tags are never checked. WebKit leaves the checker off for embedded webviews, so the shell turns it on (macOS: the `WebContinuousSpellCheckingEnabled` default before the first webview; Linux: the WebKitGTK context, in the `LANG` language). Settings › General › Writing › Check spelling (on by default) sets `spellcheck` on `<html>`, which every text box inherits. Words already in a note are only checked once you edit near them.
 
@@ -137,7 +137,22 @@ Notes link with Obsidian's Markdown, so an imported vault keeps its links and Ci
 - **Live transcript.** VAD splits speech into utterances (a 700 ms pause ends one; past 6 s a 250 ms breath does; 12 s at most); each decode is primed with the stream's recent text; mic and call audio each have their own decoder state. The engine streams partial then final segments to the UI as events. With speakers labelled on this computer, a segment is stored without a speaker and shows **Pending** until speaker detection has heard it (a few seconds), then gets Person 1, 2… (or a Saved person whose voice Cilica knows); when two speakers turn out to be one person their lines are joined. A line no one could be found for has no speaker and shows no badge. With labels off, or when the voice model cannot be loaded, no line has a speaker, and a grey dismissible notice above the transcript says why and opens Settings › Transcription.
 
 - **End.** Manual Stop, or the meeting app releases the mic for 15 s. A toast offers “Keep recording” for 10 s.
+
 - **Finalize.** Lines still pending go to the nearest speaker (or none); speakers nobody spoke as are dropped; voices are matched against Saved people (named when Cilica is sure, suggested when it is less sure; it learns only from confirmations). The careful Whisper pass keeps who said what from the live transcript. Then the LLM writes the summary into the Notes panel, above any user jottings: Summary, Decisions, Action items (owner + due), Open questions. The view slides to Notes.
+
+### Recording status
+
+Cilica shows a recording in two places: the note it writes to, and the edges of the screen that are always there. There is no floating window or bar. A window at the top centre sits where meeting apps put their own banners and can show up in a screen share; every recorder people know (macOS screen recording, CleanShot, Loom) lives in the menu bar or tray, and the taskbar is never in the way.
+
+- **Recording control** (the note's title band, beside the Notes / Transcript switch, on the note being recorded, so it shows on both panels). Neutral, never red: red is for the tray and taskbar. A chip with “Recording · 12:04” (Geist Mono timer), then Pause and Stop (tooltip “Stop recording”, `⌘⇧R`). Paused: “Paused · 12:04” with the time held, and Resume. During the auto-stop countdown the chip reads “Stops in 8s” with a Keep recording button; the toast with “Keep recording” still shows. While finishing the chip reads “Writing notes…” with the shimmer.
+- **Pause.** Pausing drops audio until Resume: nothing is recorded or transcribed, the file and transcript carry on from where they stopped, and the elapsed time leaves pauses out (`paused_at`, `paused_ms` on the recording state). Stopping while paused finishes the meeting as usual. The sidebar still marks the note being recorded. Recording starts from the transcript panel, the sidebar, `⌘⇧R` or the tray.
+- **Tray icon.** macOS: a template glyph whose sun grows while capturing. Windows and Linux: the app icon with a red dot while capturing. Paused shows the resting icon.
+- **Menu bar title** (macOS, and Linux panels that support it): “12:04” next to the glyph while recording, “Paused 12:04” while paused, “Stops in 8s” during the countdown, nothing while idle or writing notes.
+- **Tray tooltip**: “Cilica · Recording 12:04”, “Cilica · Paused at 12:04”, “Cilica · Stops in 8s”, “Cilica · Writing notes…”, or “Cilica”.
+- **Tray menu.** Idle: Open Cilica, Start recording; Listening for meetings (check); Quit Cilica. Recording: a disabled status line (“Recording · 12:04”, “Paused · 12:04”, or “Meeting ended · stops in 8s” during the countdown); Keep recording (countdown only), Pause or Resume, Stop and write notes; Open note; Listening for meetings; Quit Cilica. Writing notes: “Writing notes…” (disabled), Open note; Listening for meetings; Quit Cilica. Open note shows and focuses the main window on the recording's note.
+- **macOS Dock**: a badge with the elapsed time while recording (“Paused” while paused); the Dock icon's progress bar runs (indeterminate) while Cilica writes the notes; the icon bounces once when a detected meeting ends and the countdown starts.
+- **Windows taskbar button**: a red dot overlay while capturing (gone while paused); indeterminate progress while writing notes; the button flashes when the countdown starts; the window title becomes “Recording 12:04 · Cilica”, so the hover label shows it. The hover thumbnail has toolbar buttons Pause (Resume while paused), Stop and write notes, Open note and Keep recording (Keep recording only during the countdown; Pause and Stop hide while writing notes). The button only exists while the main window is shown, so the tray is the one surface that is always there.
+- **Linux**: the tray icon and menu as above; progress only on desktops with libunity.
 
 ### Speakers and Saved people
 
@@ -293,7 +308,7 @@ settings         key, value_json        -- secrets live in the OS keychain, neve
 
 ```
 apps/desktop/
-  src-tauri/          # thin shell: commands, events, windows (main, setup, island), tray
+  src-tauri/          # thin shell: commands, events, windows (main, setup), tray, taskbar and Dock
 apps/setup/           # Cilica Setup: the Windows install and uninstall window around Tauri's NSIS installer
   src/
     app/              # root layout, providers, keybind registry, motion presets

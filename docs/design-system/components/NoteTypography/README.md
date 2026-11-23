@@ -10,4 +10,4 @@ The note page is the content layer: opaque `bg-canvas`, a 720px measure, generou
 
 **AI-written text** arriving into a note fades in word by word (`--dur-slow`) and keeps an `accent-soft` wash for 2s before settling.
 
-Leave `space-16` of runway under the last line so the recorder capsule never covers it.
+Leave `space-16` of runway under the last line so it never sits on the window edge.

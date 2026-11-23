@@ -10,6 +10,8 @@ Transcript lines show who said what, when, with the speaker's colour only on the
 
 **Pending lines**: while a meeting records with speakers told apart on this computer, a line Cilica has not placed yet shows "Pending" in `ink-3` with a dashed avatar ring, and moves under its speaker a few seconds later. Each pending line has a row of its own, so placing one never moves the lines after it. A placed line either keeps its row (the name crossfades from Pending to the speaker, the text stays still) or glides up word by word into the speaker's turn above, on `smooth`, with no copy left behind; Pending's avatar and name fade out on top (`--dur-fast`, ease-in) without taking space. Rows that shift glide instead of jumping, and while live the transcript never gets shorter, so the view never bounces back down. A new row's avatar and name rise with its first words. Nothing animates when a transcript first loads, and Reduce motion makes all of it a plain fade. Pending lines are not counted in the speakers chip.
 
+**Words said by someone else**: select words in a finished transcript and release the mouse; the selection snaps to whole words and stays washed in `accent-soft` while "Who said this?" opens under it. It is the speaker popover's list (Saved people, In this meeting, a new person, a name for this meeting only). Picking someone moves just those words, splitting the line into turns, and an undo toast says where they went. Off while the meeting is being recorded or processed.
+
 **Unknown speakers** show "Speaker 3" and a "Name this speaker" chip that assigns or creates a Saved Person (and stores the voiceprint).
 
 ## Lines worth keeping

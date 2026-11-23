@@ -1,0 +1,567 @@
+<title>Cilica Without Tabs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+/* Layout: one reading column; ideas as a list of rows, each with a small Cilica-style mock beside the text. */
+:root{
+  --bg:#eeecea; --canvas:#fdfbfa; --raised:#ffffff; --sunken:#f5f3f1;
+  --ink:#1c1a18; --ink2:#585551; --ink3:#6b6763; --ink4:#a7a4a1;
+  --line:#1c1a1817; --accent:#302d2b; --soft:#eae7e5;
+  --good:#3f7d58; --warn:#a46a1f; --bad:#a6473d;
+  --hl:#e6dccd;
+  --sans:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --serif:"Newsreader",Georgia,serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131110; --canvas:#1b1917; --raised:#242220; --sunken:#171514;
+  --ink:#ebe9e7; --ink2:#b7b4b0; --ink3:#989591; --ink4:#575552;
+  --line:#ffffff14; --accent:#dad7d5; --soft:#353230;
+  --good:#7fbf95; --warn:#d9a25a; --bad:#de8a80; --hl:#3d352b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131110; --canvas:#1b1917; --raised:#242220; --sunken:#171514;
+  --ink:#ebe9e7; --ink2:#b7b4b0; --ink3:#989591; --ink4:#575552;
+  --line:#ffffff14; --accent:#dad7d5; --soft:#353230;
+  --good:#7fbf95; --warn:#d9a25a; --bad:#de8a80; --hl:#3d352b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:48px 80px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:500}
+h1{font-family:var(--serif);font-size:clamp(34px,5vw,48px);line-height:1.1;letter-spacing:-.01em}
+h2{font-family:var(--serif);font-size:28px;line-height:1.2}
+h3{font-size:16px;font-weight:600}
+p{margin:0;max-width:68ch}
+.lede{font-size:18px;color:var(--ink2);max-width:62ch}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+kbd{font:500 12px/1 var(--mono);background:var(--sunken);border:.5px solid var(--line);border-radius:5px;padding:3px 6px;color:var(--ink)}
+header{display:flex;flex-direction:column;gap:16px}
+
+/* the brief */
+.brief{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.panel{background:var(--canvas);border:.5px solid var(--line);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel ul{margin:0;padding-left:18px;color:var(--ink2);display:flex;flex-direction:column;gap:4px}
+.panel strong{color:var(--ink);font-weight:600}
+
+/* tests */
+.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.test{border-top:1px solid var(--ink);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.test b{font-weight:600}
+.test span{color:var(--ink2);font-size:14px}
+
+/* families */
+section{display:flex;flex-direction:column;gap:20px}
+.fam-head{display:flex;flex-direction:column;gap:8px}
+.ideas{display:flex;flex-direction:column;gap:12px}
+.idea{background:var(--canvas);border:.5px solid var(--line);border-radius:14px;padding:20px 22px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.idea .txt{display:flex;flex-direction:column;gap:10px;min-width:0}
+.idea .name{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.idea .id{font:500 12px var(--mono);color:var(--ink3)}
+.idea p{color:var(--ink2);font-size:14.5px}
+.idea p.how{color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 11.5px/1 var(--mono);padding:5px 8px;border-radius:99px;background:var(--soft);color:var(--ink2);display:inline-flex;gap:6px;align-items:center}
+.chip i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.g i{background:var(--good)} .w i{background:var(--warn)} .b i{background:var(--bad)}
+.pick{outline:1.5px solid var(--accent);outline-offset:-1px}
+.tag{font:600 10.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--canvas);padding:4px 7px;border-radius:5px}
+.tag.alt{background:transparent;color:var(--ink3);border:.5px solid var(--ink4)}
+@media (max-width:720px){.idea{grid-template-columns:1fr}}
+
+/* mocks */
+.mock{background:var(--bg);border-radius:10px;padding:12px;font-size:12px;line-height:1.35;display:flex;flex-direction:column;gap:6px;min-width:0;overflow:hidden}
+.mock .win{background:var(--canvas);border:.5px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.bar{height:6px;border-radius:3px;background:var(--soft)}
+.row{display:flex;gap:6px;align-items:center;min-width:0}
+.mut{color:var(--ink3)} .mono{font-family:var(--mono)}
+.pill{background:var(--raised);border:.5px solid var(--line);border-radius:7px;padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill.on{background:var(--accent);color:var(--canvas);border-color:transparent}
+.ln{color:var(--ink);text-decoration:underline;text-decoration-color:var(--ink4);text-underline-offset:2px}
+.hl{background:var(--hl);border-radius:3px;padding:0 2px}
+.cols{display:flex;gap:4px;min-width:0}
+.cols .win{flex:1;padding:8px}
+.cols .win.folded{flex:0 0 22px;padding:6px 4px;writing-mode:vertical-rl;color:var(--ink3);font-size:10.5px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink);flex:none}
+.dot.f2{opacity:.55}.dot.f3{opacity:.3}.dot.f4{opacity:.15}
+
+/* comparison table */
+.tbl{overflow-x:auto;border-radius:14px;border:.5px solid var(--line);background:var(--canvas)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:.5px solid var(--line);vertical-align:top}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+tr:last-child td{border-bottom:0}
+td.c{font-variant-numeric:tabular-nums;white-space:nowrap}
+.m{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.m.g{background:var(--good)}.m.w{background:var(--warn)}.m.b{background:var(--bad)}
+
+/* recommendation */
+.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.step{background:var(--canvas);border:.5px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.step .eyebrow{color:var(--ink2)}
+.step p{color:var(--ink2);font-size:14px}
+.qs{display:flex;flex-direction:column;gap:10px;counter-reset:q}
+.q{background:var(--canvas);border:.5px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:4px}
+.q b{font-weight:600}
+.q span{color:var(--ink2);font-size:14px}
+footer{color:var(--ink3);font-size:13px}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Proposal · navigation · 23 Nov 2026</span>
+  <h1>Working across many notes, without tabs</h1>
+  <p class="lede">A friend wants tabs so he can hop between the notes he is working on. You want to avoid tabs because they are one more thing to open, close, tidy and remember. This page lists ways to give him the fast hop without handing him a row of things to keep clean.</p>
+</header>
+
+<div class="brief">
+  <div class="panel">
+    <span class="eyebrow">What he actually asked for</span>
+    <ul>
+      <li><strong>Swap between recent notes quickly.</strong> One or two keystrokes, not a search.</li>
+      <li><strong>Hold several notes "open" at once.</strong> A working set for one piece of work.</li>
+      <li>He moves along <strong>links and the graph</strong>, so the set grows as he follows them.</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <span class="eyebrow">Why tabs are the wrong shape</span>
+    <ul>
+      <li>Every open needs a matching close, or the strip fills and becomes noise.</li>
+      <li>Two parallel histories: the tab's own and the app's Back. Which one does <kbd>⌘[</kbd> mean?</li>
+      <li>Restoring, reordering, duplicate tabs of one note, "close others": all maintenance.</li>
+      <li>A strip of titles competes with the note title band and the recording chip.</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <span class="eyebrow">What Cilica has today</span>
+    <ul>
+      <li>A <strong>Back</strong> button in the band (50-deep stack). No Forward, no key.</li>
+      <li><strong>Recent notes</strong> in the empty <kbd>⌘K</kbd> palette.</li>
+      <li><strong>Connections</strong> under each note and the <kbd>⌘G</kbd> graph.</li>
+    </ul>
+  </div>
+</div>
+
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">How each idea is judged</span>
+  </div>
+  <div class="tests">
+    <div class="test"><b>Nothing to close</b><span>The set looks after itself. Forgetting it costs nothing.</span></div>
+    <div class="test"><b>One gesture to hop</b><span>Reaching the last few notes takes a key or a click, no typing.</span></div>
+    <div class="test"><b>Follows links</b><span>Going A → B → C via links keeps that path in reach.</span></div>
+    <div class="test"><b>Fits the room</b><span>No new chrome fighting the title band, the assistant or the sidebar.</span></div>
+  </div>
+</section>
+
+<!-- ========== FAMILY 1 ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Family 1 · Hop by time</span>
+    <h2>Make "the last few notes" one keystroke away</h2>
+    <p class="mut">The list is your own history. Nobody curates it, it just exists.</p>
+  </div>
+  <div class="ideas">
+
+    <article class="idea pick">
+      <div class="txt">
+        <div class="name"><span class="id">1.1</span><h3>Note switcher on Ctrl+Tab</h3><span class="tag">Core</span></div>
+        <p class="how">Hold <kbd>Ctrl</kbd>, tap <kbd>Tab</kbd> to walk back through notes by most recent use, release to open. A single tap swaps to the previous note and back again, like <kbd>⌘Tab</kbd> between apps.</p>
+        <p>This is what tabs are mostly used for, with none of the strip. The overlay shows title, category and "edited 4 min ago". <kbd>Ctrl⇧Tab</kbd> walks the other way. Same list as the palette's Recent notes, so there is one idea of "recent".</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>one gesture</span><span class="chip g"><i></i>small build</span><span class="chip w"><i></i>keyboard only</span></div>
+      </div>
+      <div class="mock">
+        <div class="win" style="gap:4px">
+          <div class="pill">Pricing model v2</div>
+          <div class="pill on">Acme kickoff · today 10:30</div>
+          <div class="pill">Onboarding rewrite</div>
+          <div class="pill">Sam</div>
+          <div class="pill mut">Q1 hiring plan</div>
+        </div>
+        <span class="mut mono" style="text-align:center">Ctrl held · Tab ×2</span>
+      </div>
+    </article>
+
+    <article class="idea pick">
+      <div class="txt">
+        <div class="name"><span class="id">1.2</span><h3>Back and Forward done properly</h3><span class="tag">Core</span></div>
+        <p class="how">Add Forward, bind <kbd>⌘[</kbd> / <kbd>⌘]</kbd> and the trackpad two-finger swipe, and long-press (or right-click) Back to see the whole trail as a menu.</p>
+        <p>Following links is a path, and the path is already recorded in the router stack. Today it is one-way and mouse-only. This fixes the "I went three links deep, take me back two" case without anything new on screen.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>follows links</span><span class="chip g"><i></i>already half built</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="row"><span class="pill">‹</span><span class="pill mut">›</span><span class="mut">Pricing model v2</span></div>
+          <div class="win" style="background:var(--raised);gap:3px;padding:6px">
+            <div class="mut">Onboarding rewrite</div>
+            <div class="mut">Acme kickoff</div>
+            <div>Q1 hiring plan</div>
+            <div class="mut">Home</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">1.3</span><h3>Number keys in the empty palette</h3></div>
+        <p class="how"><kbd>⌘K</kbd> already opens on Recent notes. Show <kbd>1</kbd>–<kbd>9</kbd> beside them so <kbd>⌘K</kbd> <kbd>2</kbd> opens the second.</p>
+        <p>A tiny change to something that exists. Good for mouse-free users who do not want a held-key switcher.</p>
+        <div class="chips"><span class="chip g"><i></i>tiny build</span><span class="chip g"><i></i>nothing to close</span><span class="chip w"><i></i>two keystrokes</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="row"><span class="mut">Search notes, people, dates…</span></div>
+          <div class="row"><span class="mono mut">1</span><span>Pricing model v2</span></div>
+          <div class="row"><span class="mono mut">2</span><span>Acme kickoff</span></div>
+          <div class="row"><span class="mono mut">3</span><span>Onboarding rewrite</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">1.4</span><h3>Warmth in the sidebar</h3></div>
+        <p class="how">Notes you opened recently carry a small dot in the left sidebar that fades over the day. No new section, the tree just shows where you have been.</p>
+        <p>Helps the mouse user spot the working set inside the categories they already know. Pairs well with 1.1. Risk: the sidebar gets busier, so the dot should be faint and hide while folded.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>mouse friendly</span><span class="chip w"><i></i>subtle, easy to miss</span></div>
+      </div>
+      <div class="mock">
+        <div class="win" style="gap:5px">
+          <div class="mut mono" style="font-size:10.5px">PRODUCT</div>
+          <div class="row"><span class="dot"></span>Pricing model v2</div>
+          <div class="row"><span class="dot f3"></span>Onboarding rewrite</div>
+          <div class="row" style="padding-left:12px">Roadmap 2027</div>
+          <div class="mut mono" style="font-size:10.5px">MEETINGS</div>
+          <div class="row"><span class="dot f2"></span>Acme kickoff</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">1.5</span><h3>A Recent section that tidies itself</h3></div>
+        <p class="how">A short "Recent" group at the top of the sidebar: the last 5 notes, newest first, no close buttons. It is a view of history, not a list you own.</p>
+        <p>The most tab-like option that still has nothing to manage. It does take sidebar space and moves around as you work, which some people find jumpy. Could be off by default.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>visible, clickable</span><span class="chip w"><i></i>reorders under you</span></div>
+      </div>
+      <div class="mock">
+        <div class="win" style="gap:5px">
+          <div class="mut mono" style="font-size:10.5px">RECENT</div>
+          <div>Pricing model v2</div><div>Acme kickoff</div><div>Onboarding rewrite</div>
+          <div class="bar" style="margin-top:4px"></div>
+          <div class="mut mono" style="font-size:10.5px">PRODUCT</div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ========== FAMILY 2 ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Family 2 · Stay in place</span>
+    <h2>Look at another note without leaving this one</h2>
+    <p class="mut">Much tab use is "keep this open so I can glance at it". If the glance never leaves the current note, there is nothing to come back to.</p>
+  </div>
+  <div class="ideas">
+
+    <article class="idea pick">
+      <div class="txt">
+        <div class="name"><span class="id">2.1</span><h3>Peek a link</h3><span class="tag">Core</span></div>
+        <p class="how">Hover a <span class="ln">[[link]]</span> with <kbd>⌘</kbd> held, or press <kbd>Space</kbd> on a link in Connections, to float the note over the current one. It is editable. Esc or moving away closes it; click its title to go there for real.</p>
+        <p>Quick Look for notes. Answers "what did I write in Pricing again?" without a hop. Also works on graph nodes and palette rows.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>follows links</span><span class="chip w"><i></i>medium build</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="bar" style="width:70%"></div>
+          <div>Margins assume the <span class="ln">Pricing model v2</span> tiers.</div>
+          <div class="win" style="background:var(--raised);box-shadow:0 8px 24px #0000001f;margin-left:24px">
+            <b style="font-weight:600">Pricing model v2</b>
+            <div class="bar"></div><div class="bar" style="width:80%"></div><div class="bar" style="width:60%"></div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">2.2</span><h3>Open beside, two at most</h3><span class="tag alt">Maybe</span></div>
+        <p class="how"><kbd>⌘</kbd>-click a link (or "Open beside" in its menu) to split the canvas: this note left, that one right. Clicking another link on the right replaces it. Close the split and it is gone.</p>
+        <p>For writing while referencing. Capped at two so it never becomes a pane manager. The assistant panel already pushes the editor, so width gets tight on laptops; the split would hide the assistant while open.</p>
+        <div class="chips"><span class="chip g"><i></i>side by side</span><span class="chip w"><i></i>one close</span><span class="chip b"><i></i>bigger build</span></div>
+      </div>
+      <div class="mock">
+        <div class="cols">
+          <div class="win"><b style="font-weight:600">Q1 hiring plan</b><div class="bar"></div><div class="bar" style="width:70%"></div><div class="bar" style="width:85%"></div></div>
+          <div class="win"><b style="font-weight:600">Pricing model v2</b><div class="bar"></div><div class="bar" style="width:55%"></div></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">2.3</span><h3>Sliding notes</h3><span class="tag alt">Bold</span></div>
+        <p class="how">Clicking a link opens the note as a new column to the right; older columns fold into thin spines with their titles. Clicking a spine unfolds it. Following a link from an earlier column drops everything after it.</p>
+        <p>The trail and the working set become one thing, and it prunes itself because branching off cuts the tail. It is a strong fit for link-heavy writing but changes the whole canvas, and every other view (transcript, recording, assistant) would need to fit in a column.</p>
+        <div class="chips"><span class="chip g"><i></i>prunes itself</span><span class="chip g"><i></i>follows links</span><span class="chip b"><i></i>reshapes the app</span></div>
+      </div>
+      <div class="mock">
+        <div class="cols" style="height:110px">
+          <div class="win folded">Q1 hiring plan</div>
+          <div class="win folded">Acme kickoff</div>
+          <div class="win"><b style="font-weight:600">Pricing v2</b><div class="bar"></div><div>see <span class="ln">Tiers</span></div></div>
+          <div class="win"><b style="font-weight:600">Tiers</b><div class="bar"></div><div class="bar" style="width:60%"></div></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">2.4</span><h3>Pull a section in</h3></div>
+        <p class="how">Type <span class="mono">![[Pricing model v2#Tiers]]</span> to show that section live inside this note, editable in place. Edits save to the source note.</p>
+        <p>For a working set that is really one document spread across many notes. Useful well beyond this request, but heavy in TipTap and in the link and version history model.</p>
+        <div class="chips"><span class="chip g"><i></i>no switching at all</span><span class="chip w"><i></i>lives in the text</span><span class="chip b"><i></i>big build</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="bar" style="width:60%"></div>
+          <div class="win" style="background:var(--sunken);border-style:dashed">
+            <span class="mut mono" style="font-size:10.5px">FROM PRICING MODEL V2</span>
+            <div>Starter · Team · Org</div>
+          </div>
+          <div class="bar" style="width:80%"></div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ========== FAMILY 3 ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Family 3 · Hop by meaning</span>
+    <h2>Let the links decide what is nearby</h2>
+    <p class="mut">Cilica already knows which notes belong together. The working set can be derived from that instead of from what was left open.</p>
+  </div>
+  <div class="ideas">
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">3.1</span><h3>Trail in the band</h3></div>
+        <p class="how">When you arrived by following links, the band shows the path in small text: <span class="mut">Q1 hiring › Acme kickoff ›</span> Pricing v2. Click any step to go back to it. Opening a note from the sidebar or palette starts a new trail.</p>
+        <p>The visible form of 1.2. It shows up only when there is a path, so there is no empty chrome. Long trails collapse the middle.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>follows links</span><span class="chip w"><i></i>band space</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="row mut" style="font-size:11px">Q1 hiring › Acme kickoff ›</div>
+          <b style="font-weight:600;font-size:14px">Pricing model v2</b>
+          <div class="bar"></div><div class="bar" style="width:75%"></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">3.2</span><h3>Neighbour hop</h3></div>
+        <p class="how"><kbd>⌥⌘↓</kbd> opens a small list of this note's neighbours (links out, links in, recent ones first) and you pick one with a number. Same data as Connections, reachable without scrolling to the bottom.</p>
+        <p>Turns the graph into a keyboard map. Good for the friend's "I work across linked notes" habit, weaker when the notes he jumps between are not linked.</p>
+        <div class="chips"><span class="chip g"><i></i>uses links</span><span class="chip g"><i></i>small build</span><span class="chip w"><i></i>only linked notes</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="mut mono" style="font-size:10.5px">LINKS FROM HERE</div>
+          <div class="row"><span class="mono mut">1</span>Tiers</div>
+          <div class="mut mono" style="font-size:10.5px">LINKS HERE</div>
+          <div class="row"><span class="mono mut">2</span>Acme kickoff</div>
+          <div class="row"><span class="mono mut">3</span>Q1 hiring plan</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">3.3</span><h3>Your trail on the graph</h3></div>
+        <p class="how">In <kbd>⌘G</kbd>, a "Today" toggle lights the notes you visited today and draws the order you walked them. Click to jump.</p>
+        <p>Nice for "what was I doing this morning", and it gives the graph a daily use. Not fast enough to be the main switcher.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip w"><i></i>slow to reach</span></div>
+      </div>
+      <div class="mock">
+        <svg viewBox="0 0 280 100" width="100%" style="display:block" aria-label="Graph with a highlighted trail">
+          <g stroke="var(--ink4)" stroke-width=".8" fill="none">
+            <line x1="40" y1="70" x2="100" y2="30"/><line x1="100" y1="30" x2="170" y2="55"/><line x1="170" y1="55" x2="235" y2="25"/>
+            <line x1="100" y1="30" x2="140" y2="85"/><line x1="170" y1="55" x2="215" y2="85"/><line x1="40" y1="70" x2="70" y2="90"/>
+          </g>
+          <polyline points="40,70 100,30 170,55 235,25" fill="none" stroke="var(--ink)" stroke-width="2"/>
+          <g fill="var(--ink4)"><circle cx="140" cy="85" r="4"/><circle cx="215" cy="85" r="4"/><circle cx="70" cy="90" r="3"/></g>
+          <g fill="var(--ink)"><circle cx="40" cy="70" r="5"/><circle cx="100" cy="30" r="6"/><circle cx="170" cy="55" r="5"/><circle cx="235" cy="25" r="6"/></g>
+        </svg>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ========== FAMILY 4 ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Family 4 · Pick up where you left off</span>
+    <h2>Remember the set across days, without saving it</h2>
+    <p class="mut">Tabs also act as "what I was doing yesterday". These ideas cover that without a strip that survives forever.</p>
+  </div>
+  <div class="ideas">
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">4.1</span><h3>Sessions that form themselves</h3><span class="tag alt">Maybe</span></div>
+        <p class="how">Cilica groups the notes you opened into sessions, split by gaps of an hour or more. Home shows the last few: "Yesterday afternoon · 6 notes · Pricing, Acme kickoff, Tiers…". Click to reopen the most recent and fill the switcher (1.1) with the rest.</p>
+        <p>The working set exists, but only in hindsight, so nothing is ever left open. Naming one turns it into a saved set, which is optional.</p>
+        <div class="chips"><span class="chip g"><i></i>nothing to close</span><span class="chip g"><i></i>survives restarts</span><span class="chip w"><i></i>grouping can guess wrong</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="mut mono" style="font-size:10.5px">PICK UP</div>
+          <div class="win" style="background:var(--raised);padding:8px"><b style="font-weight:600">Yesterday, 14:10–16:45</b><span class="mut">Pricing model v2, Acme kickoff, Tiers +3</span></div>
+          <div class="win" style="background:var(--raised);padding:8px"><b style="font-weight:600">Friday morning</b><span class="mut">Q1 hiring plan, Sam +1</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">4.2</span><h3>Ask Cilica</h3></div>
+        <p class="how">"Open what I was working on with the Acme deal on Tuesday." The assistant already has note search and history; it would also need the visit log. It answers with a short list to open, or fills the switcher.</p>
+        <p>Not a replacement for a fast key, but it makes the visit history useful for vague recall. Nearly free once 1.1 records visits.</p>
+        <div class="chips"><span class="chip g"><i></i>no UI at all</span><span class="chip w"><i></i>slow for hopping</span><span class="chip w"><i></i>visit log is new data</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <div class="pill" style="white-space:normal">Open what I had open for the Acme deal on Tuesday</div>
+          <div class="mut">Cilica: 4 notes from Tuesday 09:40–11:20</div>
+          <div class="row"><span class="pill">Acme kickoff</span><span class="pill">Pricing v2</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">4.3</span><h3>A hub note, made by hand</h3></div>
+        <p class="how">No feature. Show the friend a pattern: a "Desk" note with links to what he is working on, pinned to the top of a category, opened with <kbd>⌘K</kbd>. Peek (2.1) makes it work well.</p>
+        <p>Zero code and fits the Markdown-and-links spirit. But it is maintenance, which is exactly what you want to avoid, just moved into a note.</p>
+        <div class="chips"><span class="chip g"><i></i>no build</span><span class="chip b"><i></i>he maintains it</span></div>
+      </div>
+      <div class="mock">
+        <div class="win">
+          <b style="font-weight:600">Desk</b>
+          <div>- <span class="ln">Pricing model v2</span></div>
+          <div>- <span class="ln">Acme kickoff</span></div>
+          <div>- <span class="ln">Tiers</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="idea">
+      <div class="txt">
+        <div class="name"><span class="id">4.4</span><h3>A note in its own window</h3><span class="tag alt">Later</span></div>
+        <p class="how">"Open in new window" lets a note float as a small second window. macOS already switches windows with <kbd>⌘`</kbd> and Mission Control.</p>
+        <p>Hands the job to the OS, which people already know how to manage. Costs a lot in Tauri: a second editor, shared state, focus rules, recording and assistant per window.</p>
+        <div class="chips"><span class="chip g"><i></i>familiar</span><span class="chip b"><i></i>windows to close</span><span class="chip b"><i></i>big build</span></div>
+      </div>
+      <div class="mock">
+        <div style="position:relative;height:100px">
+          <div class="win" style="position:absolute;inset:0 60px 16px 0"><b style="font-weight:600">Q1 hiring plan</b><div class="bar"></div></div>
+          <div class="win" style="position:absolute;right:0;bottom:0;width:130px;background:var(--raised);box-shadow:0 8px 24px #0000002a"><b style="font-weight:600">Tiers</b><div class="bar"></div></div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ========== REJECTED ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Considered and set aside</span>
+    <h2>Tab-shaped ideas that keep the maintenance</h2>
+  </div>
+  <div class="brief">
+    <div class="panel"><h3>Pinned notes with <kbd>⌘1</kbd>–<kbd>⌘9</kbd></h3><p class="mut">Fast, but someone has to pin and unpin. Stale pins pile up like tabs. If added later, cap at 3 and expire pins not opened in a week.</p></div>
+    <div class="panel"><h3>A tab strip that closes old tabs itself</h3><p class="mut">Solves clutter but tabs vanish under you, and it still adds a row of chrome and a second history. Ctrl+Tab gives the same reach with no row.</p></div>
+    <div class="panel"><h3>Named workspaces</h3><p class="mut">Good for big projects, but it is a whole object to create, fill and keep current. 4.1 gets most of the value by deriving it.</p></div>
+  </div>
+</section>
+
+<!-- ========== COMPARISON ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Side by side</span>
+    <h2>How they compare</h2>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Idea</th><th>Upkeep</th><th>Hop speed</th><th>Follows links</th><th>Build</th></tr></thead>
+      <tbody>
+        <tr><td>1.1 Ctrl+Tab switcher</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m g"></span>1 key</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>1.2 Back / Forward</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m g"></span>1 key</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>1.3 Palette numbers</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>2 keys</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m g"></span>Tiny</td></tr>
+        <tr><td>1.4 Sidebar warmth</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>Click</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>1.5 Recent section</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>Click</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>2.1 Peek a link</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m g"></span>Hover</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m w"></span>Medium</td></tr>
+        <tr><td>2.2 Open beside</td><td class="c"><span class="m w"></span>One close</td><td class="c"><span class="m g"></span>Visible</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m b"></span>Large</td></tr>
+        <tr><td>2.3 Sliding notes</td><td class="c"><span class="m g"></span>Self-pruning</td><td class="c"><span class="m g"></span>Visible</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m b"></span>Very large</td></tr>
+        <tr><td>2.4 Pull a section in</td><td class="c"><span class="m w"></span>In the text</td><td class="c"><span class="m g"></span>No hop</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m b"></span>Large</td></tr>
+        <tr><td>3.1 Trail in the band</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>Click</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>3.2 Neighbour hop</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>2 keys</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m g"></span>Small</td></tr>
+        <tr><td>3.3 Trail on the graph</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m b"></span>Slow</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m w"></span>Medium</td></tr>
+        <tr><td>4.1 Sessions</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m w"></span>Resume only</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m w"></span>Medium</td></tr>
+        <tr><td>4.2 Ask Cilica</td><td class="c"><span class="m g"></span>None</td><td class="c"><span class="m b"></span>Slow</td><td class="c"><span class="m w"></span>By time</td><td class="c"><span class="m g"></span>Small after 1.1</td></tr>
+        <tr><td>4.3 Hub note</td><td class="c"><span class="m b"></span>Manual</td><td class="c"><span class="m w"></span>Click</td><td class="c"><span class="m g"></span>Yes</td><td class="c"><span class="m g"></span>None</td></tr>
+        <tr><td>4.4 Own window</td><td class="c"><span class="m b"></span>Windows</td><td class="c"><span class="m g"></span>OS keys</td><td class="c"><span class="m w"></span>No</td><td class="c"><span class="m b"></span>Very large</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========== RECOMMENDATION ========== -->
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Recommendation</span>
+    <h2>Three small pieces, then see if he still wants tabs</h2>
+    <p>Each step is useful on its own and none adds anything to close. Ship the first, give it to your friend for a week, and only go further if he still reaches for something it does not cover.</p>
+  </div>
+  <div class="plan">
+    <div class="step">
+      <span class="eyebrow">Step 1 · Hop</span>
+      <h3>Ctrl+Tab switcher + real Back / Forward</h3>
+      <p>1.1 and 1.2, with 1.3 as a freebie. One recency list (a visit log in the router, persisted) feeds the switcher, the palette and later sessions. Covers "swap between recent notes" directly.</p>
+    </div>
+    <div class="step">
+      <span class="eyebrow">Step 2 · Glance</span>
+      <h3>Peek a link</h3>
+      <p>2.1, plus the trail in the band (3.1) if the trail turns out to matter. Covers "I keep a note open just to look at it", which is most of what is left.</p>
+    </div>
+    <div class="step">
+      <span class="eyebrow">Step 3 · Only if asked</span>
+      <h3>Open beside, or sessions</h3>
+      <p>If he really needs two notes on screen while writing, 2.2 capped at two. If the gap is "what was I doing yesterday", 4.1. Sliding notes (2.3) only if you want it as the app's identity.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="fam-head">
+    <span class="eyebrow">Open questions about your friend</span>
+    <h2>Answers that would change the pick</h2>
+  </div>
+  <div class="qs">
+    <div class="q"><b>Does he need two notes visible at the same time, or just to switch fast?</b><span>Visible at once points to 2.2. Switching fast is fully covered by step 1.</span></div>
+    <div class="q"><b>Keyboard or mouse?</b><span>A mouse user gets little from Ctrl+Tab and much more from 1.5 or 3.1.</span></div>
+    <div class="q"><b>Should the set still be there tomorrow, or after a restart?</b><span>If yes, persist the visit log and add 4.1. If not, in-memory history is enough.</span></div>
+    <div class="q"><b>How many notes is "many": three or fifteen?</b><span>Three fits a switcher. Fifteen suggests the notes belong to a project, where a category or sessions fit better than any hop.</span></div>
+    <div class="q"><b>Which app is he comparing with?</b><span>Obsidian-style tabs and VS Code-style tabs are used differently; knowing which tells us which habit to replace.</span></div>
+  </div>
+</section>
+
+<footer>Grounded in the current router (one-way Back stack, 50 deep), the palette's Recent notes and Connections. Nothing here is built yet.</footer>
+</div>

@@ -2,7 +2,7 @@
 
 Toasts confirm what just happened and offer Undo. Cilica's own toast library (`src/lib/toast`) renders them.
 
-**Placement**: bottom-right, 16px from the edges, `z-toast`, 356px wide. On narrow windows, bottom-centre above the recorder capsule.
+**Placement**: bottom-right, 16px from the edges, `z-toast`, 356px wide. On narrow windows, bottom-centre.
 
 **Look**: `glass-fill-strong`, `radius-lg`, `shadow-float`. Icon, title (`headline`), optional description (`callout`), one action.
 

@@ -11,7 +11,7 @@
 
 
 <script>
-var S=[['snappy','0.2s · bounce 0.15','Hover nudges, toggles, press release, chevrons'],['smooth','0.3s · bounce 0.1','Panels, segmented thumb, collapse, palette'],['bouncy','0.35s · bounce 0.3','Record morph, toasts, Dynamic Island, drops'],['gentle','0.45s · bounce 0','View changes, Notes ⇄ Transcript, large layout']];
+var S=[['snappy','0.2s · bounce 0.15','Hover nudges, toggles, press release, chevrons'],['smooth','0.3s · bounce 0.1','Panels, segmented thumb, collapse, palette'],['bouncy','0.35s · bounce 0.3','Record morph, toasts, recording chip, drops'],['gentle','0.45s · bounce 0','View changes, Notes ⇄ Transcript, large layout']];
 var L=document.getElementById('lanes');
 S.forEach(function(s){var r=document.createElement('div');r.style.cssText='display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center';
 r.innerHTML='<div><div style="font:600 13px/18px var(--font-sans)">'+s[0]+'</div><div class="nt-faint nt-mono" style="font-size:11px">'+s[1]+'</div></div><div style="position:relative;height:36px;border-radius:18px;background:var(--fill-hover)"><span data-s="'+s[0]+'" style="position:absolute;left:4px;top:4px;width:28px;height:28px;border-radius:50%;background:var(--accent);box-shadow:var(--shadow-sm);transition:transform var(--spring-'+s[0]+'-dur) var(--spring-'+s[0]+')"></span><span class="nt-faint" style="position:absolute;right:14px;top:9px;font-size:12px">'+s[2]+'</span></div>';L.appendChild(r);});
