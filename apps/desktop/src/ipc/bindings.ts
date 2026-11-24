@@ -22,7 +22,10 @@ export const commands = {
 	renameNote: (noteId: string, title: string) => __TAURI_INVOKE<NoteSummary_Serialize>("rename_note", { noteId, title }),
 	/**  Save the editor's Markdown. Called debounced while typing; the store decides when to snapshot a version. */
 	updateNoteBody: (noteId: string, bodyMd: string) => __TAURI_INVOKE<NoteSummary_Serialize>("update_note_body", { noteId, bodyMd }),
-	/**  Move a note into a category (or out, with `None`) at a fractional position. */
+	/**
+	 *  Move a note into a category (or out, with `None`) at a fractional position, or to the top when
+	 *  `position` is `None`.
+	 */
 	moveNote: (noteId: string, categoryId: string | null, position: number | null) => __TAURI_INVOKE<NoteSummary_Serialize>("move_note", { noteId, categoryId, position }),
 	/**  Soft delete. Trash keeps notes for 30 days. */
 	trashNote: (noteId: string) => __TAURI_INVOKE<null>("trash_note", { noteId }),

@@ -154,11 +154,19 @@ pub async fn update_note_body(core: State<'_, Core>, note_id: Id, body_md: Strin
     Ok(core.db.set_note_body(note_id, &body_md, Author::User, None).await?)
 }
 
-/// Move a note into a category (or out, with `None`) at a fractional position.
+/// Move a note into a category (or out, with `None`) at a fractional position, or to the top when
+/// `position` is `None`.
 #[tauri::command]
 #[specta::specta]
-pub async fn move_note(core: State<'_, Core>, note_id: Id, category_id: Option<Id>, position: f64) -> AppResult<NoteSummary> {
-    let (note, renumbered) = core.db.move_note_rebalanced(note_id, category_id, position).await?;
+pub async fn move_note(core: State<'_, Core>, note_id: Id, category_id: Option<Id>, position: Option<f64>) -> AppResult<NoteSummary> {
+    let (note, renumbered) = match position {
+        Some(position) => core.db.move_note_rebalanced(note_id, category_id, position).await?,
+        None => {
+            let (notes, renumbered) = core.db.move_notes(&[note_id], category_id, None).await?;
+            let note = notes.into_iter().next().ok_or_else(|| AppError::not_found("That note is in Trash or no longer exists. Restore it first, then move it."))?;
+            (note, renumbered)
+        }
+    };
     if renumbered {
         core.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes], note_id: None });
     }
