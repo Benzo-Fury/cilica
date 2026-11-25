@@ -16,12 +16,14 @@ const BLOCK_SYNTAX = [
   /^> \S/m, // quote
   /^\|.+\|\s*$/m, // table row
   /^(-{3,}|\*{3,})\s*$/m, // rule
+  /^\$\$/m, // equation block
 ];
 const INLINE_SYNTAX = [
   /\*\*[^*\n]+\*\*/, // bold
   /!?\[[^\]\n]+\]\([^)\n]+\)/, // link or image
   /`[^`\n]+`/, // inline code
   /~~[^~\n]+~~/, // strikethrough
+  /(?<![\\$])\$(?![\s$])[^$\n]*[^\s$\\]\$(?!\d)/, // inline equation (not "$5 and $10")
 ];
 
 /** True when plain text reads as Markdown source rather than ordinary prose. */
