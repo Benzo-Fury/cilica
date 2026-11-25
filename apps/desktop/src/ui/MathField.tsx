@@ -52,7 +52,9 @@ export function MathField({
   const [failed, setFailed] = useState(false);
   const latest = useRef({ onChange, onSubmit });
   latest.current = { onChange, onSubmit };
-  const initial = useRef(value);
+  // What the field starts with once it loads: a formula picked while it was loading included.
+  const current = useRef(value);
+  current.current = value;
 
   useEffect(() => {
     let cancelled = false;
@@ -68,11 +70,26 @@ export function MathField({
         mf.menuItems = [];
         mf.setAttribute("aria-label", label);
         mf.className = "nt-math-field";
-        mf.value = initial.current;
+        mf.value = current.current;
         mf.addEventListener("input", () => latest.current.onChange(mf.getValue("latex")));
+        // While a `\command` is being typed, Enter and Esc belong to the field: Enter finishes
+        // the command and Esc leaves it, rather than saving or closing the whole equation. The
+        // mode is read before MathLive handles the key, since handling it switches back.
+        let inCommand = false;
+        mf.addEventListener(
+          "keydown",
+          () => {
+            inCommand = mf.mode === "latex";
+          },
+          true,
+        );
         // Enter saves. (MathLive's own `change` also fires on blur, which would save when you
         // only switched tabs or opened Formulas.)
         mf.addEventListener("keydown", (event) => {
+          if (inCommand && (event.key === "Enter" || event.key === "Escape")) {
+            event.stopPropagation();
+            return;
+          }
           if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
           event.preventDefault();
           event.stopPropagation();
