@@ -2,7 +2,8 @@
  * The note editor's schema. Markdown is the stored format, so every node and mark here must
  * round-trip through @tiptap/markdown (see markdown.test.ts): headings 1–6, bold, italic,
  * strikethrough, superscript `^x^`, subscript `~x~`, inline code, links, images, quotes, rules, bullet / numbered / task lists,
- * tables, fenced code blocks with syntax colouring, and Obsidian's `[[links]]` and `#tags`.
+ * tables, fenced code blocks with syntax colouring, `$inline$` and `$$block$$` equations, and
+ * Obsidian's `[[links]]` and `#tags`.
  */
 import type { AnyExtension } from "@tiptap/core";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -21,6 +22,7 @@ import {
   type InlineLinkMatcher,
 } from "./inlineLinkHint";
 import { MarkdownPaste, TaskShortcut } from "./markdownInput";
+import { MathBlock, MathEscape, type MathHandlers, MathInline } from "./math";
 import { Subscript, Superscript } from "./scripts";
 import { StreamHighlight } from "./streamHighlight";
 import { type OnWordEnd, SwearWatch } from "./swearWatch";
@@ -40,6 +42,8 @@ export interface NoteExtensionOptions {
   onOpenTag?: (tag: string) => void;
   /** Offer to link a note title as soon as you finish typing it. Off without a matcher. */
   linkHint?: { match: InlineLinkMatcher; handlers: () => InlineLinkHandlers | null };
+  /** Who opens the equation editor. Without it equations still draw and round-trip. */
+  math?: () => MathHandlers | null;
 }
 
 export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension[] {
@@ -62,6 +66,9 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
     }),
     Superscript,
     Subscript,
+    MathInline.configure({ handlers: options.math ?? (() => null) }),
+    MathBlock.configure({ handlers: options.math ?? (() => null) }),
+    MathEscape,
     Image.configure({ inline: false, allowBase64: true }),
     TaskList,
     TaskItem.configure({ nested: true }),

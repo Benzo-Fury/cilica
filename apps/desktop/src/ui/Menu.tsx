@@ -43,16 +43,20 @@ export function MenuContent({
   align = "end",
   side = "bottom",
   className,
+  onCloseAutoFocus,
 }: {
   children: ReactNode;
   align?: "start" | "center" | "end";
   side?: "top" | "bottom" | "left" | "right";
   className?: string;
+  /** Where focus goes when it closes (the trigger, unless this prevents it). */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DM.Portal>
       <DM.Content
         align={align}
+        onCloseAutoFocus={onCloseAutoFocus}
         side={side}
         sideOffset={6}
         collisionPadding={8}
