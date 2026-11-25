@@ -14,6 +14,7 @@
  */
 import type {
   AiAction,
+  AssistantImageSupport,
   ClaudeCodeStatus,
   DataScope,
   LocalLlmModel,
@@ -82,6 +83,14 @@ function appliedSummary(kind: Proposal["kind"]): string {
   }
 }
 
+/** "claude-sonnet-5-5" → "Claude Sonnet 5.5", as the app names Claude models. */
+function claudeName(model: string): string {
+  const match = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(model);
+  const [, family = "", major, minor] = match ?? [];
+  if (!family) return model;
+  return `Claude ${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}.${minor}`;
+}
+
 export function assistantCommands({ state, emit }: MockContext) {
   const ollama = {
     running: false,
@@ -120,6 +129,15 @@ export function assistantCommands({ state, emit }: MockContext) {
         description: "Strongest reasoning here. Needs a lot of memory.",
         size_mb: 14000,
         min_ram_gb: 32,
+        recommended: false,
+        downloaded: false,
+      },
+      {
+        id: "qwen3-vl:8b",
+        name: "Qwen3-VL 8B",
+        description: "Can see the images in your notes. A good balance for most Macs.",
+        size_mb: 6200,
+        min_ram_gb: 16,
         recommended: false,
         downloaded: false,
       },
@@ -953,6 +971,30 @@ export function assistantCommands({ state, emit }: MockContext) {
 
     detectClaudeCode(): ClaudeCodeStatus {
       return { installed: true, version: "2.4.0", signed_in: true };
+    },
+
+    /**
+     * Follows the chosen provider like the app does: Claude and Claude Code see images; Ollama
+     * only for vision models (the "-vl" ones here); OpenAI-compatible by model name. To see the
+     * indicator, pick Ollama with Qwen3 8B.
+     */
+    assistantImageSupport(): AssistantImageSupport {
+      const { provider, model } = state.settings.ai;
+      switch (provider) {
+        case "anthropic":
+          return { sees_images: true, model_name: claudeName(model) };
+        case "claude_code":
+          return { sees_images: true, model_name: "Claude Code" };
+        case "ollama": {
+          const known = ollama.models.find((m) => m.id === model);
+          return { sees_images: model.includes("-vl"), model_name: known?.name ?? model };
+        }
+        default:
+          return {
+            sees_images: /gpt-4o|gpt-4\.1|gpt-5|claude-|gemini|vision|-vl/i.test(model),
+            model_name: model,
+          };
+      }
     },
 
     // ── Local models (Ollama) ──

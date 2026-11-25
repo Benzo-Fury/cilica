@@ -6,9 +6,11 @@
 //! UI-initiated writes do not emit `data_changed` (the UI updates its own cache). The exceptions are
 //! side effects the UI did not ask for: the Trash purge, and renumbering siblings after a move.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use cilica_attachments::{FOLDER, NoteImages, externalize_inline_images, referenced_names};
 use cilica_domain::*;
 use cilica_store::NewNote;
 use tauri::{AppHandle, State};
@@ -148,10 +150,30 @@ pub async fn dismiss_link_suggestion(core: State<'_, Core>, note_id: Id, target_
 }
 
 /// Save the editor's Markdown. Called debounced while typing; the store decides when to snapshot a version.
+///
+/// Inline `data:` images (pasted HTML can carry them) are saved as attachments first, so the body
+/// that is stored points at files; the note then gets `data_changed` so the editor picks that up.
 #[tauri::command]
 #[specta::specta]
-pub async fn update_note_body(core: State<'_, Core>, note_id: Id, body_md: String) -> AppResult<NoteSummary> {
-    Ok(core.db.set_note_body(note_id, &body_md, Author::User, None).await?)
+pub async fn update_note_body(app: AppHandle, core: State<'_, Core>, images: State<'_, NoteImages>, note_id: Id, body_md: String) -> AppResult<NoteSummary> {
+    // Cheap check first; only bodies with inline images are rewritten
+    let externalized = if body_md.contains("data:image/") { Some(externalize_inline_images(&body_md, images.store()).await) } else { None };
+    let body_md = match &externalized {
+        Some(done) if done.converted > 0 => done.markdown.as_str(),
+        _ => body_md.as_str(),
+    };
+    let summary = core.db.set_note_body(note_id, body_md, Author::User, None).await?;
+
+    // Images in the note may need their text read
+    if body_md.contains(FOLDER) {
+        crate::commands::image_text::wake(&app);
+    }
+
+    // Tell the editor its images moved to files
+    if externalized.is_some_and(|done| done.converted > 0) {
+        core.events.emit(AppEvent::DataChanged { scopes: vec![DataScope::Notes], note_id: Some(note_id) });
+    }
+    Ok(summary)
 }
 
 /// Move a note into a category (or out, with `None`) at a fractional position, or to the top when
@@ -331,10 +353,11 @@ pub async fn restore_note_version(core: State<'_, Core>, version_id: Id) -> AppR
     Ok(core.db.restore_note_version(version_id, Author::User).await?)
 }
 
-/// Write the note as a .md file to `path`: the title as an H1, then the body.
+/// Write the note as a .md file to `path`: the title as an H1, then the body. Its images are copied
+/// into an `attachments/` folder next to the file.
 #[tauri::command]
 #[specta::specta]
-pub async fn export_note_markdown(core: State<'_, Core>, note_id: Id, path: String) -> AppResult<()> {
+pub async fn export_note_markdown(core: State<'_, Core>, images: State<'_, NoteImages>, note_id: Id, path: String) -> AppResult<()> {
     let note = core.db.get_note(note_id).await?;
     if path.trim().is_empty() {
         return Err(AppError::invalid("Choose where to save the file."));
@@ -345,7 +368,24 @@ pub async fn export_note_markdown(core: State<'_, Core>, note_id: Id, path: Stri
     }
     tokio::fs::write(&path, note_markdown(&note)).await.map_err(|e| {
         AppError::internal(format!("Cilica could not save {}: {e}. Check that the folder exists and you can write to it.", path.display()))
-    })
+    })?;
+
+    // Copy the note's images into attachments/ beside the file, so its links work in other apps
+    let names: BTreeSet<String> = referenced_names(&note.body_md).collect();
+    if let (false, Some(folder)) = (names.is_empty(), path.parent()) {
+        let folder = folder.join(FOLDER);
+        for name in names {
+            let Ok(source) = images.store().absolute(&format!("{FOLDER}/{name}")) else { continue };
+            if !tokio::fs::try_exists(&source).await.unwrap_or(false) {
+                continue;
+            }
+            // A missing or unwritable image is skipped; the note itself is already saved
+            if tokio::fs::create_dir_all(&folder).await.is_ok() && let Err(error) = tokio::fs::copy(&source, folder.join(&name)).await {
+                tracing::warn!(%error, "could not copy an image next to an exported note");
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The properties (kept on top, where Obsidian reads them), `# Title`, then the body, unless the

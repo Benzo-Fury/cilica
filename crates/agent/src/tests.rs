@@ -912,3 +912,111 @@ async fn recent_conversations_survive_the_retention_sweep() {
     assert_eq!(e.agent.delete_old_threads().await.unwrap(), 0);
     assert_eq!(e.agent.list_threads().await.unwrap()[0].id, t.id);
 }
+
+// ── Images ───────────────────────────────────────────────────────────────
+
+/// An agent whose model sees images (or not), with an attachments folder holding one PNG.
+async fn image_env(vision: bool) -> (Env, tempfile::TempDir, String) {
+    let db = cilica_store::Db::open_in_memory().await.unwrap();
+    let notes = Arc::new(FakeNotes::new());
+    let mock = MockProvider::new(vec![]).with_fallback("Done.");
+    let mock = Arc::new(if vision { mock.with_vision() } else { mock });
+    let sink = Arc::new(RecordingSink::default());
+    let providers = Arc::new(StaticProviders::new(mock.clone()));
+    let agent = Agent::new(db, notes.clone(), sink.clone(), providers.clone());
+
+    let dir = tempfile::tempdir().unwrap();
+    let store = cilica_attachments::ImageStore::new(dir.path().join("attachments"));
+    store.ensure_dir().unwrap();
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(40, 30, image::Rgb([10, 200, 90]))).write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let saved = store.save_bytes(png.into_inner(), None, Default::default()).await.unwrap();
+    agent.set_image_store(store);
+    (Env { agent, notes, mock, sink, providers }, dir, saved.path)
+}
+
+fn offered(req: &cilica_llm::ChatRequest, tool: &str) -> bool {
+    req.tools.iter().any(|t| t.name == tool)
+}
+
+#[tokio::test]
+async fn view_images_is_not_offered_to_models_that_cannot_see() {
+    let (e, _dir, path) = image_env(false).await;
+    let note = e.notes.add_note("Whiteboard", &format!("![Board|center|400]({path} \"Monday\")"));
+    let thread = e.agent.create_thread().await.unwrap();
+    let turn = e.agent.send_message(thread.id, "What's on the board?".into(), view_of(&note)).await.unwrap();
+    e.wait_turn(turn).await;
+    let reqs = e.mock.requests();
+    assert!(!offered(&reqs[0], "view_images"));
+    assert!(offered(&reqs[0], "get_note"));
+    let support = e.agent.image_support().await;
+    assert!(!support.sees_images);
+}
+
+#[tokio::test]
+async fn models_that_see_images_get_them_and_history_keeps_only_references() {
+    let (e, _dir, path) = image_env(true).await;
+    let note = e.notes.add_note("Whiteboard", &format!("Notes\n\n![Board|center|400]({path} \"Monday\")"));
+    e.mock.push(MockResponse::tool("view_images", json!({"note_id": note.id.to_string()})));
+    e.mock.push(MockResponse::text("It shows a green square."));
+    e.mock.push(MockResponse::text("Board question")); // title
+    let thread = e.agent.create_thread().await.unwrap();
+    let turn = e.agent.send_message(thread.id, "What's on the board?".into(), view_of(&note)).await.unwrap();
+    assert_eq!(e.wait_turn(turn).await, TurnEnd::Completed);
+
+    // Offered, and the result carries the image with its bytes
+    let reqs = e.mock.requests();
+    assert!(offered(&reqs[0], "view_images"));
+    let ContentBlock::ToolResult { content, images, is_error, .. } = &reqs[1].messages.last().unwrap().content[0] else { panic!("no tool result") };
+    assert!(!is_error, "{content}");
+    assert!(content.contains("alt text \"Board\"") && content.contains("caption \"Monday\"") && content.contains("(40×30)"));
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].path, path);
+    assert_eq!(images[0].media_type, "image/jpeg");
+    assert!(images[0].data.as_deref().is_some_and(|d| d.starts_with("/9j/")), "re-encoded as JPEG");
+
+    // The stored history has the reference, not the bytes
+    let rows = e.agent.db().list_messages(thread.id).await.unwrap();
+    let raw = rows[1].1.clone().unwrap();
+    assert!(raw.contains(&path));
+    assert!(!raw.contains("/9j/"));
+
+    // The next turn loads the bytes again
+    e.mock.push(MockResponse::text("Sure."));
+    let turn2 = e.agent.send_message(thread.id, "Thanks".into(), ViewContext::default()).await.unwrap();
+    e.wait_turn(turn2).await;
+    let last = e.mock.requests().last().unwrap().clone();
+    let replayed = last
+        .messages
+        .iter()
+        .flat_map(|m| m.content.iter())
+        .find_map(|b| if let ContentBlock::ToolResult { images, .. } = b { images.first().cloned() } else { None })
+        .unwrap();
+    assert!(replayed.data.is_some());
+
+    let support = e.agent.image_support().await;
+    assert!(support.sees_images);
+}
+
+#[tokio::test]
+async fn view_images_picks_paths_and_explains_what_is_missing() {
+    let (e, _dir, path) = image_env(true).await;
+    let ctx = e.ctx();
+    let plain = e.notes.add_note("Plain", "no pictures");
+    let out = e.call(&ctx, "view_images", json!({"note_id": plain.id.to_string()})).await;
+    assert!(!out.is_error && out.content.contains("has no images") && out.images.is_empty());
+
+    let gone = "attachments/ffffffffffffffffffffffffffffffff.png";
+    let note = e.notes.add_note("Two", &format!("![a]({path})\n![b]({gone})"));
+    let out = e.call(&ctx, "view_images", json!({"note_id": note.id.to_string(), "paths": [gone]})).await;
+    assert!(!out.is_error);
+    assert!(out.content.contains("not shown"), "{}", out.content);
+    assert!(out.images.is_empty());
+
+    let out = e.call(&ctx, "view_images", json!({"note_id": note.id.to_string(), "paths": ["attachments/0000.png"]})).await;
+    assert!(out.is_error && out.content.contains(&path));
+
+    let out = e.call(&ctx, "view_images", json!({"note_id": note.id.to_string()})).await;
+    assert_eq!(out.images.len(), 1);
+    assert_eq!(out.action.summary, "Looked at an image in Two");
+}

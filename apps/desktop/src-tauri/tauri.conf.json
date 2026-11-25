@@ -58,7 +58,8 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/recordings/**"
+          "$APPDATA/recordings/**",
+          "$APPDATA/attachments/**"
         ]
       }
     },

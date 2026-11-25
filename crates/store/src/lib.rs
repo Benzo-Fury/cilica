@@ -18,6 +18,8 @@
 //! | `links`       | note_links (the link index behind the graph)   |
 //! | `welcome`     | writes the welcome note after setup (none)     |
 //! | `quotable`    | cuts a sentence to the line worth quoting      |
+//! | `attachments` | rewrites inline images, finds image references |
+//! | `image_text`  | attachment_text, image_text_fts (OCR text)     |
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -26,7 +28,9 @@ use cilica_domain::{AppError, ErrorCode, Id, Timestamp};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 mod assistant;
+mod attachments;
 mod home;
+mod image_text;
 mod imports;
 pub mod links;
 mod near;
@@ -41,6 +45,7 @@ mod words;
 mod welcome;
 mod written;
 
+pub use image_text::{ImageTextBacklog, image_names};
 pub use imports::{ImportSegment, ImportSpeaker, ImportWrite};
 pub use notes::NewNote;
 pub use swears::week_start;

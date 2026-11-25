@@ -124,6 +124,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::assistant::set_provider_key,
             commands::assistant::clear_provider_key,
             commands::assistant::detect_claude_code,
+            commands::assistant::assistant_image_support,
             commands::ollama::get_ollama_status,
             commands::ollama::list_local_models,
             commands::ollama::set_up_ollama,
@@ -152,7 +153,13 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::import::import_scan,
             commands::import::import_start,
             commands::import::import_cancel,
-            commands::import::import_undo
+            commands::import::import_undo,
+            commands::attachments::save_image,
+            commands::attachments::import_image_file,
+            commands::attachments::fetch_image,
+            commands::attachments::attachments_dir,
+            commands::attachments::save_image_copy,
+            commands::image_text::image_text_status
         ])
         .events(collect_events![events::BackendEvent])
 }
@@ -215,7 +222,9 @@ pub fn run() {
         legacy::remove_login_item();
         commands::settings::setup(&handle, &core)?;
         commands::notes::setup(&handle, &core)?;
+        commands::attachments::setup(&handle, &core)?;
         commands::recording::setup(&handle, &core)?;
+        commands::image_text::setup(&handle, &core)?;
         commands::assistant::setup(&handle, &core)?;
         commands::ollama::setup(&handle, &core)?;
         commands::tasks::setup(&handle, &core)?;

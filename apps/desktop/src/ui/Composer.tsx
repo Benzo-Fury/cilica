@@ -4,7 +4,7 @@
  * Send becomes Stop (the panel's glow under the box shows the work).
  * ↩ sends, ⇧↩ adds a line, Esc stops.
  */
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   type KeyboardEvent,
@@ -142,5 +142,38 @@ export function Composer({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * A small mark in the composer's leading slot that explains itself on hover or focus, such as
+ * "Images not included". Clicking does nothing: it only says something about the next message.
+ */
+export function ComposerMark({
+  icon,
+  label,
+  detail,
+}: {
+  icon: LucideIcon;
+  /** What it means, in a few words (the accessible name). */
+  label: string;
+  /** The longer explanation in the tooltip. */
+  detail: string;
+}) {
+  return (
+    <Tooltip
+      side="top"
+      align="start"
+      label={
+        <span className="nt-tip-text">
+          <b>{label}.</b> {detail}
+        </span>
+      }
+    >
+      {/* A button only so it can take focus and show its tooltip to keyboard users. */}
+      <button type="button" className="nt-composer-mark" aria-label={`${label}. ${detail}`}>
+        <Icon icon={icon} size="sm" />
+      </button>
+    </Tooltip>
   );
 }

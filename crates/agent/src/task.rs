@@ -89,12 +89,14 @@ impl Agent {
         }
 
         let ctx = CallContext::propose_only(task_run_id);
+        let sees_images = self.sees_images(&settings, provider.as_ref()).await;
         let request = LoopRequest {
             model: settings.model.clone(),
             system: TASK_SYSTEM_PROMPT.to_string(),
-            tools: tools::specs(true),
+            tools: tools::specs(true, sees_images),
             max_tokens: self.inner.limits.max_tokens,
             effort: Some(Effort::Medium),
+            sees_images,
         };
         let (state, end) = self.run_loop(provider.as_ref(), &request, vec![ChatMessage::user(prompt)], &ctx, &cancel, None).await;
         let proposals = u32::try_from(self.inner.db.list_proposals_for_run(task_run_id).await?.len()).unwrap_or(u32::MAX);

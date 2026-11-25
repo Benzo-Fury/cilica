@@ -8,6 +8,7 @@ import type { Editor } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useBackendEvent } from "@/app/backendEvents";
+import { useAction } from "@/app/keybinds";
 import { qk } from "@/app/queryKeys";
 import { openGraph } from "@/app/router";
 import { useLinkResolverSync, useOpenLink } from "@/features/links/hooks";
@@ -22,6 +23,13 @@ import type { InlineLinkHandlers } from "./editor/inlineLinkHint";
 import { normalizeMarkdown } from "./editor/markdown";
 import type { SuggestHandlers } from "./editor/wikiSuggest";
 import { InlineLinkHint, useInlineLinkMatcher } from "./InlineLinkHint";
+import { ImageNodeView } from "./images/ImageNodeView";
+import { ImageToolbar } from "./images/ImageToolbar";
+import { ImageViewerHost } from "./images/ImageViewerHost";
+import { insertImagesFromPicker } from "./images/insert";
+import { imageSaver } from "./images/saver";
+import { useImageFileDrop } from "./images/useImageFileDrop";
+import { useRevealImage } from "./images/useRevealImage";
 import { LinkSuggest } from "./LinkSuggest";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useAutosave } from "./useAutosave";
@@ -100,6 +108,7 @@ export function NoteEditor({
       suggest: () => suggest.current,
       linkHint: { match: matchTitle, handlers: () => linkHint.current },
       onOpenTag: (tag) => openGraph(`t:${tag.toLowerCase()}`),
+      images: { saver: () => imageSaver, view: ImageNodeView },
     }),
     content: text,
     contentType: "markdown",
@@ -169,6 +178,12 @@ export function NoteEditor({
     }
   });
 
+  useImageFileDrop(editor);
+  useRevealImage(editor);
+  useAction("note.insertImage", () => {
+    if (editor?.isEditable) void insertImagesFromPicker(editor);
+  });
+
   useImperativeHandle(
     ref,
     () => ({
@@ -201,6 +216,8 @@ export function NoteEditor({
       <LinkSuggest editor={editor} handlers={suggest} excludeNoteId={note.id} />
       <InlineLinkHint editor={editor} handlers={linkHint} />
       <SelectionToolbar editor={editor} />
+      <ImageToolbar editor={editor} />
+      <ImageViewerHost />
     </>
   );
 }

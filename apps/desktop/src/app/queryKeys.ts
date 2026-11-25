@@ -21,6 +21,7 @@ export const qk = {
   searchThreads: (query: string) => ["search", "threads", query] as const,
   settings: ["settings"] as const,
   appInfo: ["appInfo"] as const,
+  imageText: ["image_text"] as const,
   recording: ["recording"] as const,
   transcript: (noteId: string) => ["transcript", noteId] as const,
   transcriptPrefix: ["transcript"] as const,

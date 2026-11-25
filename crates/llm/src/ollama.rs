@@ -1,11 +1,11 @@
-//! Ollama model management over its native HTTP API (`/api/version`, `/api/tags`, `/api/pull`,
-//! `/api/delete`). Chat itself goes through [`crate::openai::OpenAiCompatProvider::ollama`].
+//! Ollama model management over its native HTTP API (`/api/version`, `/api/tags`, `/api/show`,
+//! `/api/pull`, `/api/delete`). Chat itself goes through [`crate::openai::OpenAiCompatProvider::ollama`].
 //!
 //! Pull progress is reported as `AppEvent::ModelDownload` with `model_id` = [`progress_id`], so the
 //! UI reuses the speech-model download plumbing.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
 use futures::StreamExt;
@@ -16,13 +16,66 @@ use tokio_util::sync::CancellationToken;
 /// The Ollama server root when settings give none.
 pub const OLLAMA_ROOT: &str = "http://localhost:11434";
 
-/// Models Cilica offers. All support tool calling, which the assistant needs.
+/// Models Cilica offers: (tag, name, description, download MB, minimum RAM GB, recommended).
+/// All support tool calling, which the assistant needs. Sizes are the default (q4) download on
+/// ollama.com/library, checked 2026-11-25.
 const CATALOG: &[(&str, &str, &str, u32, u32, bool)] = &[
     ("qwen3:4b", "Qwen3 4B", "Fast and light. Fine for titles and short summaries.", 2600, 8, false),
     ("qwen3:8b", "Qwen3 8B", "The best balance for most Macs.", 5200, 16, true),
     ("qwen3:14b", "Qwen3 14B", "Sharper summaries and edits. Slower.", 9300, 24, false),
     ("gpt-oss:20b", "gpt-oss 20B", "Strongest reasoning here. Needs a lot of memory.", 14000, 32, false),
+    // These also see images: Cilica can look at the pictures in your notes.
+    ("qwen3-vl:4b", "Qwen3-VL 4B", "Light, and can see the images in your notes.", 3300, 8, false),
+    ("qwen3-vl:8b", "Qwen3-VL 8B", "Can see the images in your notes. A good balance for most Macs.", 6200, 16, false),
+    ("gemma4:12b", "Gemma 4 12B", "Can see the images in your notes. Good at charts and screenshots.", 8000, 16, false),
+    ("ministral-3:14b", "Ministral 3 14B", "Can see the images in your notes. Sharper, and slower.", 9100, 24, false),
+    ("qwen3.8:27b", "Qwen3.8 27B", "Can see the images in your notes. Strongest here; needs a lot of memory.", 18000, 32, false),
 ];
+
+/// The catalogue name for a tag ("Qwen3 8B" for `qwen3:8b`), or `None` for models not listed.
+pub fn display_name(model: &str) -> Option<&'static str> {
+    CATALOG.iter().find(|m| same_tag(m.0, model)).map(|m| m.1)
+}
+
+/// What Ollama said each model can do, by `root` and tag. Only real answers are kept, so a
+/// server that was down is asked again next time.
+static CAPABILITIES: LazyLock<Mutex<HashMap<CapabilityKey, Vec<String>>>> = LazyLock::new(Mutex::default);
+
+/// Server root and model tag.
+type CapabilityKey = (String, String);
+
+#[derive(Deserialize)]
+struct Show {
+    #[serde(default)]
+    capabilities: Vec<String>,
+}
+
+/// What a model can do, from `/api/show` (`completion`, `tools`, `vision`, `thinking`…). `None`
+/// when Ollama doesn't answer or doesn't have the model. Cached per server and tag.
+pub async fn capabilities(root: &str, model: &str) -> Option<Vec<String>> {
+    let key = (root.to_string(), model.to_string());
+    if let Some(found) = CAPABILITIES.lock().unwrap().get(&key) {
+        return Some(found.clone());
+    }
+    let resp = reqwest::Client::new()
+        .post(format!("{root}/api/show"))
+        .json(&serde_json::json!({ "model": model }))
+        .timeout(Duration::from_secs(3))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let show: Show = resp.json().await.ok()?;
+    CAPABILITIES.lock().unwrap().insert(key, show.capabilities.clone());
+    Some(show.capabilities)
+}
+
+/// Whether Ollama says `model` takes images. False when it can't be asked.
+pub async fn sees_images(root: &str, model: &str) -> bool {
+    capabilities(root, model).await.is_some_and(|c| c.iter().any(|c| c == "vision"))
+}
 
 /// Progress id suffix for installing Ollama itself (events carry `ollama:app`).
 pub const APP_ID: &str = "app";
@@ -127,18 +180,18 @@ impl OllamaManager {
                 downloaded: installed.iter().any(|t| same_tag(t, id)),
             })
             .collect();
-        for tag in installed {
-            if !CATALOG.iter().any(|m| same_tag(m.0, &tag)) {
-                out.push(LocalLlmModel {
-                    id: tag.clone(),
-                    name: tag,
-                    description: "Already in Ollama. It may not support Cilica's tools.".into(),
-                    size_mb: 0,
-                    min_ram_gb: 0,
-                    recommended: false,
-                    downloaded: true,
-                });
-            }
+        let extra: Vec<String> = installed.into_iter().filter(|tag| !CATALOG.iter().any(|m| same_tag(m.0, tag))).collect();
+        let found = futures::future::join_all(extra.iter().map(|tag| capabilities(root, tag))).await;
+        for (tag, capabilities) in extra.into_iter().zip(found) {
+            out.push(LocalLlmModel {
+                id: tag.clone(),
+                name: tag,
+                description: installed_description(capabilities.as_deref()).into(),
+                size_mb: 0,
+                min_ram_gb: 0,
+                recommended: false,
+                downloaded: true,
+            });
         }
         out
     }
@@ -274,6 +327,17 @@ impl OllamaManager {
     }
 }
 
+/// How a model pulled outside Cilica is described, from what Ollama says it can do.
+fn installed_description(capabilities: Option<&[String]>) -> &'static str {
+    let Some(c) = capabilities else { return "Already in Ollama. It may not support Cilica's tools." };
+    let has = |name: &str| c.iter().any(|x| x == name);
+    match (has("tools"), has("vision")) {
+        (true, true) => "Already in Ollama. Works with Cilica's tools and can see the images in your notes.",
+        (true, false) => "Already in Ollama. Works with Cilica's tools.",
+        (false, _) => "Already in Ollama. It can't use Cilica's tools, so it can only chat.",
+    }
+}
+
 fn unreachable_err() -> AppError {
     AppError::unavailable("Cilica could not reach Ollama. Set it up in Settings › Cilica, then try again.")
 }
@@ -294,6 +358,33 @@ mod tests {
         assert!(same_tag("llama3", "llama3:latest"));
         assert!(same_tag("qwen3:8b", "qwen3:8b"));
         assert!(!same_tag("qwen3:8b", "qwen3:4b"));
+    }
+
+    #[test]
+    fn catalogue_names_and_installed_descriptions() {
+        assert_eq!(display_name("qwen3:8b"), Some("Qwen3 8B"));
+        assert_eq!(display_name("qwen3-vl:8b"), Some("Qwen3-VL 8B"));
+        assert_eq!(display_name("llama3"), None);
+        let caps = |c: &[&str]| c.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(installed_description(Some(&caps(&["completion", "tools", "vision"]))).contains("see the images"));
+        assert!(installed_description(Some(&caps(&["completion"]))).contains("only chat"));
+        assert!(installed_description(None).contains("may not"));
+    }
+
+    #[tokio::test]
+    async fn asks_ollama_whether_a_model_sees_images_once() {
+        use crate::http::test_server::{Canned, serve};
+        let (root, seen) = serve(vec![
+            Canned::json(200, r#"{"capabilities":["completion","vision","tools"]}"#),
+            Canned::json(200, r#"{"capabilities":["completion","tools"]}"#),
+        ])
+        .await;
+        assert!(sees_images(&root, "qwen3-vl:8b").await);
+        assert!(sees_images(&root, "qwen3-vl:8b").await, "cached");
+        assert!(!sees_images(&root, "qwen3:8b").await);
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 2);
+        assert!(seen[0].contains("/api/show") && seen[0].contains("\"model\":\"qwen3-vl:8b\""));
     }
 
     #[test]

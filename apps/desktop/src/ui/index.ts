@@ -19,6 +19,8 @@ export * from "./Glass";
 export * from "./Graph";
 export * from "./Icon";
 export * from "./IconButton";
+export * from "./ImageBlock";
+export * from "./ImageViewer";
 export * from "./ImportParts";
 export * from "./Installer";
 export * from "./Kbd";

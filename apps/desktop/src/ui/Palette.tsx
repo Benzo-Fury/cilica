@@ -218,3 +218,12 @@ export function Highlight({
     </span>
   );
 }
+
+/** A small picture leading a palette row (an image whose text matched). */
+export function PaletteThumb({ src, alt }: { src: string | null; alt: string }) {
+  return (
+    <span className="nt-prow-thumb" aria-hidden>
+      {src && <img src={src} alt={alt} draggable={false} />}
+    </span>
+  );
+}

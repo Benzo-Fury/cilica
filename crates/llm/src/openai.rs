@@ -27,6 +27,8 @@ pub struct OpenAiCompatProvider {
     /// `None` for servers without auth (Ollama, LM Studio).
     key: Option<KeyLoader>,
     retry: RetryPolicy,
+    /// Ollama's server root when this is Ollama, which can be asked what a model accepts.
+    ollama_root: Option<String>,
 }
 
 impl OpenAiCompatProvider {
@@ -41,12 +43,16 @@ impl OpenAiCompatProvider {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             key,
             retry: RetryPolicy::default(),
+            ollama_root: None,
         }
     }
 
     /// Local Ollama (no key).
     pub fn ollama(base_url: Option<String>) -> Self {
-        Self::new("Ollama", base_url.unwrap_or_else(|| OLLAMA_BASE_URL.into()), None)
+        let base = base_url.unwrap_or_else(|| OLLAMA_BASE_URL.into());
+        let mut this = Self::new("Ollama", base.clone(), None);
+        this.ollama_root = Some(crate::ollama::root_url(Some(&base)));
+        this
     }
 
     pub fn with_retry(mut self, retry: RetryPolicy) -> Self {
@@ -55,7 +61,14 @@ impl OpenAiCompatProvider {
     }
 
     fn clone_handle(&self) -> Self {
-        Self { http: self.http.clone(), name: self.name.clone(), base_url: self.base_url.clone(), key: self.key.clone(), retry: self.retry }
+        Self {
+            http: self.http.clone(),
+            name: self.name.clone(),
+            base_url: self.base_url.clone(),
+            key: self.key.clone(),
+            retry: self.retry,
+            ollama_root: self.ollama_root.clone(),
+        }
     }
 
     /// The request body. Contains no key.
@@ -164,6 +177,14 @@ impl Provider for OpenAiCompatProvider {
         crate::receiver_stream(rx)
     }
 
+    /// Ollama says per model (`/api/show` capabilities); other servers go by the model's name.
+    async fn sees_images(&self, model: &str) -> bool {
+        match &self.ollama_root {
+            Some(root) => crate::ollama::sees_images(root, model).await,
+            None => crate::vision::name_sees_images(model),
+        }
+    }
+
     async fn verify(&self) -> Result<(), LlmError> {
         let key = self.api_key()?;
         let mut builder = self.http.get(format!("{}/models", self.base_url));
@@ -190,12 +211,20 @@ fn to_wire_messages(req: &ChatRequest) -> Value {
     for msg in &req.messages {
         match msg.role {
             ChatRole::User => {
-                // Tool results become `tool` messages, then any text as a user message.
+                // Tool results become `tool` messages, then their images (tool messages can't carry
+                // any) as one user message, then any text as a user message.
                 let mut text = String::new();
+                let mut images = Vec::new();
                 for block in &msg.content {
                     match block {
-                        ContentBlock::ToolResult { tool_use_id, content, is_error } => {
-                            let content = if *is_error { format!("Error: {content}") } else { content.clone() };
+                        ContentBlock::ToolResult { tool_use_id, content, is_error, images: attached } => {
+                            let mut content = if *is_error { format!("Error: {content}") } else { content.clone() };
+                            for image in attached {
+                                match &image.data {
+                                    Some(data) => images.push(json!({"type": "image_url", "image_url": {"url": format!("data:{};base64,{}", image.media_type, data)}})),
+                                    None => content.push_str(&format!("\n{} {}", image.path, crate::IMAGE_NOT_LOADED)),
+                                }
+                            }
                             out.push(json!({"role": "tool", "tool_call_id": tool_use_id, "content": content}));
                         }
                         ContentBlock::Text { text: t } => {
@@ -206,6 +235,11 @@ fn to_wire_messages(req: &ChatRequest) -> Value {
                         }
                         _ => {}
                     }
+                }
+                if !images.is_empty() {
+                    let mut parts = vec![json!({"type": "text", "text": "Images from the tool results above:"})];
+                    parts.extend(images);
+                    out.push(json!({"role": "user", "content": parts}));
                 }
                 if !text.is_empty() {
                     out.push(json!({"role": "user", "content": text}));
@@ -388,7 +422,7 @@ mod tests {
         });
         req.messages.push(ChatMessage {
             role: ChatRole::User,
-            content: vec![ContentBlock::ToolResult { tool_use_id: "c1".into(), content: "3 hits".into(), is_error: false }],
+            content: vec![ContentBlock::tool_result("c1", "3 hits", false)],
         });
         let p = OpenAiCompatProvider::new("OpenAI", OPENAI_BASE_URL, None);
         let body = p.build_body(&req, true);
@@ -397,6 +431,50 @@ mod tests {
         assert_eq!(msgs[2]["tool_calls"][0]["function"]["arguments"], "{\"query\":\"a\"}");
         assert_eq!(msgs[3]["role"], "tool");
         assert!(body.get("max_completion_tokens").is_some());
+    }
+
+    #[test]
+    fn tool_result_images_follow_the_tool_messages_as_one_user_message() {
+        let mut req = req_with_tools();
+        let image = |data: Option<&str>| crate::ToolImage {
+            path: "attachments/0123456789abcdef0123456789abcdef.jpg".into(),
+            media_type: "image/jpeg".into(),
+            data: data.map(Into::into),
+        };
+        req.messages.push(ChatMessage {
+            role: ChatRole::Assistant,
+            content: vec![
+                ContentBlock::ToolUse { id: "c1".into(), name: "view_images".into(), input: json!({}) },
+                ContentBlock::ToolUse { id: "c2".into(), name: "get_note".into(), input: json!({}) },
+            ],
+        });
+        req.messages.push(ChatMessage {
+            role: ChatRole::User,
+            content: vec![
+                ContentBlock::ToolResult { tool_use_id: "c1".into(), content: "2 images".into(), is_error: false, images: vec![image(Some("/9j/4AAQ")), image(None)] },
+                ContentBlock::tool_result("c2", "note", false),
+            ],
+        });
+        let p = OpenAiCompatProvider::ollama(None);
+        let body = p.build_body(&req, true);
+        let msgs = body["messages"].as_array().unwrap();
+        // system, user, assistant, tool, tool, user (images)
+        assert_eq!(msgs.len(), 6);
+        assert_eq!(msgs[3]["role"], "tool");
+        assert!(msgs[3]["content"].as_str().unwrap().ends_with("[image not loaded]"));
+        assert_eq!(msgs[4]["role"], "tool");
+        assert_eq!(msgs[5]["role"], "user");
+        let parts = msgs[5]["content"].as_array().unwrap();
+        assert_eq!(parts[0]["type"], "text");
+        assert_eq!(parts.len(), 2, "only loaded images are sent");
+        assert_eq!(parts[1], json!({"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,/9j/4AAQ"}}));
+    }
+
+    #[tokio::test]
+    async fn sees_images_by_name_off_ollama() {
+        let p = OpenAiCompatProvider::new("OpenAI", OPENAI_BASE_URL, None);
+        assert!(p.sees_images("gpt-4o").await);
+        assert!(!p.sees_images("gpt-3.5-turbo").await);
     }
 
     #[tokio::test]

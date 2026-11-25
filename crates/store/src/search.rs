@@ -100,6 +100,7 @@ impl Db {
                     source: SearchSource::Details,
                     at_ms: None,
                     matched_at,
+                    image: None,
                 });
                 continue;
             }
@@ -133,7 +134,69 @@ impl Db {
                 source,
                 at_ms,
                 matched_at,
+                image: None,
             });
+        }
+
+        // Notes found only by the text in their images come after the rest
+        if let Some(expr) = &match_expr {
+            let room = limit.clamp(1, MAX_SEARCH_RESULTS) as usize;
+            if hits.len() < room {
+                let image_hits = self.find_by_image_text(q, expr, dated, room).await?;
+                let found: std::collections::HashSet<_> = hits.iter().map(|h| h.note.id).collect();
+                hits.extend(image_hits.into_iter().filter(|h| !found.contains(&h.note.id)).take(room - hits.len()));
+            }
+        }
+        Ok(hits)
+    }
+
+    /// Notes whose images' text matches `expr`, with the query's filters, best match first and one
+    /// hit per note (its best-matching image). At most `limit` notes.
+    async fn find_by_image_text(&self, q: &NoteQuery, expr: &str, dated: bool, limit: usize) -> StoreResult<Vec<SearchHit>> {
+        // Columns
+        let mut b: QueryBuilder<Sqlite> = QueryBuilder::new(
+            "SELECT n.id, n.title, n.aliases, n.snippet, n.category_id, n.kind, n.meeting_app, n.position, n.created_at, n.updated_at, n.deleted_at, \
+             image_text_fts.path AS image_path, snippet(image_text_fts, 2, '\u{E000}', '\u{E001}', '…', 16) AS hit_image, ",
+        );
+        if dated {
+            push_matched_at(&mut b, q);
+        } else {
+            b.push("NULL");
+        }
+        b.push(" AS matched_at ");
+
+        // Source, filters, order. Several images of one note can match; fetch extra to fill `limit`.
+        b.push("FROM image_text_fts JOIN notes n ON n.id = image_text_fts.note_id WHERE image_text_fts MATCH ");
+        b.push_bind(expr.to_string());
+        push_filters(&mut b, q);
+        if dated {
+            b.push(" AND ");
+            push_date_condition(&mut b, q);
+        }
+        b.push(" ORDER BY bm25(image_text_fts) ASC, n.updated_at DESC LIMIT ");
+        b.push_bind(i64::try_from(limit * 4).unwrap_or(i64::MAX));
+
+        // One hit per note
+        let rows = b.build().fetch_all(self.pool()).await?;
+        let mut seen = std::collections::HashSet::new();
+        let mut hits = Vec::new();
+        for row in &rows {
+            let note = summary_from_row(row)?;
+            if !seen.insert(note.id) {
+                continue;
+            }
+            let raw: Option<String> = row.try_get("hit_image")?;
+            hits.push(SearchHit {
+                excerpt: excerpt_html(&raw.unwrap_or_default()),
+                note,
+                source: SearchSource::Image,
+                at_ms: None,
+                matched_at: codec::parse_opt_ts(row.try_get("matched_at")?)?,
+                image: Some(row.try_get("image_path")?),
+            });
+            if hits.len() >= limit {
+                break;
+            }
         }
         Ok(hits)
     }

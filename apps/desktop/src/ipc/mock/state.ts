@@ -123,7 +123,7 @@ export function defaultSettings(onboardingDone: boolean): Settings {
       price_cents: 100,
       clink: false,
     },
-    writing: { check_spelling: true },
+    writing: { check_spelling: true, shrink_large_images: false, find_text_in_images: true },
     keybinds: {},
     launch_at_login: false,
     safe_for_work: false,

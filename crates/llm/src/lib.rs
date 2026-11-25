@@ -25,6 +25,7 @@ mod http;
 pub mod mock;
 pub mod ollama;
 pub mod openai;
+pub mod vision;
 
 // ── Conversation ─────────────────────────────────────────────────────────
 
@@ -48,6 +49,10 @@ pub enum ContentBlock {
         content: String,
         #[serde(default)]
         is_error: bool,
+        /// Images that go with the result (from `view_images`). Only references are stored; the
+        /// bytes are loaded just before each request. Rows written before images existed have none.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        images: Vec<ToolImage>,
     },
     /// Anthropic thinking. Replayed unchanged (signature included) to the provider that made it.
     Thinking {
@@ -70,11 +75,34 @@ impl ContentBlock {
         Self::Text { text: text.into() }
     }
 
+    /// A tool result without images.
+    pub fn tool_result(tool_use_id: impl Into<String>, content: impl Into<String>, is_error: bool) -> Self {
+        Self::ToolResult { tool_use_id: tool_use_id.into(), content: content.into(), is_error, images: Vec::new() }
+    }
+
     /// True for blocks that belong to one provider's internals (thinking, opaque).
     pub fn is_provider_internal(&self) -> bool {
         matches!(self, Self::Thinking { .. } | Self::RedactedThinking { .. } | Self::Opaque { .. })
     }
 }
+
+/// An image attached to a tool result.
+///
+/// History stores `path` and `media_type` only. `data` (base64 of the bytes as sent: downscaled and
+/// re-encoded) is filled in just before a request and never serialised, so stored rows stay small
+/// and the request bytes stay the same from turn to turn (the provider's prompt cache holds).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolImage {
+    /// The note's path for it: `attachments/<hash>.<ext>`.
+    pub path: String,
+    /// What `data` is: `image/jpeg` or `image/png`.
+    pub media_type: String,
+    #[serde(skip)]
+    pub data: Option<Arc<str>>,
+}
+
+/// Text sent in place of an image whose bytes could not be loaded for this request.
+pub const IMAGE_NOT_LOADED: &str = "[image not loaded]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -221,6 +249,12 @@ pub trait Provider: Send + Sync {
 
     /// A cheap call that checks the key / server without spending tokens where possible.
     async fn verify(&self) -> Result<(), LlmError>;
+
+    /// Whether `model` on this provider can see images in tool results. Must be stable for a given
+    /// model, so the tool list (and the prompt cache) does not change between requests.
+    async fn sees_images(&self, _model: &str) -> bool {
+        false
+    }
 }
 
 /// Run a request to completion. Returns the concatenated text and the completion.
@@ -316,6 +350,28 @@ mod tests {
         assert_eq!(back, msg);
         assert_eq!(back.tool_uses().len(), 1);
         assert_eq!(back.text(), "Hi");
+    }
+
+    #[test]
+    fn tool_result_images_store_references_only_and_old_rows_still_read() {
+        let block = ContentBlock::ToolResult {
+            tool_use_id: "t1".into(),
+            content: "1 image".into(),
+            is_error: false,
+            images: vec![ToolImage { path: "attachments/0123456789abcdef0123456789abcdef.png".into(), media_type: "image/png".into(), data: Some("QUJD".into()) }],
+        };
+        let json = serde_json::to_string(&block).unwrap();
+        assert!(json.contains("\"path\":\"attachments/0123456789abcdef0123456789abcdef.png\""));
+        assert!(!json.contains("QUJD"), "image bytes are never stored");
+        let back: ContentBlock = serde_json::from_str(&json).unwrap();
+        let ContentBlock::ToolResult { images, .. } = &back else { panic!() };
+        assert_eq!(images[0].data, None);
+        assert_eq!(images[0].media_type, "image/png");
+
+        // A row from before images: no field at all, and none written for a plain result
+        let old: ContentBlock = serde_json::from_str(r#"{"type":"tool_result","tool_use_id":"t0","content":"ok"}"#).unwrap();
+        assert_eq!(old, ContentBlock::tool_result("t0", "ok", false));
+        assert!(!serde_json::to_string(&old).unwrap().contains("images"));
     }
 
     #[test]

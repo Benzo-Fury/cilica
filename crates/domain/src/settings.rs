@@ -404,12 +404,18 @@ impl Default for SwearJarSettings {
 pub struct WritingSettings {
     /// Underline misspelt words in notes, titles and the assistant box, using the system's checker.
     pub check_spelling: bool,
+    /// Resize photos larger than 2560 px on their longest side when they're added.
+    pub shrink_large_images: bool,
+    /// Read the text in note images on this device so search and Cilica can find it.
+    pub find_text_in_images: bool,
 }
 
 impl Default for WritingSettings {
     fn default() -> Self {
         Self {
             check_spelling: true,
+            shrink_large_images: false,
+            find_text_in_images: true,
         }
     }
 }

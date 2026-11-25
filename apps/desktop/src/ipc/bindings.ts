@@ -20,7 +20,12 @@ export const commands = {
 	/**  A new empty manual note at the top of the category (or of Notes). */
 	createNote: (categoryId: string | null) => __TAURI_INVOKE<Note_Serialize>("create_note", { categoryId }),
 	renameNote: (noteId: string, title: string) => __TAURI_INVOKE<NoteSummary_Serialize>("rename_note", { noteId, title }),
-	/**  Save the editor's Markdown. Called debounced while typing; the store decides when to snapshot a version. */
+	/**
+	 *  Save the editor's Markdown. Called debounced while typing; the store decides when to snapshot a version.
+	 * 
+	 *  Inline `data:` images (pasted HTML can carry them) are saved as attachments first, so the body
+	 *  that is stored points at files; the note then gets `data_changed` so the editor picks that up.
+	 */
 	updateNoteBody: (noteId: string, bodyMd: string) => __TAURI_INVOKE<NoteSummary_Serialize>("update_note_body", { noteId, bodyMd }),
 	/**
 	 *  Move a note into a category (or out, with `None`) at a fractional position, or to the top when
@@ -73,7 +78,10 @@ export const commands = {
 	listNoteVersions: (noteId: string) => __TAURI_INVOKE<NoteVersion_Serialize[]>("list_note_versions", { noteId }),
 	/**  Snapshots the current body first, then restores. */
 	restoreNoteVersion: (versionId: string) => __TAURI_INVOKE<Note_Serialize>("restore_note_version", { versionId }),
-	/**  Write the note as a .md file to `path`: the title as an H1, then the body. */
+	/**
+	 *  Write the note as a .md file to `path`: the title as an H1, then the body. Its images are copied
+	 *  into an `attachments/` folder next to the file.
+	 */
 	exportNoteMarkdown: (noteId: string, path: string) => __TAURI_INVOKE<null>("export_note_markdown", { noteId, path }),
 	/**
 	 *  The link graph: every note, plus the people, tags and notes not created yet they link to.
@@ -234,6 +242,11 @@ export const commands = {
 	setProviderKey: (kind: ProviderKind, key: string) => __TAURI_INVOKE<ProviderStatus_Serialize>("set_provider_key", { kind, key }),
 	clearProviderKey: (kind: ProviderKind) => __TAURI_INVOKE<null>("clear_provider_key", { kind }),
 	detectClaudeCode: () => __TAURI_INVOKE<ClaudeCodeStatus_Serialize>("detect_claude_code"),
+	/**
+	 *  Whether Cilica, with the provider and model chosen now, can look at the images in notes.
+	 *  When it can't, it still reads any text found in them.
+	 */
+	assistantImageSupport: () => __TAURI_INVOKE<AssistantImageSupport>("assistant_image_support"),
 	getOllamaStatus: () => __TAURI_INVOKE<OllamaStatus_Serialize>("get_ollama_status"),
 	/**  The models Cilica offers, marked with what Ollama already has. */
 	listLocalModels: () => __TAURI_INVOKE<LocalLlmModel[]>("list_local_models"),
@@ -302,6 +315,24 @@ export const commands = {
 	importCancel: (runId: string) => __TAURI_INVOKE<null>("import_cancel", { runId }),
 	/**  Move every note an import of this session created to Trash. Returns how many moved. */
 	importUndo: (runId: string) => __TAURI_INVOKE<number>("import_undo", { runId }),
+	/**  Save a pasted image (base64, with or without a `data:` prefix). `name` suggests the alt text. */
+	saveImage: (data: string, name: string | null) => __TAURI_INVOKE<SavedImage>("save_image", { data, name }),
+	/**  Save an image file dropped from Finder or picked in the file picker. */
+	importImageFile: (path: string) => __TAURI_INVOKE<SavedImage>("import_image_file", { path }),
+	/**  Download an image from a web link and save it. Only public http and https sites are reached. */
+	fetchImage: (url: string) => __TAURI_INVOKE<SavedImage>("fetch_image", { url }),
+	/**
+	 *  The attachments folder as an absolute path, so the UI can turn `attachments/<name>` into an
+	 *  asset URL.
+	 */
+	attachmentsDir: () => __TAURI_INVOKE<string>("attachments_dir"),
+	/**  Save a copy of an attachment (`attachments/<name>`) to `dest` (Save as…). */
+	saveImageCopy: (path: string, dest: string) => __TAURI_INVOKE<null>("save_image_copy", { path, dest }),
+	/**
+	 *  Where finding text in images stands: supported here, on, how many images are read, and whether
+	 *  it is reading now or waiting for a recording to end.
+	 */
+	imageTextStatus: () => __TAURI_INVOKE<ImageTextStatus>("image_text_status"),
 };
 
 /** Events */
@@ -433,7 +464,9 @@ export type AppEvent_Deserialize =
 /**  Open this note in the main window (the welcome note when setup finishes). */
 { type: "open_note"; note_id: string } | 
 /**  What the transcription test has heard so far (the whole text, replacing the last). */
-{ type: "transcription_test_progress"; text: string };
+{ type: "transcription_test_progress"; text: string } | 
+/**  Finding text in images moved on: started, read more images, paused for a recording or finished. */
+{ type: "image_text_progress"; status: ImageTextStatus };
 
 /**
  *  Everything the backend tells the UI. Crates emit these through an [`EventSink`];
@@ -460,7 +493,9 @@ export type AppEvent_Serialize =
 /**  Open this note in the main window (the welcome note when setup finishes). */
 { type: "open_note"; note_id: string } | 
 /**  What the transcription test has heard so far (the whole text, replacing the last). */
-{ type: "transcription_test_progress"; text: string };
+{ type: "transcription_test_progress"; text: string } | 
+/**  Finding text in images moved on: started, read more images, paused for a recording or finished. */
+{ type: "image_text_progress"; status: ImageTextStatus };
 
 /**  Facts about this build and machine that the UI needs to pick its chrome. */
 export type AppInfo = {
@@ -512,6 +547,16 @@ export type AssistantEvent_Serialize = { type: "turn_started"; thread_id: string
 { type: "text_delta"; thread_id: string; turn_id: string; message_id: string; delta: string } | 
 /**  A tool row appeared or changed status. Upsert by `action.id`. */
 { type: "tool"; thread_id: string; turn_id: string; message_id: string; action: AiAction_Serialize } | { type: "proposal"; thread_id: string; turn_id: string; message_id: string; proposal: Proposal_Serialize } | { type: "turn_finished"; thread_id: string; turn_id: string; end: TurnEnd };
+
+/**
+ *  Whether the assistant, as set up now, can look at the images in notes. When it can't, it
+ *  still reads any text found in them.
+ */
+export type AssistantImageSupport = {
+	sees_images: boolean,
+	/**  The model as people know it: "Qwen3 8B", "Claude Sonnet 5.5", "Claude Code", or the model id. */
+	model_name: string,
+};
 
 /**  Which capture stream a segment came from. */
 export type AudioChannel = 
@@ -855,6 +900,22 @@ export type HomeGlance_Serialize = {
 	undos: Undos_Serialize | null,
 	/**  The swear jar. None when it is switched off. */
 	swear_jar: SwearJar_Serialize | null,
+};
+
+/**  Where finding text in images stands (Settings › Writing). */
+export type ImageTextStatus = {
+	/**  This device can read text in images. */
+	supported: boolean,
+	/**  Settings › Writing › Find text in images is on. */
+	enabled: boolean,
+	/**  Images referenced by notes that have been read (text found, none found, or unreadable). */
+	done: number,
+	/**  Images referenced by notes. */
+	total: number,
+	/**  Images are being read right now. */
+	running: boolean,
+	/**  Waiting for a recording to end before reading more. */
+	paused: boolean,
 };
 
 /**  Where imported notes go. */
@@ -2050,6 +2111,20 @@ export type RecordingTrigger = "manual" | "hotkey" | "tray" | "detected";
 
 export type Role = "user" | "assistant";
 
+/**  An image Cilica saved into its attachments folder, ready to be written into a note. */
+export type SavedImage = {
+	/**
+	 *  Where the note points: `attachments/<32 hex>.<ext>`, relative to the app data folder.
+	 *  The same bytes always give the same path.
+	 */
+	path: string,
+	/**  Size in pixels as shown (after any EXIF rotation and any shrinking). */
+	width: number,
+	height: number,
+	/**  A suggested alt text: the original file's name without its extension, or "Image". */
+	name: string,
+};
+
 /**
  *  What a search can recognise beyond people and categories: the tags in use, the meeting apps
  *  that recorded meetings and the apps notes were imported from.
@@ -2077,6 +2152,8 @@ export type SearchHit_Deserialize = {
 	 *  meeting started, the note was made, last edited or moved to Trash).
 	 */
 	matched_at?: string | null,
+	/**  For image hits: the image whose text matched (`attachments/<32 hex>.<ext>`). */
+	image?: string | null,
 };
 
 /**  One full-text search result. `excerpt` marks matches with `<mark>…</mark>` and is otherwise plain text. */
@@ -2091,9 +2168,13 @@ export type SearchHit_Serialize = {
 	 *  meeting started, the note was made, last edited or moved to Trash).
 	 */
 	matched_at: string | null,
+	/**  For image hits: the image whose text matched (`attachments/<32 hex>.<ext>`). */
+	image: string | null,
 };
 
 export type SearchSource = "title" | "body" | "transcript" | 
+/**  Text Cilica read in one of the note's images. */
+"image" | 
 /**  Found by its details (a date, a person, a tag…) with no words to match. */
 "details";
 
@@ -3146,12 +3227,20 @@ export type WritingSettings = WritingSettings_Serialize | WritingSettings_Deseri
 export type WritingSettings_Deserialize = {
 	/**  Underline misspelt words in notes, titles and the assistant box, using the system's checker. */
 	check_spelling?: boolean,
+	/**  Resize photos larger than 2560 px on their longest side when they're added. */
+	shrink_large_images?: boolean,
+	/**  Read the text in note images on this device so search and Cilica can find it. */
+	find_text_in_images?: boolean,
 };
 
 /**  Settings › General › Writing. */
 export type WritingSettings_Serialize = {
 	/**  Underline misspelt words in notes, titles and the assistant box, using the system's checker. */
 	check_spelling: boolean,
+	/**  Resize photos larger than 2560 px on their longest side when they're added. */
+	shrink_large_images: boolean,
+	/**  Read the text in note images on this device so search and Cilica can find it. */
+	find_text_in_images: boolean,
 };
 
 /* Tauri Specta runtime */

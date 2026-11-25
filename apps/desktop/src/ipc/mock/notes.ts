@@ -414,7 +414,13 @@ function removeNote(state: MockState, noteId: string): void {
 
 // ───────── Search ─────────
 
-const SOURCE_RANK: Record<SearchSource, number> = { title: 0, body: 1, transcript: 2, details: 3 };
+const SOURCE_RANK: Record<SearchSource, number> = {
+  title: 0,
+  body: 1,
+  transcript: 2,
+  image: 3,
+  details: 4,
+};
 const EXCERPT_LENGTH = 90;
 
 function search(state: MockState, query: string, limit: number): SearchHit[] {
@@ -456,6 +462,7 @@ function search(state: MockState, query: string, limit: number): SearchHit[] {
       excerpt: makeExcerpt(excerptSource, terms),
       at_ms: atMs,
       matched_at: null,
+      image: null,
       rank: SOURCE_RANK[source],
     });
   }
@@ -613,6 +620,7 @@ export function mergeSettings(current: Settings, input: SettingsInput): Settings
     keybinds: input.keybinds ? { ...input.keybinds } : { ...current.keybinds },
     launch_at_login: input.launch_at_login ?? current.launch_at_login,
     safe_for_work: input.safe_for_work ?? current.safe_for_work,
+    tabs: input.tabs ?? current.tabs,
     onboarding_done: input.onboarding_done ?? current.onboarding_done,
     updates: pick(current.updates, input.updates),
   };

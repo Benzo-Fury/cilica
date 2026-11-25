@@ -6,13 +6,17 @@
 //! only create proposals, every call writes an audit row, and there are at most 20 writes per
 //! session (one CLI turn).
 //!
-//! Launch: the app binary with `--mcp --db <path> [--thread <id>] [--turn <id>] [--task-run <id>]`
-//! opens the same SQLite database (WAL mode, so the running app sees the writes).
+//! Launch: the app binary with `--mcp --db <path> [--attachments <dir>] [--thread <id>] [--turn <id>]
+//! [--task-run <id>]` opens the same SQLite database (WAL mode, so the running app sees the writes).
+//! The attachments folder defaults to `attachments/` next to the database.
+//!
+//! Claude Code's models see images, so `view_images` is listed too; its results carry MCP image
+//! content (`{type: "image", data, mimeType}`) after the text.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use cilica_agent::{CallContext, DbNoteStore, ToolRunner, tools};
+use cilica_agent::{CallContext, DbNoteStore, ModelImages, ToolRunner, tools};
 use cilica_domain::{Id, NullSink, new_id};
 use cilica_store::Db;
 use serde_json::{Value, json};
@@ -25,6 +29,8 @@ const PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
 #[derive(Debug, Clone, PartialEq)]
 pub struct McpArgs {
     pub db_path: PathBuf,
+    /// The attachments folder (`view_images`). `None`: `attachments/` next to the database.
+    pub attachments_dir: Option<PathBuf>,
     pub thread_id: Option<Id>,
     pub turn_id: Option<Id>,
     /// Propose-only mode for a scheduled task run.
@@ -34,6 +40,7 @@ pub struct McpArgs {
 /// Parse the arguments after `--mcp`.
 pub fn parse_args(args: &[String]) -> Result<McpArgs, String> {
     let mut db_path = None;
+    let mut attachments_dir = None;
     let mut thread_id = None;
     let mut turn_id = None;
     let mut task_run_id = None;
@@ -46,13 +53,14 @@ pub fn parse_args(args: &[String]) -> Result<McpArgs, String> {
         match arg.as_str() {
             "--mcp" => {}
             "--db" => db_path = Some(PathBuf::from(it.next().ok_or("--db needs a path")?)),
+            "--attachments" => attachments_dir = Some(PathBuf::from(it.next().ok_or("--attachments needs a path")?)),
             "--thread" => thread_id = Some(id(it.next(), "--thread")?),
             "--turn" => turn_id = Some(id(it.next(), "--turn")?),
             "--task-run" => task_run_id = Some(id(it.next(), "--task-run")?),
             other => return Err(format!("unknown argument {other}")),
         }
     }
-    Ok(McpArgs { db_path: db_path.ok_or("--db is required")?, thread_id, turn_id, task_run_id })
+    Ok(McpArgs { db_path: db_path.ok_or("--db is required")?, attachments_dir, thread_id, turn_id, task_run_id })
 }
 
 /// The server. One instance per process; its call context spans the session (one CLI turn).
@@ -100,7 +108,7 @@ impl McpServer {
             }
             "ping" => ok(id, json!({})),
             "tools/list" => {
-                let list: Vec<Value> = tools::specs(self.tasks_only)
+                let list: Vec<Value> = tools::specs(self.tasks_only, self.runner.images().available())
                     .into_iter()
                     .map(|t| json!({ "name": t.name, "description": t.description, "inputSchema": t.input_schema }))
                     .collect();
@@ -115,7 +123,13 @@ impl McpServer {
                 }
                 let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
                 let out = self.runner.call(&self.ctx, name, &args).await;
-                ok(id, json!({ "content": [{ "type": "text", "text": out.content }], "isError": out.is_error }))
+                let mut content = vec![json!({ "type": "text", "text": out.content })];
+                for image in &out.images {
+                    if let Some(data) = &image.data {
+                        content.push(json!({ "type": "image", "data": data.as_ref(), "mimeType": image.media_type }));
+                    }
+                }
+                ok(id, json!({ "content": content, "isError": out.is_error }))
             }
             _ => err(id, -32601, &format!("Method not found: {method}")),
         })
@@ -159,7 +173,12 @@ impl McpServer {
 pub async fn run_stdio(args: McpArgs) -> Result<(), String> {
     let db = Db::open(&args.db_path).await.map_err(|e| format!("could not open the database: {e}"))?;
     let settings = db.ai_settings().await.unwrap_or_default();
-    let runner = ToolRunner::new(db.clone(), Arc::new(DbNoteStore(db)), Arc::new(NullSink));
+    let attachments = args
+        .attachments_dir
+        .clone()
+        .unwrap_or_else(|| args.db_path.parent().map(|p| p.join(cilica_attachments::FOLDER)).unwrap_or_else(|| PathBuf::from(cilica_attachments::FOLDER)));
+    let images = ModelImages::new(Some(cilica_attachments::ImageStore::new(attachments)));
+    let runner = ToolRunner::new(db.clone(), Arc::new(DbNoteStore(db)), Arc::new(NullSink)).with_images(images);
     let ctx = match args.task_run_id {
         Some(run) => CallContext::propose_only(run),
         None => CallContext::chat(args.thread_id, args.turn_id.unwrap_or_else(new_id), settings.auto_apply_edits, None),
@@ -178,7 +197,7 @@ mod tests {
 
     async fn server(fake: Arc<FakeNotes>) -> (McpServer, Db) {
         let db = Db::open_in_memory().await.unwrap();
-        let runner = ToolRunner::new(db.clone(), fake, Arc::new(NullSink));
+        let runner = ToolRunner::new(db.clone(), fake, Arc::new(NullSink)).with_images(ModelImages::new(Some(cilica_attachments::ImageStore::new("/nonexistent/attachments"))));
         (McpServer::new(runner, CallContext::chat(None, new_id(), false, None)), db)
     }
 
@@ -191,7 +210,8 @@ mod tests {
         assert!(s.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"})).await.is_none());
         let list = s.handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).await.unwrap();
         let tools = list["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 19);
+        assert_eq!(tools.len(), 20);
+        assert!(tools.iter().any(|t| t["name"] == "view_images"));
         assert!(tools.iter().all(|t| t["inputSchema"]["type"] == "object"));
         assert!(tools.iter().any(|t| t["name"] == "trash_note"));
         let unknown = s.handle(&json!({"jsonrpc":"2.0","id":3,"method":"resources/list"})).await.unwrap();
@@ -277,6 +297,33 @@ mod tests {
         assert_eq!(db.list_proposals_for_run(run.id).await.unwrap().len(), 1);
     }
 
+    #[tokio::test]
+    async fn view_images_returns_mcp_image_content_after_the_text() {
+        let dir = std::env::temp_dir().join(format!("cilica-mcp-{}", new_id()));
+        let store = cilica_attachments::ImageStore::new(dir.join("attachments"));
+        store.ensure_dir().unwrap();
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(8, 6, image::Rgb([1, 2, 3]))).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let saved = store.save_bytes(png.into_inner(), None, Default::default()).await.unwrap();
+        let fake = Arc::new(FakeNotes::new());
+        let note = fake.add_note("Chart", &format!("![Q3]({})", saved.path));
+        let db = Db::open_in_memory().await.unwrap();
+        let runner = ToolRunner::new(db, fake, Arc::new(NullSink)).with_images(ModelImages::new(Some(store)));
+        let s = McpServer::new(runner, CallContext::chat(None, new_id(), false, None));
+        let reply = s
+            .handle(&json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view_images","arguments":{"note_id": note.id.to_string()}}}))
+            .await
+            .unwrap();
+        let content = reply["result"]["content"].as_array().unwrap();
+        assert_eq!(content[0]["type"], "text");
+        assert!(content[0]["text"].as_str().unwrap().contains(&saved.path));
+        assert_eq!(content[1]["type"], "image");
+        assert_eq!(content[1]["mimeType"], "image/jpeg");
+        assert!(content[1]["data"].as_str().unwrap().starts_with("/9j/"));
+        assert!(reply["result"].get("structuredContent").is_none());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
     #[test]
     fn parses_launch_arguments() {
         let t = new_id();
@@ -284,6 +331,9 @@ mod tests {
         let parsed = parse_args(&args).unwrap();
         assert_eq!(parsed.db_path, PathBuf::from("/tmp/cilica.db"));
         assert_eq!(parsed.thread_id, Some(t));
+        assert_eq!(parsed.attachments_dir, None);
+        let with_dir: Vec<String> = ["--mcp", "--db", "/tmp/cilica.db", "--attachments", "/tmp/att"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(parse_args(&with_dir).unwrap().attachments_dir, Some(PathBuf::from("/tmp/att")));
         assert!(parse_args(&["--mcp".into()]).is_err());
         assert!(parse_args(&["--mcp".into(), "--db".into(), "x".into(), "--bogus".into()]).is_err());
     }
