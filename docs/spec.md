@@ -85,13 +85,49 @@ Finished steps collapse to one line with a check (grey when skipped) and reopen 
 
 ### Note view
 
-- Header: editable title, a **SegmentedSlider** (Notes ↔ Transcript, animated thumb, `⌘E`), overflow menu (export Markdown, copy, history, move to trash). On the note being recorded, the **recording chip** sits beside the switch (see [Recording status](#recording-status)).
+- Header: editable title, a **SegmentedSlider** (Notes ↔ Transcript, animated thumb, `⌘E`), overflow menu (insert image, export Markdown, copy, history, move to trash). On the note being recorded, the **recording chip** sits beside the switch (see [Recording status](#recording-status)).
 - **Notes panel**: TipTap Markdown editor. The user can type during a meeting; those jottings are kept and woven into the AI summary, as Granola does.
+- **Images**: see [Images in notes](#images-in-notes).
 - **Spelling**: the webview's own checker underlines misspelt words as you type in the body, the title and the assistant box; right-click a word for suggestions. Code, inline code and tags are never checked. WebKit leaves the checker off for embedded webviews, so the shell turns it on (macOS: the `WebContinuousSpellCheckingEnabled` default before the first webview; Linux: the WebKitGTK context, in the `LANG` language). Settings › General › Writing › Check spelling (on by default) sets `spellcheck` on `<html>`, which every text box inherits. Words already in a note are only checked once you edit near them.
 
 - **Transcript panel**: segments grouped by speaker with timestamps, auto-scrolling while live (pauses when the user scrolls up). Click a speaker's name to pick who they are from Saved people (every line they said in the meeting becomes that person's), change it later, add someone new, or unlink them, "You" included (they go back to "Person N"). Picking someone already in the meeting (a Saved person or another speaker under "In this meeting") makes the two one speaker. Times and text are not clickable; playback is from the playback bar, and lines are not highlighted as they play.
 - **History**: version list with author (you or AI) and a diff against current; one-click restore.
-- **Connections** (under the body): the note's local graph (1 or 2 steps out), notes that link here with the line they link from, and unlinked mentions of the title with a Link button. See Links and the graph.
+- **Connections** (under the body): the note's local graph (1 or 2 steps out), notes that link here with the line they link from, and unlinked mentions of the title with a Link button. Hidden while the note has none of these. See Links and the graph.
+
+### Images in notes
+
+Images are files, never data inside the note's text.
+
+- **Storage.** Each image is saved once in the attachments folder (`<app data>/attachments/<first 32 hex of its SHA-256>.<ext>`; the same picture added twice is one file) and the note refers to it as `attachments/<name>`. PNG, JPEG, GIF, WebP, AVIF and BMP are kept as they are; TIFF becomes PNG; HEIC becomes JPEG on macOS (through `sips`) and is refused elsewhere with a message saying to save it as JPEG or PNG. SVG and anything that isn't an image (checked from the bytes, never the name) is refused. Limits: 40 MB, 100 megapixels, 20,000 px a side. Settings › General › Writing › Shrink large images (off by default) resizes anything over 2560 px on its longest side as it is added (animated GIFs are kept).
+- **Markdown.** Obsidian's syntax, so a note opens the same there: `![alt|center|400](attachments/….png "Caption")`. The alt text carries the placement (`left` is the default and isn't written; `center`, `right`) and the width in px, which Obsidian reads too; the Markdown title is the caption. The assistant sees this line, never the image data.
+- **Adding.** Paste an image (a screenshot or an image copied from another app) or drop image files from Finder or File Explorer: each shows at once (a placeholder while the file is read) and is saved in the background. Insert image (`⌘⇧I`, or the note's ⋯ menu) opens the system picker for one or more images, added after the caret's block. Images that come in as web addresses or `data:` URIs (pasted HTML or Markdown, imports) are downloaded or saved once as attachments. A failed save says what went wrong and, for a pasted image, removes its placeholder.
+- **Web images.** The app never loads images from the web, so sites can't see when a note is opened (the CSP allows `asset:`, `data:` and `blob:` images only). Downloading a pasted web image is a one-off request made by the backend: http(s) only, GET without cookies or credentials, every hop's address resolved and checked against loopback, private, link-local, CGNAT, metadata, multicast and other non-public ranges, and the connection pinned to the checked address so DNS can't be rebound; at most 5 redirects, 15 s and 40 MB, then the same type and decode checks as any image, and 2×2 px or smaller is refused as a tracking pixel. A web image already in a note (from an import or written by hand) shows a card, "Web image not shown", with Save a copy.
+- **Selecting and moving.** Click an image to select it: it lifts slightly with a soft shadow, and the look clears as soon as you click anywhere else (the text, a sidebar, another pane). Drag the grip in the left margin to move it: an accent line marks the gap between blocks it will land in, the page scrolls near its edges, Esc cancels, and it settles with the bouncy spring. `⌥↑` / `⌥↓` move the selected image a block (the grip takes ↑ / ↓ too). Moving works with pointer events, so it also works on Windows where the window takes HTML drag and drop for file drops.
+- **Resizing.** Dragging any edge or corner of the selected image resizes it (no handles are drawn; the cursor changes over the edge). It keeps its shape (a centred image grows from both sides), shows the width in px as it goes, and stops at 48 px and the column's width.
+- **Toolbar** (under the selected image, the selection toolbar's glass bar): Align left / Centre / Align right, caption (opens the field under the image), alt text (a field in the bar, "Describe the image for screen readers"), View image, and ⋯: Copy image, Save image as…, Show in Finder (Show in File Explorer, Show in folder), Replace…, Delete image. Right-clicking an image opens the same actions as a context menu, plus Edit alt text….
+- **Captions** are optional and edited in place under the image: Enter or leaving the field saves, Esc puts it back. Obsidian shows them as a tooltip.
+- **Viewer.** Double-click an image or View image: a full-window viewer over the window's own colour, opening with `springs.smooth` (a crossfade under Reduce motion). Pinch or ⌘-scroll zooms at the pointer, scroll or drag pans a zoomed image, double-click toggles fit and 2×, `←` / `→` step through the note's images ("2 of 5"), `+` / `−` / `0` zoom, Esc or a click outside the picture closes. The caption shows under the picture.
+- **Missing.** An image whose file isn't there shows "Image missing" with Replace… and Remove.
+- **Export.** Export as Markdown copies each image the note uses into an `attachments/` folder beside the `.md`, so the links work in Obsidian or any Markdown app.
+- **Text in images** (macOS; hidden elsewhere). Settings › General › Writing › Find text in images, on by default, reads the words in every image notes use, on this Mac with Apple's Vision text recognition (accurate mode, the system's preferred languages, language detected per image). One image at a time in the background, once per unique file; new images are read as they are saved, a library after an import or on first run, and it pauses while recording. The row shows the progress ("Looking at image 13 of 40…", a bar) and turning it off stops the work but keeps what was read. The text is indexed for search and given to Cilica with the note (`get_note` adds "Text found in images"). Nothing leaves the computer.
+- **Search.** ⌘K matches image text too: "Text in images" lists each matching image's thumbnail, the note's title and the matched words; choosing one opens the note with that image selected and scrolled into view.
+- **Cilica and images.** Where the chosen model can see pictures (Anthropic, Claude Code, Ollama models that report vision, OpenAI-compatible models from known vision families), Cilica gets a `view_images` tool that sends the note's images (at most 1568 px on the long side, re-encoded so no metadata goes with them) when the picture itself matters; there is no setting for it. Where it can't, the composer shows an "Images not included" mark while the open note has images, and its tooltip names the model and says Cilica won't see them (and that it can still read the text found in them, when that is on).
+- **Moving old notes over.** At startup and after an import, the backend rewrites inline (`data:`) images in notes and their versions as attachments, in place (no new version, `updated_at` kept), then refreshes snippets, search and links. A body saved with inline images is converted before it is stored. At startup, files nothing refers to any more (notes, Trash, versions, proposals, Cilica's undo data and chat history) are deleted once they are a day old.
+
+### Tabs
+
+Off by default; Settings › General › Tabs › Open notes in tabs turns them on.
+
+- **The bar** runs along the bottom of the canvas on the sidebar's ground (`bg-sunken`), so sidebar and bar read as one frame around the page. It shows only while a note is open in a tab, and folds away after the last one closes. The first tab sits flush against the sidebar's edge.
+- **The selected tab is part of the page**: it is `bg-canvas` and the page's bottom edge turns down into it through concave fillets; the page's own bottom corners round off into the bar. Other tabs are titles on the ground, split by hairlines; the close button (a 28 × 28 target: macOS's default control size, above WCAG 2.2's 24 × 24 minimum) shows on the selected tab and on hover. The note being recorded shows a red microphone.
+- **What becomes a tab** follows what you are doing with the note. A note that already has a tab is selected, never opened twice.
+  - *Looking*: a note you open to read (sidebar, palette, links, graph, Home) takes the **preview tab**, shown with an italic title. There is at most one; the next note you look at takes its place, beside the tab you are on. Clicking through notes never piles up tabs.
+  - *Working*: a new note (New note, a link to a note not created yet) and a recording get a tab of their own next to the current one. Writing in a note or renaming it keeps its preview tab, so the next note you open adds a tab instead of replacing it.
+  - *Asking*: middle-click a sidebar note, or right-click › Open in new tab, to open it in a kept tab after the current one without leaving it. Double-click a preview tab to keep it.
+  - At most 12 tabs; opening another drops the leftmost one that is not on screen.
+- **Closing.** The close button or middle-click. Closing the note on screen shows the tab to its right, else the one to its left, else Home. Notes moved to Trash or deleted lose their tabs.
+- **Remembered.** The tab order and which tab is the preview are kept across launches (UI state, not the database); Cilica still opens on Home with the tabs waiting. Turning tabs off forgets them.
+- Keyboard: the bar is one tab stop; ←/→, Home and End move between tabs, Enter or Space opens one. There is no tab switcher or tab shortcut yet.
 
 ### Right sidebar: assistant
 
@@ -254,6 +290,8 @@ The tool registry lives in the `agent` crate and is the only write path for AI. 
 | --- | --- |
 | `⌘K` | Command palette: notes by words, dates, people and more; conversations, tasks, actions, settings |
 | `⌘F` | Find in current note |
+| `⌘⇧I` | Insert image |
+| `⌥↑` / `⌥↓` | Move the selected image up / down a block (editor) |
 | `⌘N` / `⌘⇧N` | New note / new category |
 | `⌘⇧R` | Start or stop recording (global, works when the app is in the background) |
 | `⌘E` | Swap Notes ↔ Transcript |
@@ -303,6 +341,8 @@ notes_fts        FTS5 over title, body_md, transcript text
 note_links       note_id, kind(link|embed|tag), target_key, target   -- read from body_md, rebuilt lazily
 settings         key, value_json        -- secrets live in the OS keychain, never here
 ```
+
+Images are files in `<app data>/attachments/`, named by content hash; notes refer to them as `attachments/<name>` (see Images in notes). No table tracks them: references are found by scanning the tables that hold note text.
 
 ## Codebase layout
 

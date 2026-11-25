@@ -52,6 +52,7 @@ Letter-spacing tightens as size grows (-0.022em at 28px, 0 at 12px, +0.02em on u
 ## Layout and density
 
 - Window: left sidebar (`size-sidebar` 248px) and right assistant (`size-assistant` 380px) sit flush against the note: sidebar on `bg-sunken`, note and assistant on `bg-canvas`, split by `line-strong` hairlines, with no card, radius or shadow.
+- Tabs (when on): a 44px bar under the note on `bg-sunken`, continuing the sidebar's ground. The selected tab is `bg-canvas` and joins the page through 10px concave fillets; the page's bottom corners round off at 12px into the bar (`ui/TabBar.tsx`, `ui/tabShape.ts`).
 - Title band: `size-titlebar` 52px, shared by the traffic lights (or Cilica's own window buttons), the sidebar toggle, the note title and the Notes / Transcript segmented control.
 - Note column: `size-measure` 720px max, centred, `space-12` top padding, `space-16` bottom runway under the last line.
 - 4px spacing grid (`space-*`). Group siblings with `gap`, not margins.
