@@ -1,6 +1,7 @@
 /**
  * The canvas content for the current view. Views cross-fade with a short slide (`springs.gentle`);
- * a note opened from the sidebar slides in from the left.
+ * a note opened from the sidebar slides in from the left. Switching tabs slides the page in from the
+ * side the selection travelled from, matching the tab bar.
  * At launch the first view rises in on its own while the intro holds (intro.ts).
  */
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -14,6 +15,7 @@ import { NoteView } from "@/features/note/NoteView";
 import { PeopleView } from "@/features/people/PeopleView";
 import { SettingsView } from "@/features/settings/SettingsView";
 import { SwearJarLayer } from "@/features/swearjar/SwearJarLayer";
+import { useTabs } from "@/features/tabs/store";
 import { TasksView } from "@/features/tasks/TasksView";
 import { TrashView } from "@/features/trash/TrashView";
 import { LAUNCH_SLOWDOWN, useIntroHolding } from "./intro";
@@ -49,7 +51,9 @@ function renderView(view: View): ReactNode {
 export function Canvas() {
   const view = useRouter((s) => s.view);
   const reduced = useReducedMotion();
+  const tabDirection = useTabs((s) => s.direction);
   const fromLeft = view.name === "note";
+  const slide = tabDirection !== 0 ? 8 * tabDirection : fromLeft ? -8 : 8;
   const launching = useIntroHolding();
   return (
     <>
@@ -61,7 +65,7 @@ export function Canvas() {
           initial={
             launching
               ? { opacity: 0, x: 0, y: reduced ? 0 : 12, scale: reduced ? 1 : 0.985 }
-              : { opacity: 0, x: reduced ? 0 : fromLeft ? -8 : 8 }
+              : { opacity: 0, x: reduced ? 0 : slide }
           }
           animate={{
             opacity: 1,

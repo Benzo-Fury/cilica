@@ -73,6 +73,20 @@ export function GeneralPage() {
           }
         />
       </SettingsGroup>
+      <SettingsGroup title="Tabs">
+        <SettingsRow
+          id="tabs-label"
+          label="Open notes in tabs"
+          description="Keeps several notes open in a bar along the bottom of the window. A note you only look at shares one preview tab; notes you create or write in keep their own. Middle-click a note to open it in a new tab."
+          control={
+            <Switch
+              aria-labelledby="tabs-label"
+              checked={settings.tabs}
+              onCheckedChange={(tabs) => update((s) => ({ ...s, tabs }))}
+            />
+          }
+        />
+      </SettingsGroup>
       <SettingsGroup title="Language">
         <SettingsRow
           id="sfw-label"

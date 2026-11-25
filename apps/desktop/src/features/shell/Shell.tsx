@@ -16,6 +16,8 @@ import { useRecordingEffects } from "@/features/recorder/hooks";
 import { useSettings } from "@/features/settings/hooks";
 import { useModelDownloadEvents } from "@/features/settings/system";
 import { Sidebar } from "@/features/sidebar/Sidebar";
+import { OpenTabs } from "@/features/tabs/OpenTabs";
+import { useTabsFollowRouter } from "@/features/tabs/store";
 import { useLiveTranscripts } from "@/features/transcript/hooks";
 import { useBackgroundUpdates } from "@/features/updates/hooks";
 import { haptic } from "@/lib/haptics";
@@ -48,7 +50,9 @@ export function Shell() {
   const windowWidth = useWindowWidth();
   const lastOpened = usePanels((s) => s.lastOpened);
   // A scene theme paints its art behind the panels and the canvas.
-  const scene = themeOption(useSettings().data?.appearance.theme).scene;
+  const settings = useSettings().data;
+  const scene = themeOption(settings?.appearance.theme).scene;
+  useTabsFollowRouter(settings?.tabs);
 
   // Both panels and the canvas must fit: the panel opened earlier closes when they do not.
   useEffect(() => {
@@ -79,6 +83,7 @@ export function Shell() {
         <Sidebar />
       </SidePanel>
       <CanvasSheet
+        footer={<OpenTabs />}
         gutter={
           <>
             {sidebarOpen && (

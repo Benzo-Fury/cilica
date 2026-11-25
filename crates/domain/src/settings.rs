@@ -451,6 +451,8 @@ pub struct Settings {
     /// Keep Cilica's own words clean: its quips lose the swearing and the swear jar goes away
     /// entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
     pub safe_for_work: bool,
+    /// Keep several notes open as tabs in a bar along the bottom of the window. Off by default.
+    pub tabs: bool,
     pub onboarding_done: bool,
     pub updates: UpdateSettings,
 }
@@ -508,6 +510,13 @@ mod tests {
     fn settings_saved_before_writing_existed_check_spelling() {
         let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
         assert!(settings.writing.check_spelling);
+    }
+
+    #[test]
+    fn tabs_are_off_until_turned_on() {
+        assert!(!Settings::default().tabs);
+        let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
+        assert!(!settings.tabs);
     }
 }
 

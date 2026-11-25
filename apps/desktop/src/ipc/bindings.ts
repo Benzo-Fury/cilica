@@ -2225,6 +2225,8 @@ export type Settings_Deserialize = {
 	 *  entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
 	 */
 	safe_for_work?: boolean,
+	/**  Keep several notes open as tabs in a bar along the bottom of the window. Off by default. */
+	tabs?: boolean,
 	onboarding_done?: boolean,
 	updates?: UpdateSettings_Deserialize,
 };
@@ -2246,6 +2248,8 @@ export type Settings_Serialize = {
 	 *  entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
 	 */
 	safe_for_work: boolean,
+	/**  Keep several notes open as tabs in a bar along the bottom of the window. Off by default. */
+	tabs: boolean,
 	onboarding_done: boolean,
 	updates: UpdateSettings_Serialize,
 };

@@ -5,6 +5,7 @@ import { qk } from "@/app/queryKeys";
 import { navigate, openNote } from "@/app/router";
 import { toSummary, useNotes } from "@/features/notes/hooks";
 import { usePeople } from "@/features/people/hooks";
+import { openNoteToWork } from "@/features/tabs/store";
 import { api, errorMessage } from "@/ipc/client";
 import type { LinkSuggestion, Note, NoteSummary } from "@/ipc/types";
 import { toast } from "@/lib/toast";
@@ -118,7 +119,7 @@ export function useCreateLinkedNote() {
         ...(list ?? []),
       ]);
       void queryClient.invalidateQueries({ queryKey: qk.links });
-      openNote(note.id);
+      openNoteToWork(note.id);
     },
     onError: (error) =>
       toast.error("The note was not created", { description: errorMessage(error) }),
