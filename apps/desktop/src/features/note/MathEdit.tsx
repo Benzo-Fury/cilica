@@ -135,6 +135,8 @@ export function MathEdit({
       const target = event.target as Element | null;
       if (!target || panel.current?.contains(target)) return;
       if (target.closest("[data-radix-popper-content-wrapper]")) return;
+      // MathLive's suggestion and matrix popovers live on <body>.
+      if (target.closest('[id^="mathlive-"]')) return;
       finish("save", value, { letGo: true });
     };
     document.addEventListener("mousedown", onDown, true);
@@ -153,7 +155,7 @@ export function MathEdit({
         lastMode = next;
         setMode(next);
       }}
-      onDone={() => finish("save", value)}
+      onDone={(latest) => finish("save", latest ?? value)}
       onCancel={() => finish("cancel", value)}
       onRemove={() => finish("remove", value)}
       side={place?.side}

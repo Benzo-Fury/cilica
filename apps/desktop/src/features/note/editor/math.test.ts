@@ -40,7 +40,7 @@ describe("inline equation syntax", () => {
     "$ x$", // space after the opening $
     "$x $", // space before the closing $
     "$5 and $10", // prices
-    "$x$5", // closing $ right before a digit
+    "$5$5", // a number, with the closing $ right before a digit
     "$$x$$", // display syntax is not inline
   ])("leaves %j as text", (src) => {
     expect(matchInlineMath(src)).toBeNull();
@@ -133,6 +133,61 @@ describe("equations in the editor", () => {
     editor.view.someProp("handleKeyDown", (handle) => handle(editor.view, enter));
     expect(nodeTypes(editor.getMarkdown())).toContain("mathBlock");
     expect(editor.state.doc.lastChild?.type.name).toBe("mathBlock");
+    editor.destroy();
+  });
+
+  it("reads an equation right before a word with digits", () => {
+    expect(nodeTypes("The $x$2nd case")).toContain("mathInline");
+    expect(roundTrip("The $x$2nd case")).toBe("The $x$2nd case");
+  });
+
+  it.each(["Plain \\$\\$x\\$\\$ text and a \\$\\$ b"])("keeps %j exactly", (markdown) => {
+    expect(roundTrip(markdown)).toBe(markdown);
+  });
+
+  it("writes plain $$ in text so it reads back as text", () => {
+    const editor = load("");
+    editor.commands.setContent("<p>$$x$$ and a $$y$$ b</p>");
+    const out = editor.getMarkdown();
+    editor.destroy();
+    expect(nodeTypes(out)).not.toContain("mathBlock");
+    expect(nodeTypes(out)).not.toContain("mathInline");
+  });
+
+  it("keeps an inline equation on one line", () => {
+    const editor = load("Area $r$ here");
+    let pos = -1;
+    editor.state.doc.descendants((node, at) => {
+      if (node.type.name === "mathInline") pos = at;
+    });
+    editor.commands.setMathLatex(pos, "a\nb");
+    const out = normalizeMarkdown(editor.getMarkdown());
+    editor.destroy();
+    expect(out).toBe("Area $a b$ here");
+  });
+
+  it("leaves indented $$ inside a paragraph alone", () => {
+    expect(nodeTypes("x\n  $$ y")).toEqual(["paragraph", "text"]);
+    expect(roundTrip("x\n  $$ y")).not.toContain("\n\n");
+  });
+
+  it("puts a block after the paragraph a list item needs", () => {
+    const editor = load("");
+    editor.commands.setContent("<ul><li><p>a</p></li><li><p></p></li></ul>");
+    // The caret in the second item's empty paragraph.
+    editor.commands.setTextSelection(editor.state.doc.content.size - 3);
+    expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+    expect(editor.commands.insertMath({ display: true })).toBe(true);
+    const sel = editor.state.selection as { node?: { type: { name: string } } };
+    expect(sel.node?.type.name).toBe("mathBlock");
+    editor.destroy();
+  });
+
+  it("doesn't insert an equation into code", () => {
+    const editor = load("```\ncode\n```");
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    expect(editor.commands.insertMath({ display: false })).toBe(false);
+    expect(nodeTypes(editor.getMarkdown())).not.toContain("mathInline");
     editor.destroy();
   });
 

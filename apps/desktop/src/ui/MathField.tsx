@@ -41,8 +41,8 @@ export function MathField({
 }: {
   value: string;
   onChange: (latex: string) => void;
-  /** Enter in the field. */
-  onSubmit: () => void;
+  /** Enter in the field, with the field's LaTeX at that moment. */
+  onSubmit: (latex: string) => void;
   label: string;
   ref?: Ref<MathFieldHandle>;
 }) {
@@ -76,7 +76,7 @@ export function MathField({
           if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
           event.preventDefault();
           event.stopPropagation();
-          latest.current.onSubmit();
+          latest.current.onSubmit(mf.getValue("latex"));
         });
         field.current = mf;
         setReady(true);

@@ -57,7 +57,8 @@ export interface EquationEditorProps {
   onChange: (latex: string) => void;
   mode: EquationMode;
   onModeChange: (mode: EquationMode) => void;
-  onDone: () => void;
+  /** Save. Enter in the visual field passes its LaTeX, which may be newer than `value`. */
+  onDone: (latest?: string) => void;
   onCancel: () => void;
   onRemove: () => void;
   /** Where it sits (fixed, under or over the equation). */
@@ -249,7 +250,7 @@ export function EquationEditor({
           <Button variant="ghost" size="sm" onClick={onRemove}>
             Remove
           </Button>
-          <Button variant="primary" size="sm" onClick={onDone}>
+          <Button variant="primary" size="sm" onClick={() => onDone()}>
             Done
           </Button>
         </div>

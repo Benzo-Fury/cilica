@@ -4,8 +4,8 @@
  * with the app, so equations draw offline and nothing leaves the machine.
  *
  * Dollar signs follow Pandoc's rule, so prices stay prices: an opening `$` must be followed by a
- * non-space, the closing `$` must follow a non-space and must not come right before a digit
- * ("It costs $5 and $10" is text). `\$` is always a plain dollar sign, and a plain `$` that would
+ * non-space, the closing `$` must follow a non-space, and when the body starts with a digit the
+ * closing `$` must not come right before one ("It costs $5 and $10" is text, `$x$2nd` is not). `\$` is always a plain dollar sign, and a plain `$` that would
  * read back as an equation is written as `\$`.
  *
  * Both kinds are atoms. Clicking one, or pressing Enter while it is selected, asks the note view
@@ -22,7 +22,7 @@ import { renderMath } from "@/lib/math";
 // ───────── Syntax ─────────
 
 /** An inline equation at the start of `src`; the body is group 1. */
-const INLINE = /^\$(?![\s$])((?:\\[\s\S]|[^\\$\n])+?)\$(?!\d)/;
+const INLINE = /^\$(?![\s$])((?:\\[\s\S]|[^\\$\n])+?)\$/;
 /** The same, typed at the end of the text before the caret. */
 const INLINE_TYPED = /(?<![\\$])\$(?![\s$])((?:\\[\s\S]|[^\\$\n])+?)\$$/;
 /** `$$…$$` on one line, or `$$` lines around the LaTeX. */
@@ -41,8 +41,9 @@ export function matchInlineMath(src: string): { raw: string; latex: string } | n
   const m = INLINE.exec(src);
   if (!m) return null;
   const latex = m[1] ?? "";
-  // The closing `$` must follow a non-space.
+  // The closing `$` must follow a non-space, and a price ("$5 and $10") isn't an equation.
   if (/\s$/.test(latex)) return null;
+  if (/^\d/.test(latex) && /^\d/.test(src.slice(m[0].length))) return null;
   return { raw: m[0], latex };
 }
 
@@ -64,13 +65,17 @@ export function matchBlockMath(src: string): { raw: string; latex: string } | nu
   return null;
 }
 
-/** A plain `$` in text that would read back as the start of an equation, written as `\$`. */
+/**
+ * A plain `$` in text that would read back as an equation, written as `\$`: one that opens an
+ * inline equation, and every `$` in a `$$` run (which could open or close a block).
+ */
 export function escapeDollars(text: string): string {
   let out = "";
   let last = 0;
   for (let at = text.indexOf("$"); at >= 0; at = text.indexOf("$", at + 1)) {
-    if (escaped(text, at) || text[at - 1] === "$") continue;
-    if (!matchInlineMath(text.slice(at))) continue;
+    if (escaped(text, at)) continue;
+    const doubled = text[at - 1] === "$" || text[at + 1] === "$";
+    if (!doubled && !matchInlineMath(text.slice(at))) continue;
     out += `${text.slice(last, at)}\\$`;
     last = at + 1;
   }
@@ -80,7 +85,8 @@ export function escapeDollars(text: string): string {
 /** The Markdown for an equation. */
 export function mathMarkdown(latex: string, display: boolean): string {
   if (display) return `$$\n${latex.trim()}\n$$`;
-  const body = latex.trim();
+  // An inline equation is one line in Markdown.
+  const body = latex.trim().replace(/\s*\n\s*/g, " ");
   return body ? `$${body}$` : "";
 }
 
@@ -302,11 +308,20 @@ export const MathInline = Node.create<MathOptions>({
           const type = editor.schema.nodes[display ? "mathBlock" : "mathInline"];
           if (!type) return false;
           const { $from, from, to } = tr.selection;
+          // Code holds only text.
+          if ($from.parent.type.spec.code) return false;
           let pos: number;
           if (display) {
             const parent = $from.parent;
             const emptyParagraph = parent.type.name === "paragraph" && parent.content.size === 0;
-            if (emptyParagraph) {
+            // A list item must start with a paragraph, so there the block goes after it.
+            const replaceable = $from
+              .node(-1)
+              .canReplaceWith($from.index(-1), $from.indexAfter(-1), type);
+            if (emptyParagraph && !replaceable) {
+              pos = $from.after();
+              tr.insert(pos, type.create({ latex }));
+            } else if (emptyParagraph) {
               pos = $from.before();
               tr.replaceWith(pos, $from.after(), type.create({ latex }));
             } else {
@@ -318,6 +333,7 @@ export const MathInline = Node.create<MathOptions>({
             pos = from;
             tr.replaceWith(from, to, type.create({ latex }));
           }
+          if (!isMath(tr.doc.nodeAt(pos))) return false;
           tr.setSelection(NodeSelection.create(tr.doc, pos));
           if (dispatch) {
             dispatch(tr);
@@ -443,7 +459,13 @@ export const MathBlock = Node.create<MathOptions>({
   markdownTokenizer: {
     name: "mathBlock",
     level: "block",
-    start: (src: string) => src.search(/^ {0,3}\$\$/m),
+    // Only where a block really starts, so `$$` inside a paragraph's lines isn't split off.
+    start: (src: string) => {
+      for (const m of src.matchAll(/^ {0,3}\$\$/gm)) {
+        if (matchBlockMath(src.slice(m.index))) return m.index;
+      }
+      return -1;
+    },
     tokenize: (src: string) => {
       const m = matchBlockMath(src);
       return m ? { type: "mathBlock", raw: m.raw, latex: m.latex } : undefined;
