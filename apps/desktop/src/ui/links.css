@@ -354,11 +354,6 @@
 .nt-connections-graph {
   --graph-bg: var(--bg-sunken);
 }
-.nt-connections-empty {
-  margin: 0;
-  color: var(--ink-3);
-  font-size: 13px;
-}
 .nt-mentions {
   margin-top: var(--space-5);
 }
@@ -444,24 +439,33 @@
 
 /* Beside the note: with Cilica's panel shut and room to
    spare, Connections leaves the foot of the note for a column on its right that stays in view
-   while the note scrolls. Narrower canvases keep it under the note. */
+   while the note scrolls. Narrower canvases keep it under the note. The note stays centred on the
+   canvas either way: an empty column of the same width on its left balances Connections (and
+   keeps the word count, bottom left of the canvas, off the text), and a note without
+   Connections keeps the plain centred column. */
 .nt-note-shell {
   container: note-shell / inline-size;
 }
-@container note-shell (min-width: 960px) {
-  .nt-note-shell[data-aside] > .nt-page {
+@container note-shell (min-width: 1200px) {
+  .nt-note-shell[data-aside] > .nt-page:has(> .nt-connections) {
     --aside-width: 260px;
-    /* Extra room on the left keeps the word count (bottom left of the canvas) off the text. */
-    --gutter-start: calc(var(--space-16) + var(--space-6));
-    max-width: calc(var(--size-measure) + var(--aside-width) + var(--gutter-start));
-    padding-left: var(--gutter-start);
+    /* The text column at full width matches the plain column's (the measure less its padding). */
+    max-width: calc(
+      var(--size-measure) - 2 * var(--space-10) + 2 * (var(--aside-width) + var(--space-10)) + 2 *
+      var(--space-6)
+    );
+    padding-inline: var(--space-6);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--aside-width);
+    grid-template-columns: var(--aside-width) minmax(0, 1fr) var(--aside-width);
     column-gap: var(--space-10);
     align-items: start;
   }
-  .nt-note-shell[data-aside] .nt-connections {
+  .nt-note-shell[data-aside] > .nt-page > .nt-note {
     grid-column: 2;
+    grid-row: 1;
+  }
+  .nt-note-shell[data-aside] .nt-connections {
+    grid-column: 3;
     grid-row: 1;
     position: sticky;
     top: var(--space-5);

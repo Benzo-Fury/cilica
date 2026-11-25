@@ -1,5 +1,5 @@
 /**
- * Under a note: its local graph (what it links to and what links to it, one or two steps out),
+ * Under a note, once it has any: its local graph (what it links to and what links to it, one or two steps out),
  * then the notes that link here, and the notes that name it without a link, each with Link.
  */
 import { ChevronRight, Expand, Link2 } from "lucide-react";
@@ -26,11 +26,6 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
   const link = useLinkMention();
   const create = useCreateLinkedNote();
   const reduced = useReducedMotion();
-  // Rises in when it shows up after the note did (first link, first words, a slow load), not when
-  // it was ready from the start.
-  const [entering, setEntering] = useState({ noteId, animate: !graph || !backlinks });
-  if (entering.noteId !== noteId) setEntering({ noteId, animate: !graph || !backlinks });
-
   const view = useMemo(() => (graph ? toView(graph) : { nodes: [], edges: [] }), [graph]);
   const focusKey = graph && graph.focus !== null ? (graph.nodes[graph.focus]?.key ?? null) : null;
   const byKey = useMemo(
@@ -41,7 +36,13 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
   const linked = backlinks?.linked ?? [];
   const unlinked = backlinks?.unlinked ?? [];
   const connected = view.nodes.length > 1;
-  if (!graph || !backlinks) return null;
+  // Hidden until there is something to show: a link, a tag or a mention.
+  const visible = !!graph && !!backlinks && (connected || linked.length > 0 || unlinked.length > 0);
+  // Rises in when it shows up after the note did (first link, a slow load), not when it was
+  // there from the start.
+  const [entering, setEntering] = useState({ noteId, animate: !visible });
+  if (entering.noteId !== noteId) setEntering({ noteId, animate: !visible });
+  if (!visible) return null;
 
   const open = (key: string) => {
     const node: GraphNode | undefined = byKey.get(key);
@@ -78,7 +79,7 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
           </div>
         )}
       </header>
-      {connected ? (
+      {connected && (
         <Graph
           className="nt-connections-graph"
           variant="inline"
@@ -89,10 +90,6 @@ export function Connections({ noteId, categoryId }: { noteId: string; categoryId
           onOpen={open}
           label={`This note's connections: ${plural(view.nodes.length - 1, "note, person or tag", "notes, people and tags")}.`}
         />
-      ) : (
-        <p className="nt-connections-empty">
-          No links yet. Type [[ to link another note, or #tag to group notes.
-        </p>
       )}
 
       {linked.length > 0 && (
