@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Uploads the secrets the Release workflow needs to the GitHub repository, from the files they
-# live in on this Mac. Nothing is printed or written to the repo.
+# Uploads the secrets the Release workflow needs to the GitHub repository, from where they live on
+# this Mac. Nothing is printed or written to the repo.
 #
 #   tools/set-release-secrets.sh <owner/repo> <App Store Connect Key ID> <Issuer ID>
 #
-# Needs `gh` signed in with access to the repository, and these files:
-#   ~/cilica-signing/devid.p12 (+ devid.p12.password)  Developer ID certificate and key
+# Needs `gh` signed in with access to the repository, and:
+#   login Keychain, service "cilica-signing":
+#     account "devid.p12.base64"    Developer ID certificate and key (.p12, base64)
+#     account "devid.p12.password"  password for that .p12
 #   ~/.appstoreconnect/private_keys/AuthKey_<KeyID>.p8  App Store Connect API key
 #   ~/.tauri/cilica-updater.key                         updater signing key
+#     (a backup copy is in the Keychain: service "cilica-signing", account "tauri-updater.key.base64")
 set -euo pipefail
 
 # ───────── Arguments ─────────
@@ -20,11 +23,18 @@ REPO="$1"
 KEY_ID="$2"
 ISSUER_ID="$3"
 
-SIGNING="$HOME/cilica-signing"
+KEYCHAIN_SERVICE="cilica-signing"
 P8="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
 UPDATER_KEY="$HOME/.tauri/cilica-updater.key"
 
-for file in "$SIGNING/devid.p12" "$SIGNING/devid.p12.password" "$P8" "$UPDATER_KEY"; do
+# Reads one secret from the login Keychain.
+keychain() { security find-generic-password -s "$KEYCHAIN_SERVICE" -a "$1" -w; }
+
+for account in devid.p12.base64 devid.p12.password; do
+  keychain "$account" >/dev/null 2>&1 \
+    || { echo "Missing Keychain item $KEYCHAIN_SERVICE / $account. See docs/releasing.md." >&2; exit 1; }
+done
+for file in "$P8" "$UPDATER_KEY"; do
   [[ -f "$file" ]] || { echo "Missing $file. See docs/releasing.md." >&2; exit 1; }
 done
 
@@ -32,8 +42,8 @@ done
 
 set_secret() { gh secret set "$1" --repo "$REPO" --body "$2" >/dev/null && echo "Set $1"; }
 
-set_secret APPLE_CERTIFICATE "$(base64 -i "$SIGNING/devid.p12")"
-set_secret APPLE_CERTIFICATE_PASSWORD "$(cat "$SIGNING/devid.p12.password")"
+set_secret APPLE_CERTIFICATE "$(keychain devid.p12.base64)"
+set_secret APPLE_CERTIFICATE_PASSWORD "$(keychain devid.p12.password)"
 set_secret APPLE_SIGNING_IDENTITY "Developer ID Application: Neo Haggard (D97WL744BA)"
 set_secret APPLE_API_KEY "$KEY_ID"
 set_secret APPLE_API_ISSUER "$ISSUER_ID"
