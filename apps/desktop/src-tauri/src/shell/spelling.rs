@@ -69,10 +69,13 @@ mod windows_menu {
     const LABEL: &str = "Add to dictionary";
     /// Name WebView2 gives the spelling suggestion items in its default menu.
     const SUGGESTION: &str = "spellcheck";
-    /// Turning `spellcheck` off and on clears every underline and has Blink check the text again,
-    /// so the word just added loses its underline. Left alone when Check spelling is off.
-    const RECHECK: &str =
-        "(() => { const root = document.documentElement; if (root.spellcheck) { root.spellcheck = false; root.spellcheck = true; } })();";
+    /// Turning `spellcheck` off and back on for the focused text box clears its underlines and has
+    /// Blink check it again, so the word just added loses its underline. Only that box: Blink
+    /// rechecks just the focused one, so toggling `<html>` would leave other misspellings bare. Its
+    /// own attribute is restored (usually none, so it inherits Check spelling from `<html>` again).
+    const RECHECK: &str = "(() => { const box = document.activeElement; if (!box || !box.spellcheck) return; \
+        const own = box.getAttribute('spellcheck'); box.spellcheck = false; \
+        if (own === null) box.removeAttribute('spellcheck'); else box.setAttribute('spellcheck', own); })();";
 
     /// Listens for the webview's right-click menu. Runs once per webview, on the main thread.
     pub fn hook(controller: &ICoreWebView2Controller, environment: &ICoreWebView2Environment) -> Result<()> {
@@ -156,11 +159,20 @@ mod windows_menu {
         unsafe {
             let factory: ISpellCheckerFactory = CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER)?;
             let word = HSTRING::from(word);
+            let mut added = 0;
             for language in preferred_languages()? {
-                let language = HSTRING::from(language);
-                if factory.IsSupported(&language)?.as_bool() {
-                    factory.CreateSpellChecker(&language)?.Add(&word)?;
+                let tag = HSTRING::from(language.as_str());
+                if !factory.IsSupported(&tag).is_ok_and(|supported| supported.as_bool()) {
+                    continue;
                 }
+                // One language failing should not keep the word out of the others.
+                match factory.CreateSpellChecker(&tag).and_then(|checker| checker.Add(&word)) {
+                    Ok(()) => added += 1,
+                    Err(err) => tracing::warn!("could not add a word to the {language} dictionary: {err}"),
+                }
+            }
+            if added == 0 {
+                tracing::warn!("no display language has a Windows spell checker, so the word was not added");
             }
             Ok(())
         }
