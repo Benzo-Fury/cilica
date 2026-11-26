@@ -206,6 +206,8 @@ pub fn run() {
         .on_window_event(shell::on_window_event);
     #[cfg(target_os = "linux")]
     let app = app.on_page_load(|webview, _| shell::spelling::enable(webview));
+    #[cfg(target_os = "windows")]
+    let app = app.plugin(shell::spelling::windows_plugin());
     #[cfg(target_os = "macos")]
     let app = app.menu(shell::menu::build);
     app.setup(move |app| {
