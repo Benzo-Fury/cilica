@@ -161,7 +161,11 @@ impl Db {
     }
 
     async fn migrate(pool: sqlx::SqlitePool) -> StoreResult<Self> {
-        sqlx::migrate!("./migrations").run(&pool).await?;
+        let mut migrator = sqlx::migrate!("./migrations");
+        // Worktrees share one database, so a debug build may meet migrations from a newer branch.
+        // They only ever add tables and columns, so skip them here; release builds stay strict.
+        migrator.set_ignore_missing(cfg!(debug_assertions));
+        migrator.run(&pool).await?;
         Ok(Self { pool, data_dir: None, merged_speakers: Arc::default() })
     }
 

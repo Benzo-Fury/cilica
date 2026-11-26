@@ -21,6 +21,7 @@ import { CilicaAtWork } from "./CilicaAtWork";
 import { noteExtensions } from "./editor/extensions";
 import type { InlineLinkHandlers } from "./editor/inlineLinkHint";
 import { normalizeMarkdown } from "./editor/markdown";
+import type { MathHandlers } from "./editor/math";
 import type { SuggestHandlers } from "./editor/wikiSuggest";
 import { InlineLinkHint, useInlineLinkMatcher } from "./InlineLinkHint";
 import { ImageNodeView } from "./images/ImageNodeView";
@@ -31,6 +32,7 @@ import { imageSaver } from "./images/saver";
 import { useImageFileDrop } from "./images/useImageFileDrop";
 import { useRevealImage } from "./images/useRevealImage";
 import { LinkSuggest } from "./LinkSuggest";
+import { MathEdit } from "./MathEdit";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { useAutosave } from "./useAutosave";
 import { useNoteViewState } from "./viewState";
@@ -89,6 +91,7 @@ export function NoteEditor({
   openLinkRef.current = openLink;
   const suggest = useRef<SuggestHandlers | null>(null);
   const linkHint = useRef<InlineLinkHandlers | null>(null);
+  const math = useRef<MathHandlers | null>(null);
   const matchTitle = useInlineLinkMatcher(note);
   const editor = useEditor({
     extensions: noteExtensions({
@@ -107,6 +110,7 @@ export function NoteEditor({
       },
       suggest: () => suggest.current,
       linkHint: { match: matchTitle, handlers: () => linkHint.current },
+      math: () => math.current,
       onOpenTag: (tag) => openGraph(`t:${tag.toLowerCase()}`),
       images: { saver: () => imageSaver, view: ImageNodeView },
     }),
@@ -218,6 +222,7 @@ export function NoteEditor({
       <SelectionToolbar editor={editor} />
       <ImageToolbar editor={editor} />
       <ImageViewerHost />
+      <MathEdit editor={editor} handlers={math} />
     </>
   );
 }

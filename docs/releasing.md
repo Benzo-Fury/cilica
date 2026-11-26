@@ -16,8 +16,13 @@ No Intel or universal Mac build: `ort` ships no prebuilt ONNX Runtime for `x86_6
 
 1. **Developer ID Application certificate.** Xcode → Settings → Accounts → select the team → Manage Certificates → + → *Developer ID Application*. (Only the team's Account Holder can create one.) Check it with:
    `security find-identity -v -p codesigning` (it should list `Developer ID Application: … (TEAMID)`).
+   For CI, export it from Keychain Access as a `.p12` with a password, then keep both in the login Keychain rather than as files (delete the `.p12` afterwards):
+   ```bash
+   security add-generic-password -U -s cilica-signing -a devid.p12.base64 -w "$(base64 -i devid.p12)"
+   security add-generic-password -U -s cilica-signing -a devid.p12.password -w '<p12 password>'
+   ```
 2. **App Store Connect API key** for notarization. App Store Connect → Users and Access → Integrations → Team Keys → generate a key with the *Developer* role. Download the `.p8` (you only get one chance) to `~/.appstoreconnect/private_keys/`. Note the Key ID and Issuer ID.
-3. **Updater key.** Already generated at `~/.tauri/cilica-updater.key` (no password; public key is in `tauri.conf.json`). Back it up somewhere safe, such as a password manager. If you lose it, installed copies can never update again.
+3. **Updater key.** Already generated at `~/.tauri/cilica-updater.key` (no password; public key is in `tauri.conf.json`). A backup copy is in the login Keychain (service `cilica-signing`, account `tauri-updater.key.base64`); keep another one off this Mac, such as in a password manager. If you lose it, installed copies can never update again. To restore it: `security find-generic-password -s cilica-signing -a tauri-updater.key.base64 -w | base64 -d > ~/.tauri/cilica-updater.key`.
 4. **Updater endpoint.** Set to `Benzo-Fury/cilica` in `plugins.updater.endpoints` in `apps/desktop/src-tauri/tauri.conf.json`.
 
 ## Local signed build
@@ -76,8 +81,8 @@ tools/set-release-secrets.sh <owner/repo> <Key ID> <Issuer ID>
 
 | Secret | Value |
 | --- | --- |
-| `APPLE_CERTIFICATE` | `~/cilica-signing/devid.p12`, base64 |
-| `APPLE_CERTIFICATE_PASSWORD` | `~/cilica-signing/devid.p12.password` |
+| `APPLE_CERTIFICATE` | Keychain `cilica-signing` / `devid.p12.base64` (the `.p12`, base64) |
+| `APPLE_CERTIFICATE_PASSWORD` | Keychain `cilica-signing` / `devid.p12.password` |
 | `APPLE_SIGNING_IDENTITY` | `Developer ID Application: Neo Haggard (D97WL744BA)` |
 | `APPLE_API_KEY`, `APPLE_API_ISSUER` | Key ID and Issuer ID |
 | `APPLE_API_KEY_P8` | Contents of the `.p8` file (the workflow writes it to a temporary file) |

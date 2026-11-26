@@ -6,6 +6,8 @@
 @import "@fontsource-variable/geist-mono/wght.css";
 /* Pull quotes under a transcript are the one place this face appears. */
 @import "@fontsource-variable/playfair-display/wght-italic.css";
+/* Equations: KaTeX's layout and fonts, which the visual equation editor (MathLive) shares. */
+@import "katex/dist/katex.min.css";
 @import "./tokens.css";
 @import "tailwindcss";
 @import "./theme.css";
@@ -16,6 +18,7 @@
 @import "../ui/voice.css" layer(components);
 @import "../ui/formatbar.css" layer(components);
 @import "../ui/images.css" layer(components);
+@import "../ui/math.css" layer(components);
 @import "../ui/setup.css" layer(components);
 @import "../ui/installer.css" layer(components);
 
