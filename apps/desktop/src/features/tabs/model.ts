@@ -90,6 +90,18 @@ export function direction(
   return b > a ? 1 : -1;
 }
 
+/**
+ * Put tabs in a new order (dragging a tab, or moving it from the keyboard). `order` lists the tabs
+ * the bar shows; tabs it leaves out, such as a note the list hasn't loaded yet, keep their places.
+ */
+export function reorder(bar: Bar, order: readonly string[]): Bar {
+  const moving = [...new Set(order)].filter((id) => bar.tabs.includes(id));
+  const slots = new Set(moving);
+  let next = 0;
+  const tabs = bar.tabs.map((id) => (slots.has(id) ? (moving[next++] as string) : id));
+  return { tabs, preview: bar.preview };
+}
+
 /** Drop tabs whose notes no longer exist (deleted or moved to Trash). */
 export function prune(bar: Bar, exists: (id: string) => boolean): Bar {
   const tabs = bar.tabs.filter(exists);

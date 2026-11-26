@@ -185,3 +185,17 @@
 .nt-tab[data-preview] .nt-tab-title {
   font-style: italic;
 }
+
+/* While a tab is dragged it passes over the others, which are only titles on the bar's ground.
+   It carries the ground behind its own title so theirs don't show through, and it slides under
+   the selected tab, which fills with the page (its 10px bottom corners match TAB_RADII.corner).
+   A dragged selected tab is on top either way. */
+.nt-tab[data-dragging] {
+  background: var(--tabbar-ground);
+}
+.nt-tabbar-tabs:has(> .nt-tab[data-dragging]) > .nt-tab[data-active] {
+  /* biome-ignore lint/complexity/noImportantStyles: Motion sets z-index: unset inline on tabs at rest */
+  z-index: 2 !important;
+  background: var(--tabbar-page);
+  border-radius: 0 0 10px 10px;
+}

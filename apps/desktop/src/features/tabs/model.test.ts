@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { addTab, type Bar, closeTab, direction, follow, keep, MAX_TABS, prune } from "./model";
+import {
+  addTab,
+  type Bar,
+  closeTab,
+  direction,
+  follow,
+  keep,
+  MAX_TABS,
+  prune,
+  reorder,
+} from "./model";
 
 const bar = (tabs: string[], preview: string | null = null): Bar => ({ tabs, preview });
 
@@ -120,5 +130,24 @@ describe("direction", () => {
 describe("prune", () => {
   it("drops tabs for notes that are gone, and the preview with them", () => {
     expect(prune(bar(["a", "b", "c"], "b"), (id) => id !== "b")).toEqual(bar(["a", "c"]));
+  });
+});
+
+describe("reorder", () => {
+  it("puts the tabs in the order they were dragged into", () => {
+    expect(reorder(bar(["a", "b", "c"]), ["c", "a", "b"])).toEqual(bar(["c", "a", "b"]));
+  });
+
+  it("keeps the preview tab a preview wherever it moves", () => {
+    expect(reorder(bar(["a", "p"], "p"), ["p", "a"])).toEqual(bar(["p", "a"], "p"));
+  });
+
+  it("leaves tabs the bar does not show in their places", () => {
+    // "x" is a note the list has not loaded yet, so the bar shows only a, b and c.
+    expect(reorder(bar(["a", "x", "b", "c"]), ["c", "b", "a"])).toEqual(bar(["c", "x", "b", "a"]));
+  });
+
+  it("ignores ids that are not tabs and ids listed twice", () => {
+    expect(reorder(bar(["a", "b"]), ["b", "gone", "b", "a"])).toEqual(bar(["b", "a"]));
   });
 });

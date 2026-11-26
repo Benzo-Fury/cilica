@@ -10,11 +10,23 @@
  * - Hover: tabs get no wash. Instead the selected tab leans 4px towards the tab you point at
  *   (`springs.snappy`), showing that the selection can move there.
  * - No selected tab (Home, Graph, Settings): the tab draws back up into the page.
- * Reduce motion: the selection jumps; nothing travels.
+ * - Dragging: the tab follows the pointer 1:1 and the others slide aside (`springs.snappy`) as it
+ *   passes them. A dragged selected tab carries the page's edge with it.
+ * Reduce motion: the selection jumps and the others swap places without sliding; the dragged tab
+ * still follows the pointer.
  */
 
 import { Mic, X } from "lucide-react";
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import {
+  animate,
+  type MotionValue,
+  motion,
+  motionValue,
+  Reorder,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "motion/react";
 import { type KeyboardEvent, type MouseEvent, useLayoutEffect, useRef, useState } from "react";
 import { springs } from "@/app/motion";
 import { cn } from "./cn";
@@ -46,14 +58,26 @@ export interface TabBarProps {
   onClose: (id: string) => void;
   /** Double-click: keep a preview tab. */
   onKeep?: (id: string) => void;
+  /** Dragging a tab, or ⌥⇧← / ⌥⇧→ on it, puts the tabs in a new order. */
+  onReorder?: (order: string[]) => void;
   className?: string;
 }
 
-export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }: TabBarProps) {
+export function TabBar({
+  tabs,
+  activeId,
+  onSelect,
+  onClose,
+  onKeep,
+  onReorder,
+  className,
+}: TabBarProps) {
   const reduced = useReducedMotion();
   const listRef = useRef<HTMLDivElement>(null);
   const items = useRef(new Map<string, HTMLDivElement>());
   const [hovered, setHovered] = useState<string | null>(null);
+  /** The tab being dragged; the selected tab leans towards nothing meanwhile. */
+  const [dragging, setDragging] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
   const previousActive = useRef<string | null>(null);
 
@@ -61,16 +85,26 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
   const left = useMotionValue(0);
   const right = useMotionValue(0);
   const depth = useMotionValue(0);
-  const shapeOf = ([width = 0, l = 0, r = 0, d = 0]: number[]) => ({
+  /** How far the selected tab is dragged from its place; the page's edge goes with it. */
+  const dragX = useMotionValue(0);
+  /** Every other tab's drag offset. Reorder.Item always gets one, so its hooks stay the same. */
+  const offsets = useRef(new Map<string, MotionValue<number>>());
+  const offsetOf = (id: string) => {
+    const known = offsets.current.get(id);
+    if (known) return known;
+    const x = motionValue(0);
+    offsets.current.set(id, x);
+    return x;
+  };
+  const shapeOf = ([width = 0, l = 0, r = 0, d = 0, x = 0]: number[]) => ({
     width,
-    left: l,
-    right: r,
+    left: l + x,
+    right: r + x,
     depth: d,
   });
-  const ground = useTransform([w, left, right, depth], (v: number[]) =>
-    tabGround(shapeOf(v), TAB_BAR_HEIGHT),
-  );
-  const edge = useTransform([w, left, right, depth], (v: number[]) => tabOutline(shapeOf(v)));
+  const shape = [w, left, right, depth, dragX];
+  const ground = useTransform(shape, (v: number[]) => tabGround(shapeOf(v), TAB_BAR_HEIGHT));
+  const edge = useTransform(shape, (v: number[]) => tabOutline(shapeOf(v)));
 
   // The bar's width drives the shape; tabs reflow inside it.
   useLayoutEffect(() => {
@@ -86,7 +120,8 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
     return () => observer.disconnect();
   }, [w]);
 
-  const order = tabs.map((t) => t.id).join("|");
+  const ids = tabs.map((t) => t.id);
+  const order = ids.join("|");
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure when tabs reflow (order, width)
   useLayoutEffect(() => {
     const el = activeId ? items.current.get(activeId) : undefined;
@@ -104,13 +139,16 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
 
     let a = el.offsetLeft;
     let b = a + el.offsetWidth;
-    const hoveredEl = hovered && hovered !== activeId ? items.current.get(hovered) : undefined;
+    const hoveredEl =
+      hovered && hovered !== activeId && !dragging ? items.current.get(hovered) : undefined;
     if (hoveredEl) {
       if (hoveredEl.offsetLeft > a) b += LEAN;
       else a = Math.max(0, a - LEAN);
     }
 
-    if (reduced) {
+    // The selected tab is under the pointer: its place moved as it passed another tab, and the
+    // drag offset moved back by as much, so the shape stays with the tab.
+    if (reduced || dragging === activeId) {
       left.jump(a);
       right.jump(b);
       depth.jump(TAB_DEPTH);
@@ -141,7 +179,7 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
     run(left, a, movingRight ? TRAIL : springs.smooth);
     run(right, b, movingRight ? springs.smooth : TRAIL);
     run(depth, TAB_DEPTH, springs.smooth);
-  }, [activeId, hovered, order, width, reduced]);
+  }, [activeId, hovered, dragging, order, width, reduced]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const buttons = Array.from(
@@ -149,6 +187,21 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
     );
     const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
     if (at < 0) return;
+    // ⌥⇧← / ⌥⇧→ moves the focused tab along the bar.
+    if (
+      event.altKey &&
+      event.shiftKey &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    ) {
+      event.preventDefault();
+      const by = event.key === "ArrowRight" ? 1 : -1;
+      const ids = tabs.map((t) => t.id);
+      const to = at + by;
+      if (!onReorder || to < 0 || to >= ids.length) return;
+      [ids[at], ids[to]] = [ids[to] as string, ids[at] as string];
+      onReorder(ids);
+      return;
+    }
     const to =
       event.key === "ArrowRight"
         ? at + 1
@@ -180,7 +233,11 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
         <motion.path className="nt-tabbar-fill" d={ground} fillRule="evenodd" />
         <motion.path className="nt-tabbar-edge" d={edge} />
       </svg>
-      <div
+      <Reorder.Group
+        as="div"
+        axis="x"
+        values={ids}
+        onReorder={(next: string[]) => onReorder?.(next)}
         ref={listRef}
         className="nt-tabbar-tabs"
         role="tablist"
@@ -191,16 +248,27 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
         {tabs.map((tab) => {
           const active = tab.id === activeId;
           return (
-            // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only extras (hover lean, middle-click close); the buttons inside carry keyboard use
-            <div
+            <Reorder.Item
+              as="div"
               key={tab.id}
-              ref={(el) => {
+              value={tab.id}
+              ref={(el: HTMLDivElement | null) => {
                 if (el) items.current.set(tab.id, el);
                 else items.current.delete(tab.id);
               }}
+              // The title button is the tab stop; the bar's own keys move between tabs.
+              tabIndex={-1}
+              drag={onReorder ? "x" : false}
+              dragConstraints={listRef}
+              dragElastic={0.08}
+              style={{ x: active ? dragX : offsetOf(tab.id) }}
+              transition={reduced ? { duration: 0 } : springs.snappy}
+              onDragStart={() => setDragging(tab.id)}
+              onDragEnd={() => setDragging(null)}
               className="nt-tab"
               data-active={active || undefined}
               data-preview={tab.preview || undefined}
+              data-dragging={dragging === tab.id || undefined}
               onPointerEnter={() => setHovered(tab.id)}
               onMouseDown={(event: MouseEvent) => {
                 // Middle-click closes; stop the browser's autoscroll.
@@ -231,10 +299,10 @@ export function TabBar({ tabs, activeId, onSelect, onClose, onKeep, className }:
               >
                 <X size={12} strokeWidth={2.2} aria-hidden="true" />
               </button>
-            </div>
+            </Reorder.Item>
           );
         })}
-      </div>
+      </Reorder.Group>
     </motion.div>
   );
 }

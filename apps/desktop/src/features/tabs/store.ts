@@ -11,7 +11,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { navigate, openNote, useRouter, type View } from "@/app/router";
-import { addTab, type Bar, closeTab, direction, follow, keep, prune } from "./model";
+import { addTab, type Bar, closeTab, direction, follow, keep, prune, reorder } from "./model";
 
 interface TabsState extends Bar {
   /** Mirrors the setting; while off, the router is not followed and no bar shows. */
@@ -83,6 +83,11 @@ export function closeNoteTab(id: string) {
   if (!going) return;
   if (result.next) openNote(result.next);
   else navigate({ name: "home" });
+}
+
+/** Put the tabs in the order they were dragged or moved into. */
+export function reorderTabs(order: readonly string[]) {
+  useTabs.setState((s) => reorder(barOf(s), order));
 }
 
 /** Drop tabs for notes that are gone (deleted, or in Trash). */

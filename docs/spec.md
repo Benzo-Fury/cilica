@@ -125,9 +125,10 @@ Off by default; Settings › General › Tabs › Open notes in tabs turns them 
   - *Working*: a new note (New note, a link to a note not created yet) and a recording get a tab of their own next to the current one. Writing in a note or renaming it keeps its preview tab, so the next note you open adds a tab instead of replacing it.
   - *Asking*: middle-click a sidebar note, or right-click › Open in new tab, to open it in a kept tab after the current one without leaving it. Double-click a preview tab to keep it.
   - At most 12 tabs; opening another drops the leftmost one that is not on screen.
+- **Ordering.** Drag a tab along the bar to move it; the others slide aside as it passes them. Dragging the selected tab carries the page's edge with it. A drag that moves a tab doesn't select it.
 - **Closing.** The close button or middle-click. Closing the note on screen shows the tab to its right, else the one to its left, else Home. Notes moved to Trash or deleted lose their tabs.
 - **Remembered.** The tab order and which tab is the preview are kept across launches (UI state, not the database); Cilica still opens on Home with the tabs waiting. Turning tabs off forgets them.
-- Keyboard: the bar is one tab stop; ←/→, Home and End move between tabs, Enter or Space opens one. There is no tab switcher or tab shortcut yet.
+- Keyboard: the bar is one tab stop; ←/→, Home and End move between tabs, Enter or Space opens one, ⌥⇧← / ⌥⇧→ moves the focused tab. There is no tab switcher or tab shortcut yet.
 
 ### Right sidebar: assistant
 

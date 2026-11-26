@@ -4,8 +4,9 @@ import { openNote, useOpenNoteId } from "@/app/router";
 import { useNotes } from "@/features/notes/hooks";
 import { isLive, useRecordingState } from "@/features/recorder/hooks";
 import { displayTitle } from "@/lib/format";
+import { haptic } from "@/lib/haptics";
 import { TabBar, type TabBarItem } from "@/ui";
-import { closeNoteTab, keepTab, pruneTabs, useTabs } from "./store";
+import { closeNoteTab, keepTab, pruneTabs, reorderTabs, useTabs } from "./store";
 
 /** The bar of open notes under the canvas. Shows only while tabs are on and a note is open in one. */
 export function OpenTabs() {
@@ -53,6 +54,11 @@ export function OpenTabs() {
           onSelect={(id) => openNote(id)}
           onClose={closeNoteTab}
           onKeep={keepTab}
+          onReorder={(order) => {
+            reorderTabs(order);
+            // The tab snaps into its new place.
+            haptic("alignment");
+          }}
         />
       )}
     </AnimatePresence>
