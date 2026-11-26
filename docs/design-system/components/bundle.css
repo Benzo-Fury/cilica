@@ -461,3 +461,408 @@ button.nt-chip-busy:hover { background: var(--fill-press); }
   .nt-rec-dot { animation: none; }
   .nt-shimmer { animation: none; color: var(--ink-3); background: none; }
 }
+
+/* ───────── Images in notes (ImageBlock) and the image viewer (ImageViewer) ───────── */
+
+.nt-image {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0 0 var(--space-3);
+}
+.nt-image[data-align="center"] {
+  align-items: center;
+}
+.nt-image[data-align="right"] {
+  align-items: flex-end;
+}
+
+/* Only the picture (with its grip and resize edges) and the caption take the pointer. The rest of
+   the block (TipTap's node view wrapper included), the empty column beside a narrow image and the gap under it, lets clicks through to
+   the note, so clicking there leaves the image like clicking anywhere else does. */
+.react-renderer.node-image,
+.nt-image-node,
+.nt-image {
+  pointer-events: none;
+}
+.nt-image-frame,
+.nt-image-caption {
+  pointer-events: auto;
+}
+
+.nt-image-frame {
+  position: relative;
+  max-width: 100%;
+  min-width: 48px;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--spring-snappy-dur) var(--spring-snappy);
+}
+.nt-note .nt-image-img,
+.nt-image-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  cursor: default;
+  user-select: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nt-image-img-loading {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+}
+.nt-image-skel {
+  width: min(320px, 100%);
+  aspect-ratio: 4 / 3;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+}
+.nt-image-frame[style] .nt-image-skel {
+  width: 100%;
+}
+
+/* Selected: the picture lifts off the page a little, the way a picked-up object would: a small
+   spring up and a soft floating shadow (faded in on a layer, so only opacity animates).
+   The same layer covers the picture, so the pointer never rests on the <img> itself: macOS Live
+   Text only reads an image the pointer hovers, and would otherwise draw its own selection over
+   the words in a selected picture (in the web view, where page styles can't reach it). */
+.nt-image-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  box-shadow: var(--shadow-float);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-image[data-selected] .nt-image-frame {
+  transform: translateY(-2px) scale(1.01);
+}
+.nt-image[data-selected] .nt-image-frame::after {
+  opacity: 1;
+}
+/* The missing card has buttons, so it keeps the pointer. */
+.nt-image[data-state="missing"] .nt-image-frame::after {
+  border-radius: calc(var(--radius-md) * var(--sq));
+  pointer-events: none;
+}
+.nt-image[data-busy] .nt-image-frame {
+  opacity: 0.6;
+}
+
+/* While moving with the grip, the image waits dimmed where it was. */
+.nt-image[data-dragging] .nt-image-frame {
+  opacity: 0.35;
+}
+.nt-image[data-settling] .nt-image-frame {
+  animation: nt-image-settle var(--spring-bouncy-dur) var(--spring-bouncy);
+}
+@keyframes nt-image-settle {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The grip sits in the margin to the left of the image and shows on hover or focus. */
+.nt-image-grip {
+  position: absolute;
+  top: var(--space-1);
+  left: calc(-1 * var(--space-8));
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  border: 0;
+  padding: 0;
+  border-radius: calc(var(--radius-xs) * var(--sq));
+  background: transparent;
+  color: var(--ink-4);
+  opacity: 0;
+  cursor: grab;
+  touch-action: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.nt-image:hover .nt-image-grip,
+.nt-image[data-selected] .nt-image-grip,
+.nt-image-grip:focus-visible {
+  opacity: 1;
+}
+.nt-image-grip:hover {
+  background: var(--fill-hover);
+  color: var(--ink-2);
+}
+.nt-image-grip:active {
+  cursor: grabbing;
+  background: var(--fill-press);
+}
+.nt-image-grip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Resize: the selected picture's edges and corners are invisible grab areas, half outside the
+   picture and half over it, so they're easy to hit. Corners sit above the edges. */
+.nt-image-edge {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.nt-image-edge[data-edge="n"],
+.nt-image-edge[data-edge="s"] {
+  left: var(--space-3);
+  right: var(--space-3);
+  height: var(--space-4);
+  cursor: ns-resize;
+}
+.nt-image-edge[data-edge="e"],
+.nt-image-edge[data-edge="w"] {
+  top: var(--space-3);
+  bottom: var(--space-3);
+  width: var(--space-4);
+  cursor: ew-resize;
+}
+.nt-image-edge[data-edge="n"] {
+  top: calc(-1 * var(--space-2));
+}
+.nt-image-edge[data-edge="s"] {
+  bottom: calc(-1 * var(--space-2));
+}
+.nt-image-edge[data-edge="e"] {
+  right: calc(-1 * var(--space-2));
+}
+.nt-image-edge[data-edge="w"] {
+  left: calc(-1 * var(--space-2));
+}
+.nt-image-edge[data-edge="ne"],
+.nt-image-edge[data-edge="nw"],
+.nt-image-edge[data-edge="se"],
+.nt-image-edge[data-edge="sw"] {
+  z-index: 2;
+  width: var(--space-6);
+  height: var(--space-6);
+}
+.nt-image-edge[data-edge="ne"] {
+  top: calc(-1 * var(--space-3));
+  right: calc(-1 * var(--space-3));
+  cursor: nesw-resize;
+}
+.nt-image-edge[data-edge="sw"] {
+  bottom: calc(-1 * var(--space-3));
+  left: calc(-1 * var(--space-3));
+  cursor: nesw-resize;
+}
+.nt-image-edge[data-edge="nw"] {
+  top: calc(-1 * var(--space-3));
+  left: calc(-1 * var(--space-3));
+  cursor: nwse-resize;
+}
+.nt-image-edge[data-edge="se"] {
+  bottom: calc(-1 * var(--space-3));
+  right: calc(-1 * var(--space-3));
+  cursor: nwse-resize;
+}
+.nt-image-size {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: calc(var(--radius-xs) * var(--sq));
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-xs);
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caption: centred under the picture, quieter than the text. */
+.nt-image-caption {
+  width: 100%;
+  margin-top: var(--space-1-5);
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+}
+.nt-image[data-align="left"] .nt-image-caption {
+  text-align: left;
+}
+.nt-image[data-align="right"] .nt-image-caption {
+  text-align: right;
+}
+.nt-image-caption-input {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  outline: none;
+}
+.nt-image-caption-input::placeholder {
+  color: var(--ink-4);
+}
+
+/* The image can't be shown: a quiet card in its place. */
+.nt-image[data-state="missing"] .nt-image-frame {
+  width: 100%;
+}
+.nt-image-missing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: calc(var(--radius-md) * var(--sq));
+  background: var(--bg-sunken);
+  outline: 0.5px solid var(--line);
+  color: var(--ink-3);
+}
+.nt-image-missing-text {
+  flex: 1;
+  min-width: 0;
+}
+.nt-note .nt-image-missing p {
+  margin: 0;
+}
+.nt-image-missing-title {
+  color: var(--ink-2);
+  font-weight: 560;
+}
+.nt-image-missing-detail {
+  font-size: 13px;
+  line-height: 18px;
+}
+.nt-image-missing-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Where a dragged image or file will land. */
+.nt-dropcursor,
+.nt-image-dropline {
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-text);
+  pointer-events: none;
+}
+.nt-image-dropline {
+  position: fixed;
+  z-index: var(--z-float);
+  transform-origin: left center;
+  animation: nt-dropline-in var(--spring-snappy-dur) var(--spring-snappy);
+}
+@keyframes nt-dropline-in {
+  from {
+    transform: scaleX(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ───────── Viewer ───────── */
+.nt-viewer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: color-mix(in srgb, var(--bg-window) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.nt-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  outline: none;
+}
+.nt-viewer-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.nt-viewer-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-12) var(--space-12) var(--space-4);
+  overflow: hidden;
+  touch-action: none;
+}
+.nt-viewer-stage[data-zoomed] {
+  cursor: grab;
+}
+.nt-viewer-stage[data-zoomed]:active {
+  cursor: grabbing;
+}
+.nt-viewer-img {
+  grid-area: 1 / 1;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: calc(var(--radius-sm) * var(--sq));
+  box-shadow: var(--shadow-overlay);
+  user-select: none;
+}
+.nt-viewer-caption {
+  margin: 0 0 var(--space-3);
+  max-width: min(640px, 90vw);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+}
+.nt-viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  margin-bottom: var(--space-3);
+  padding: var(--space-1);
+  border-radius: calc(var(--radius-lg) * var(--sq));
+  box-shadow: var(--shadow-float);
+}
+.nt-viewer-count {
+  min-width: 52px;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-image[data-settling] .nt-image-frame,
+  .nt-image-dropline {
+    animation: none;
+  }
+  /* Selected keeps the shadow but doesn't move. */
+  .nt-image[data-selected] .nt-image-frame {
+    transform: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nt-viewer-scrim {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--bg-window);
+  }
+}

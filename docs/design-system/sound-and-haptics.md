@@ -23,7 +23,7 @@ Haptics only exist where the OS supports them (`NSHapticFeedbackManager`); Windo
 
 | Moment | Pattern |
 | --- | --- |
-| A dragged note or category snaps into its drop position | alignment |
+| A dragged note or category snaps into its drop position, or a dragged tab passes another | alignment |
 | Sidebar or assistant resize snaps to its default width | alignment |
 | A permission is granted during setup | generic |
 | Slider detents (playback speed) | levelChange |

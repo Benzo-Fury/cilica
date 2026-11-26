@@ -14,6 +14,7 @@ import {
   CircleAlert,
   CircleCheck,
   Eye,
+  ImageOff,
   KeyRound,
   PanelRight,
   Settings2,
@@ -30,6 +31,7 @@ import { useAction, useShortcut } from "@/app/keybinds";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { isMac } from "@/app/platform";
 import { openNote, openSettings } from "@/app/router";
+import { useReadsImageText } from "@/features/note/images/imageText";
 import { useNotes } from "@/features/notes/hooks";
 import { useProposal } from "@/features/proposals/hooks";
 import { ProposalCard } from "@/features/proposals/ProposalCard";
@@ -45,6 +47,7 @@ import {
   ChangeCard,
   type ChangeRow,
   Composer,
+  ComposerMark,
   ConversationFootnote,
   ConversationGroup,
   ConversationRow,
@@ -75,6 +78,7 @@ import {
   useProviderStatus,
   useThreads,
   useTurnActions,
+  useUnseenImages,
   useViewContext,
   useVisibleThreads,
 } from "./hooks";
@@ -107,6 +111,8 @@ export function AssistantPanel() {
   const retentionDays = settings?.ai.conversation_retention_days ?? 7;
   const suggestionsOn = settings?.ai.suggestions ?? true;
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const unseenImagesModel = useUnseenImages(context.note_id ?? null);
+  const readsImageText = useReadsImageText();
   const reduced = useReducedMotion() ?? false;
   const [showAll, setShowAll] = useState(false);
   const ready = status?.ready ?? false;
@@ -250,6 +256,15 @@ export function AssistantPanel() {
       {notice}
       <Composer
         ref={composerRef}
+        leading={
+          unseenImagesModel && (
+            <ComposerMark
+              icon={ImageOff}
+              label="Images not included"
+              detail={`${unseenImagesModel} can't see images, so Cilica won't see the ones in this note.${readsImageText ? " It can still read text found in them." : ""}`}
+            />
+          )
+        }
         value={draft}
         onChange={setDraft}
         onSubmit={() => submit()}

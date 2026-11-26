@@ -60,6 +60,7 @@ pub struct MockProvider {
     script: Mutex<VecDeque<MockResponse>>,
     requests: Mutex<Vec<ChatRequest>>,
     fallback: Mutex<Option<String>>,
+    sees_images: bool,
 }
 
 impl MockProvider {
@@ -70,6 +71,12 @@ impl MockProvider {
     /// Answer with this text once the script runs out.
     pub fn with_fallback(self, text: impl Into<String>) -> Self {
         *self.fallback.lock().unwrap() = Some(text.into());
+        self
+    }
+
+    /// Act as a model that can see images.
+    pub fn with_vision(mut self) -> Self {
+        self.sees_images = true;
         self
     }
 
@@ -142,6 +149,10 @@ impl Provider for MockProvider {
 
     async fn verify(&self) -> Result<(), LlmError> {
         Ok(())
+    }
+
+    async fn sees_images(&self, _model: &str) -> bool {
+        self.sees_images
     }
 }
 

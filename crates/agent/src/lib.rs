@@ -22,6 +22,7 @@ use cilica_store::Db;
 
 mod bridge;
 mod chips;
+pub mod images;
 pub mod ops;
 pub mod patch;
 pub mod prompt;
@@ -33,6 +34,7 @@ pub mod tools;
 mod turn;
 mod week;
 
+pub use images::ModelImages;
 pub use runner::{CallContext, ChatEmit, RunMode, ToolOutcome, ToolRunner};
 pub use store::{DbNoteStore, FakeNotes, NoteStore};
 pub use summarizer::Summarizer;
@@ -157,6 +159,38 @@ impl Agent {
 
     pub fn runner(&self) -> &ToolRunner {
         &self.inner.runner
+    }
+
+    /// Let models that can see images look at note images from this folder (`view_images`).
+    pub fn set_image_store(&self, store: cilica_attachments::ImageStore) {
+        self.inner.runner.images.set_store(store);
+    }
+
+    /// Whether the chosen provider and model can see images in tool results, so `view_images`
+    /// is offered. Needs an attachments folder too.
+    pub(crate) async fn sees_images(&self, settings: &AiSettings, provider: &dyn Provider) -> bool {
+        self.inner.runner.images.available() && provider.sees_images(&settings.model).await
+    }
+
+    /// Whether Cilica, as set up now, can look at note images, and the model's name for the UI.
+    pub async fn image_support(&self) -> cilica_domain::AssistantImageSupport {
+        let settings = self.inner.providers.ai_settings().await;
+        let model_name = match settings.provider {
+            ProviderKind::ClaudeCode => "Claude Code".to_string(),
+            ProviderKind::Anthropic => cilica_llm::anthropic::model_display_name(&settings.model),
+            ProviderKind::Ollama => cilica_llm::ollama::display_name(&settings.model).map(str::to_string).unwrap_or_else(|| settings.model.clone()),
+            ProviderKind::OpenaiCompat => settings.model.clone(),
+        };
+        let sees_images = match settings.provider {
+            // The CLI shows MCP image results to its Claude models.
+            ProviderKind::ClaudeCode => true,
+            _ => match self.inner.providers.provider(&settings) {
+                Ok(provider) => provider.sees_images(&settings.model).await,
+                // Not set up yet (no key): every Claude model can see images.
+                Err(_) => settings.provider == ProviderKind::Anthropic,
+            },
+        };
+        cilica_domain::AssistantImageSupport { sees_images, model_name }
     }
 
     pub fn summarizer(&self) -> Arc<dyn MeetingSummarizer> {

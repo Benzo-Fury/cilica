@@ -1,0 +1,24 @@
+[package]
+name = "cilica-attachments"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.23"
+cilica-domain = { path = "../domain" }
+cilica-store = { path = "../store" }
+futures = "0.3.34"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp", "tiff", "bmp"] }
+infer = "0.22"
+regex = "1.13.2"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+sha2 = "0.11"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "fs", "net", "time", "io-util", "sync"] }
+tracing = "0.1.44"
+url = "2.5.9"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.54.1", features = ["full"] }

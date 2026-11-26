@@ -1,6 +1,6 @@
 /**
  * The note view: editable title, Notes ⇄ Transcript (⌘E), the Markdown editor, find (⌘F),
- * history, and the overflow menu (export, copy, history, move, Trash).
+ * history, and the overflow menu (insert image, export, copy, history, move, Trash).
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   Folder,
   FolderInput,
   History,
+  ImagePlus,
   Inbox,
   NotebookPen,
   Trash2,
@@ -21,7 +22,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useBackendEvent } from "@/app/backendEvents";
-import { useAction, useShortcut } from "@/app/keybinds";
+import { runAction, useAction, useShortcut } from "@/app/keybinds";
 import { reducedTransition, springs, tweens } from "@/app/motion";
 import { useRouter } from "@/app/router";
 import { Connections } from "@/features/links/Connections";
@@ -152,6 +153,7 @@ function LoadedNote({ note }: { note: Note }) {
     trash: useShortcut("note.trash"),
     find: useShortcut("note.find"),
     history: useShortcut("note.history"),
+    insertImage: useShortcut("note.insertImage"),
   };
 
   // Keep the title in sync with renames from elsewhere (sidebar, Cilica), unless editing it.
@@ -295,6 +297,18 @@ function LoadedNote({ note }: { note: Note }) {
                 <IconButton icon={Ellipsis} label="More" />
               </MenuTrigger>
               <MenuContent>
+                {panel === "notes" && (
+                  <>
+                    <MenuItem
+                      icon={ImagePlus}
+                      shortcut={keys.insertImage}
+                      onSelect={() => runAction("note.insertImage")}
+                    >
+                      Insert image…
+                    </MenuItem>
+                    <MenuSeparator />
+                  </>
+                )}
                 <MenuItem icon={Download} iconMotion="up" onSelect={() => void exportMarkdown()}>
                   Export as Markdown…
                 </MenuItem>

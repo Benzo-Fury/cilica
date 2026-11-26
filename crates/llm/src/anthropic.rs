@@ -195,6 +195,11 @@ impl Provider for AnthropicProvider {
         crate::receiver_stream(rx)
     }
 
+    /// Every Claude model Cilica offers takes images.
+    async fn sees_images(&self, _model: &str) -> bool {
+        true
+    }
+
     /// Lists one model: free, and fails with 401 on a bad key.
     async fn verify(&self) -> Result<(), LlmError> {
         let key = (self.key)().filter(|k| !k.trim().is_empty()).ok_or(LlmError::MissingKey { provider: NAME.into() })?;
@@ -238,7 +243,8 @@ fn to_wire_block(block: &ContentBlock) -> Option<Value> {
         ContentBlock::Text { text } if text.is_empty() => return None,
         ContentBlock::Text { text } => json!({"type": "text", "text": text}),
         ContentBlock::ToolUse { id, name, input } => json!({"type": "tool_use", "id": id, "name": name, "input": input}),
-        ContentBlock::ToolResult { tool_use_id, content, is_error } => {
+        ContentBlock::ToolResult { tool_use_id, content, is_error, images } => {
+            let content = if images.is_empty() { json!(content) } else { tool_result_with_images(content, images) };
             let mut v = json!({"type": "tool_result", "tool_use_id": tool_use_id, "content": content});
             if *is_error {
                 v["is_error"] = json!(true);
@@ -250,6 +256,48 @@ fn to_wire_block(block: &ContentBlock) -> Option<Value> {
         ContentBlock::Opaque { provider, block } if provider == PROVIDER_TAG => block.clone(),
         ContentBlock::Opaque { .. } => return None,
     })
+}
+
+/// A tool result's text followed by its images. Images without loaded bytes become a short note.
+fn tool_result_with_images(text: &str, images: &[crate::ToolImage]) -> Value {
+    let mut parts = vec![json!({"type": "text", "text": text})];
+    for image in images {
+        parts.push(match &image.data {
+            Some(data) => json!({"type": "image", "source": {"type": "base64", "media_type": image.media_type, "data": data.as_ref()}}),
+            None => json!({"type": "text", "text": format!("{} {}", image.path, crate::IMAGE_NOT_LOADED)}),
+        });
+    }
+    Value::Array(parts)
+}
+
+/// A name people recognise for a Claude model id: `claude-sonnet-5-5` → "Claude Sonnet 5.5",
+/// `claude-opus-4-5-20251101` → "Claude Opus 4.5". Anything unexpected comes back as it is.
+pub fn model_display_name(model: &str) -> String {
+    let Some(rest) = model.strip_prefix("claude-") else { return model.to_string() };
+    let mut words = Vec::new();
+    let mut version = Vec::new();
+    for part in rest.split('-') {
+        if part.len() >= 8 && part.chars().all(|c| c.is_ascii_digit()) {
+            break; // a date snapshot
+        }
+        if part.chars().all(|c| c.is_ascii_digit()) && !part.is_empty() {
+            version.push(part);
+        } else if version.is_empty() {
+            let mut c = part.chars();
+            words.push(c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default());
+        } else {
+            return model.to_string();
+        }
+    }
+    if words.is_empty() {
+        return model.to_string();
+    }
+    let mut name = format!("Claude {}", words.join(" "));
+    if !version.is_empty() {
+        name.push(' ');
+        name.push_str(&version.join("."));
+    }
+    name
 }
 
 // ── Stream parsing ───────────────────────────────────────────────────────
@@ -563,6 +611,49 @@ mod tests {
         let assistant = &body["messages"][1]["content"];
         assert_eq!(assistant.as_array().unwrap().len(), 2, "empty text and foreign opaque blocks are skipped");
         assert_eq!(assistant[0]["signature"], "sig");
+    }
+
+    #[test]
+    fn tool_result_images_go_in_the_result_content() {
+        let p = AnthropicProvider::new(key());
+        let image = |data: Option<&str>| crate::ToolImage {
+            path: "attachments/0123456789abcdef0123456789abcdef.png".into(),
+            media_type: "image/png".into(),
+            data: data.map(Into::into),
+        };
+        let req = ChatRequest::new(
+            "claude-sonnet-5-5",
+            "",
+            vec![
+                ChatMessage::user("what is on the whiteboard?"),
+                ChatMessage { role: ChatRole::Assistant, content: vec![ContentBlock::ToolUse { id: "t1".into(), name: "view_images".into(), input: json!({}) }] },
+                ChatMessage {
+                    role: ChatRole::User,
+                    content: vec![ContentBlock::ToolResult { tool_use_id: "t1".into(), content: "2 images".into(), is_error: false, images: vec![image(Some("iVBORw0K")), image(None)] }],
+                },
+            ],
+        );
+        let body = p.build_body(&req, false);
+        let result = &body["messages"][2]["content"][0];
+        assert_eq!(result["type"], "tool_result");
+        let parts = result["content"].as_array().unwrap();
+        assert_eq!(parts[0], json!({"type": "text", "text": "2 images"}));
+        assert_eq!(parts[1], json!({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw0K"}}));
+        assert_eq!(parts[2]["type"], "text");
+        assert!(parts[2]["text"].as_str().unwrap().ends_with("[image not loaded]"));
+
+        // Without images the content stays a plain string
+        let plain = ChatRequest::new("m", "", vec![ChatMessage { role: ChatRole::User, content: vec![ContentBlock::tool_result("t1", "ok", false)] }]);
+        assert_eq!(p.build_body(&plain, false)["messages"][0]["content"][0]["content"], "ok");
+    }
+
+    #[test]
+    fn model_names_read_like_people_say_them() {
+        assert_eq!(model_display_name("claude-sonnet-5-5"), "Claude Sonnet 5.5");
+        assert_eq!(model_display_name("claude-opus-4-5-20251101"), "Claude Opus 4.5");
+        assert_eq!(model_display_name("claude-fable-5-2"), "Claude Fable 5.2");
+        assert_eq!(model_display_name("claude-3-5-sonnet-20241022"), "claude-3-5-sonnet-20241022");
+        assert_eq!(model_display_name("my-model"), "my-model");
     }
 
     #[tokio::test]

@@ -19,7 +19,13 @@ import type { MockContext, MockState } from "./state";
 import { escapeHtml, stripMarkdown } from "./util";
 
 const MAX_RESULTS = 200;
-const SOURCE_RANK: Record<SearchSource, number> = { title: 0, body: 1, transcript: 2, details: 3 };
+const SOURCE_RANK: Record<SearchSource, number> = {
+  title: 0,
+  body: 1,
+  transcript: 2,
+  image: 3,
+  details: 4,
+};
 
 export function searchCommands({ state }: MockContext) {
   return {
@@ -236,6 +242,7 @@ export function findNotes(state: MockState, q: NoteQuery, limit: number): Search
       excerpt,
       at_ms: atMs,
       matched_at: at,
+      image: null,
       rank: SOURCE_RANK[source],
       sort: at ?? sortDate(note, field),
     });

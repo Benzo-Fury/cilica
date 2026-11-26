@@ -7,6 +7,7 @@
 //! - Enums are `snake_case` on the wire; data-carrying enums are internally tagged with `type`.
 
 mod assistant;
+mod attachment;
 mod error;
 mod events;
 mod graph;
@@ -22,6 +23,7 @@ mod thesaurus;
 mod transcript;
 
 pub use assistant::*;
+pub use attachment::*;
 pub use error::*;
 pub use events::*;
 pub use graph::*;

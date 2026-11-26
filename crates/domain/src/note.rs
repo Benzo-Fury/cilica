@@ -89,6 +89,8 @@ pub enum SearchSource {
     Title,
     Body,
     Transcript,
+    /// Text Cilica read in one of the note's images.
+    Image,
     /// Found by its details (a date, a person, a tag…) with no words to match.
     Details,
 }
@@ -105,6 +107,9 @@ pub struct SearchHit {
     /// meeting started, the note was made, last edited or moved to Trash).
     #[serde(default)]
     pub matched_at: Option<Timestamp>,
+    /// For image hits: the image whose text matched (`attachments/<32 hex>.<ext>`).
+    #[serde(default)]
+    pub image: Option<String>,
 }
 
 /// Which date of a note a search's date range and time of day apply to.

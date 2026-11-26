@@ -8,8 +8,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
-import { openNote, openSettings, useRouter } from "@/app/router";
+import { openSettings, useRouter } from "@/app/router";
 import { useSettings, useUpdateSettings } from "@/features/settings/hooks";
+import { openNoteToWork } from "@/features/tabs/store";
 import { api, errorMessage, toAppError } from "@/ipc/client";
 import type { AudioLevels, RecordingState, RecordingTrigger, Settings } from "@/ipc/types";
 import { cue } from "@/lib/sound";
@@ -108,7 +109,7 @@ export function useStartRecording() {
         const next = await api.startRecording({ note_id: noteId, meeting_app: null, trigger });
         queryClient.setQueryData(qk.recording, next);
         void queryClient.invalidateQueries({ queryKey: qk.notes });
-        if (next.note_id) openNote(next.note_id, { panel: "transcript" });
+        if (next.note_id) openNoteToWork(next.note_id, { panel: "transcript" });
       } catch (error) {
         startFailed(error);
       }
@@ -273,7 +274,7 @@ export function useRecordingEffects() {
     if ((to === "starting" || to === "recording") && from === "idle" && state.note_id) {
       const view = useRouter.getState().view;
       if (view.name !== "note" || view.noteId !== state.note_id) {
-        openNote(state.note_id, { panel: "transcript" });
+        openNoteToWork(state.note_id, { panel: "transcript" });
       }
     }
     if (from === "recording" && to === "stopping") {

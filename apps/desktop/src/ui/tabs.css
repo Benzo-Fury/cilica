@@ -1,0 +1,201 @@
+/* ───────── Tabs (TabBar.tsx) ─────────
+   The bar runs under the page on the sidebar's ground. Its ground is one SVG path with the page and
+   the selected tab cut out (tabShape.ts), so the page's edge turns down into the selected tab. */
+
+.nt-tabbar {
+  /* What the bar paints around the tabs, and what shows through the selected tab. */
+  --tabbar-ground: var(--bg-sunken);
+  --tabbar-page: var(--bg-canvas);
+  position: relative;
+  z-index: 1;
+  flex: none;
+  background: var(--tabbar-page);
+  /* The height springs open and shut; the strip above the bar stays visible while it does. The
+     sides give the page's hairline room: it is centred on the page's edge, half over each panel. */
+  clip-path: inset(-12px -1px 0 -1px);
+}
+/* Under a scene the page is clear and the panels carry a light wash: the bar follows suit. */
+.nt-window[data-scene] .nt-tabbar {
+  --tabbar-ground: color-mix(in srgb, var(--bg-canvas) 20%, transparent);
+  --tabbar-page: transparent;
+}
+
+.nt-tabbar-ground {
+  position: absolute;
+  top: -12px;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.nt-tabbar-fill {
+  fill: var(--tabbar-ground);
+}
+/* The page's hairline carries on round its corners and the selected tab. */
+.nt-tabbar-edge {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 0.5px;
+}
+
+/* With the bar showing, the page's side hairlines stop where its corners start to round. They are
+   centred on the page's edge, as the bar's outline stroke is, so the two meet without a step. */
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas-shadow {
+  position: relative;
+  box-shadow: none;
+}
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas-shadow::before,
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas-shadow::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  width: 0.5px;
+  z-index: 2;
+  background: var(--line-strong);
+  pointer-events: none;
+}
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas-shadow::before {
+  left: -0.25px;
+}
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas-shadow::after {
+  right: -0.25px;
+}
+/* The bar draws the page's bottom corners; the squircle clip would cut into a tab flush with the edge. */
+.nt-canvas-col:has(> .nt-tabbar) .nt-canvas {
+  /* biome-ignore lint/complexity/noImportantStyles: useSquircleClip sets clip-path inline */
+  clip-path: none !important;
+}
+
+.nt-tabbar-tabs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: flex-start;
+  /* The first tab sits flush against the sidebar; 8px of ground under the tabs. */
+  padding: 0 var(--space-2) var(--space-2) 0;
+}
+
+.nt-tab {
+  position: relative;
+  flex: 0 1 200px;
+  min-width: 72px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+/* Hairlines between tabs, gone beside the selected one. */
+.nt-tab + .nt-tab::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 1px;
+  background: var(--line);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.nt-tab[data-active]::before,
+.nt-tab[data-active] + .nt-tab::before {
+  opacity: 0;
+}
+
+.nt-tab-button {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 0 34px 0 var(--space-4);
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-3);
+  font: 450 13px / 18px var(--font-sans);
+  text-align: left;
+  outline: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-tab-button:hover {
+  color: var(--ink-2);
+}
+.nt-tab[data-active] .nt-tab-button {
+  color: var(--ink);
+  font-weight: 550;
+}
+.nt-tab-button:focus-visible {
+  box-shadow: var(--focus);
+}
+.nt-tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-tab-rec {
+  flex: none;
+  color: var(--rec);
+}
+
+/* The close target is 28 x 28, macOS's default control size (HIG › Accessibility) and above
+   WCAG 2.2's 24 x 24 minimum; the round wash inside it stays small so the tab doesn't look busy. */
+.nt-tab-close {
+  position: absolute;
+  top: 50%;
+  right: var(--space-1);
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.nt-tab-close::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.nt-tab-close > svg {
+  position: relative;
+}
+.nt-tab:hover .nt-tab-close,
+.nt-tab[data-active] .nt-tab-close,
+.nt-tab-close:focus-visible {
+  opacity: 1;
+}
+.nt-tab-close:hover {
+  color: var(--ink);
+}
+.nt-tab-close:hover::before {
+  background: var(--fill-hover);
+}
+/* A tab you have only looked at: the next note you open takes its place. */
+.nt-tab[data-preview] .nt-tab-title {
+  font-style: italic;
+}
+
+/* While a tab is dragged it passes over the others, which are only titles on the bar's ground.
+   It carries the ground behind its own title so theirs don't show through, and it slides under
+   the selected tab, which fills with the page (its 10px bottom corners match TAB_RADII.corner).
+   A dragged selected tab is on top either way. */
+.nt-tab[data-dragging] {
+  background: var(--tabbar-ground);
+}
+.nt-tabbar-tabs:has(> .nt-tab[data-dragging]) > .nt-tab[data-active] {
+  /* biome-ignore lint/complexity/noImportantStyles: Motion sets z-index: unset inline on tabs at rest */
+  z-index: 2 !important;
+  background: var(--tabbar-page);
+  border-radius: 0 0 10px 10px;
+}

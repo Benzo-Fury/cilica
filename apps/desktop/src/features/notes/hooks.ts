@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { qk } from "@/app/queryKeys";
 import { navigate, openNote, useRouter } from "@/app/router";
+import { keepTab, openNoteToWork } from "@/features/tabs/store";
 import { api, errorMessage } from "@/ipc/client";
 import type { Category, Note, NoteSummary } from "@/ipc/types";
 import { displayTitle } from "@/lib/format";
@@ -99,7 +100,7 @@ export function useCreateNote() {
         toSummary(note),
         ...(list ?? []),
       ]);
-      openNote(note.id);
+      openNoteToWork(note.id);
     },
     onError: (error) =>
       toast.error("The note was not created", { description: errorMessage(error) }),
@@ -144,6 +145,7 @@ export function useRenameNote() {
       toast.error("The note was not renamed", { description: errorMessage(error) });
     },
     onSuccess: (summary) => {
+      keepTab(summary.id);
       queryClient.setQueryData<NoteSummary[]>(qk.notes, (list) =>
         list?.map((n) => (n.id === summary.id ? summary : n)),
       );

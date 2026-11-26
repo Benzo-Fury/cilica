@@ -334,3 +334,12 @@ pub struct OllamaStatus {
     pub running: bool,
     pub version: Option<String>,
 }
+
+/// Whether the assistant, as set up now, can look at the images in notes. When it can't, it
+/// still reads any text found in them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct AssistantImageSupport {
+    pub sees_images: bool,
+    /// The model as people know it: "Qwen3 8B", "Claude Sonnet 5.5", "Claude Code", or the model id.
+    pub model_name: String,
+}

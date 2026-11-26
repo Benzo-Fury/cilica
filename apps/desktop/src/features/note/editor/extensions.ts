@@ -5,9 +5,8 @@
  * tables, fenced code blocks with syntax colouring, `$inline$` and `$$block$$` equations, and
  * Obsidian's `[[links]]` and `#tags`.
  */
-import type { AnyExtension } from "@tiptap/core";
+import type { AnyExtension, NodeViewRenderer } from "@tiptap/core";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
-import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import TaskItem from "@tiptap/extension-task-item";
@@ -16,6 +15,8 @@ import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { FindInNote } from "./findInNote";
+import { NoteImage } from "./image";
+import { ImageInput, type ImageSaver } from "./imageInput";
 import {
   type InlineLinkHandlers,
   InlineLinkHintExtension,
@@ -42,6 +43,8 @@ export interface NoteExtensionOptions {
   onOpenTag?: (tag: string) => void;
   /** Offer to link a note title as soon as you finish typing it. Off without a matcher. */
   linkHint?: { match: InlineLinkMatcher; handlers: () => InlineLinkHandlers | null };
+  /** Saves pasted, dropped and web images as attachments. Without it they stay as they came. */
+  images?: { saver: () => ImageSaver | null; view: NodeViewRenderer | null };
   /** Who opens the equation editor. Without it equations still draw and round-trip. */
   math?: () => MathHandlers | null;
 }
@@ -56,6 +59,8 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
       underline: false,
       link: { openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" },
       trailingNode: false,
+      // Where a dragged image or file will land.
+      dropcursor: { class: "nt-dropcursor", color: false, width: 2 },
       // Code is not prose: Check spelling leaves it alone.
       code: { HTMLAttributes: { spellcheck: "false" } },
     }),
@@ -69,7 +74,8 @@ export function noteExtensions(options: NoteExtensionOptions = {}): AnyExtension
     MathInline.configure({ handlers: options.math ?? (() => null) }),
     MathBlock.configure({ handlers: options.math ?? (() => null) }),
     MathEscape,
-    Image.configure({ inline: false, allowBase64: true }),
+    NoteImage.configure({ view: options.images?.view ?? null }),
+    ImageInput.configure({ saver: options.images?.saver ?? (() => null) }),
     TaskList,
     TaskItem.configure({ nested: true }),
     TableKit.configure({ table: { resizable: false } }),

@@ -17,6 +17,11 @@ pub struct ToolDef {
     pub in_tasks: bool,
 }
 
+/// The tool that shows a note's images; offered only to models that can see them.
+pub const VIEW_IMAGES: &str = "view_images";
+/// Most images one `view_images` call returns.
+pub const MAX_IMAGES_PER_CALL: usize = 6;
+
 const NOTE_ID: &str = "Id of the note, from search_notes or the <view> block.";
 const REASON: &str = "One or two plain sentences for the user saying why. Shown on the confirm or diff card.";
 
@@ -41,6 +46,13 @@ pub const TOOLS: &[ToolDef] = &[
     ToolDef { name: "list_people", tier: ToolTier::Read, description: "List Saved people (voiceprints) with ids and meeting counts.", running: "Listing people", in_tasks: true },
     ToolDef { name: "list_tasks", tier: ToolTier::Read, description: "List scheduled tasks with their schedules and next run.", running: "Listing tasks", in_tasks: true },
     ToolDef { name: "get_note_history", tier: ToolTier::Read, description: "List a note's saved versions (who wrote each and when), newest first.", running: "Reading history", in_tasks: true },
+    ToolDef {
+        name: VIEW_IMAGES,
+        tier: ToolTier::Read,
+        description: "Look at the images in a note. Use it when the picture itself matters: charts, whiteboards, diagrams, screenshots, photos. get_note already includes any text found in images, so skip this when that text is enough. Shows up to 6 images per call, in the order they appear; pass paths (the attachments/… targets in the note body) to pick others.",
+        running: "Looking at images",
+        in_tasks: true,
+    },
     // ── Additive ──
     ToolDef { name: "create_note", tier: ToolTier::Additive, description: "Create a new note with a title and a Markdown body.", running: "Creating a note", in_tasks: true },
     ToolDef { name: "create_category", tier: ToolTier::Additive, description: "Create a category.", running: "Creating a category", in_tasks: false },
@@ -125,6 +137,19 @@ pub fn schema(name: &str) -> Value {
         ),
         "get_note" | "get_transcript" | "get_note_history" => obj(json!({ "note_id": id(NOTE_ID) }), &["note_id"]),
         "list_categories" | "list_people" | "list_tasks" => obj(json!({}), &[]),
+        VIEW_IMAGES => obj(
+            json!({
+                "note_id": id(NOTE_ID),
+                "paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "maxItems": MAX_IMAGES_PER_CALL,
+                    "description": "Which images, as written in the note (attachments/…). Leave out for the first 6."
+                }
+            }),
+            &["note_id"],
+        ),
         "create_note" => obj(
             json!({
                 "title": {"type": "string"},
@@ -219,11 +244,14 @@ pub fn schema(name: &str) -> Value {
     }
 }
 
-/// Tool specs for a model request. `tasks_only` limits them to tools that can run in a task.
-pub fn specs(tasks_only: bool) -> Vec<ToolSpec> {
+/// Tool specs for a model request. `tasks_only` limits them to tools that can run in a task;
+/// `sees_images` adds `view_images`, for models that can see images. For one provider and model
+/// the list never changes, so the prompt cache holds.
+pub fn specs(tasks_only: bool, sees_images: bool) -> Vec<ToolSpec> {
     TOOLS
         .iter()
         .filter(|t| !tasks_only || t.in_tasks)
+        .filter(|t| sees_images || t.name != VIEW_IMAGES)
         .map(|t| ToolSpec { name: t.name.to_string(), description: t.description.to_string(), input_schema: schema(t.name) })
         .collect()
 }
@@ -237,11 +265,20 @@ mod tests {
         let by_tier = |tier| TOOLS.iter().filter(|t| t.tier == tier).map(|t| t.name).collect::<Vec<_>>();
         assert_eq!(
             by_tier(ToolTier::Read),
-            ["search_notes", "get_note", "get_transcript", "list_categories", "list_people", "list_tasks", "get_note_history"]
+            ["search_notes", "get_note", "get_transcript", "list_categories", "list_people", "list_tasks", "get_note_history", "view_images"]
         );
         assert_eq!(by_tier(ToolTier::Additive), ["create_note", "create_category", "move_note", "rename_category", "label_speaker", "create_task"]);
         assert_eq!(by_tier(ToolTier::Edit), ["edit_note", "rename_note"]);
         assert_eq!(by_tier(ToolTier::Destructive), ["trash_note", "merge_notes", "delete_category", "delete_person"]);
+    }
+
+    #[test]
+    fn view_images_is_offered_only_to_models_that_see_images() {
+        let has = |specs: Vec<ToolSpec>| specs.iter().any(|t| t.name == VIEW_IMAGES);
+        assert!(!has(specs(false, false)));
+        assert!(has(specs(false, true)));
+        assert!(has(specs(true, true)));
+        assert_eq!(specs(false, true).len(), specs(false, false).len() + 1);
     }
 
     #[test]

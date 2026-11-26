@@ -194,7 +194,13 @@ impl ProviderSource for AppProviders {
         Some(BridgeConfig {
             binary: None,
             mcp_command: exe,
-            mcp_args: vec!["--mcp".into(), "--db".into(), self.db_path.to_string_lossy().into_owned()],
+            mcp_args: vec![
+                "--mcp".into(),
+                "--db".into(),
+                self.db_path.to_string_lossy().into_owned(),
+                "--attachments".into(),
+                self.data_dir.join(cilica_attachments::FOLDER).to_string_lossy().into_owned(),
+            ],
             cwd: self.data_dir.join("claude-bridge"),
         })
     }
@@ -232,6 +238,8 @@ pub fn agent(app: &AppHandle) -> Option<Agent> {
 pub fn setup(app: &AppHandle, core: &Core) -> AppResult<()> {
     let providers = Arc::new(AppProviders { db: core.db.clone(), db_path: core.data_dir.join("cilica.db"), data_dir: core.data_dir.clone() });
     let agent = Agent::new(core.db.clone(), Arc::new(DbNoteStore(core.db.clone())), core.events.clone(), providers.clone());
+    // Models that can see images may look at the ones in notes (`view_images`).
+    agent.set_image_store(cilica_attachments::ImageStore::new(core.data_dir.join(cilica_attachments::FOLDER)));
     // Settings › Cilica › Delete conversations after: at launch, then every hour.
     let housekeeper = agent.clone();
     tauri::async_runtime::spawn(async move {
@@ -276,6 +284,14 @@ pub fn run_mcp_server() -> i32 {
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────
+
+/// Whether Cilica, with the provider and model chosen now, can look at the images in notes.
+/// When it can't, it still reads any text found in them.
+#[tauri::command]
+#[specta::specta]
+pub async fn assistant_image_support(state: State<'_, AssistantState>) -> AppResult<AssistantImageSupport> {
+    Ok(state.agent.image_support().await)
+}
 
 /// Newest first.
 #[tauri::command]

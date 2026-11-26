@@ -57,6 +57,8 @@ import {
 import { isMac } from "@/app/platform";
 import { navigate, openNote, openSettings } from "@/app/router";
 import { askCilica, useAssistantStore } from "@/features/assistant/store";
+import { useImageUi } from "@/features/note/images/store";
+import { useImageSrc } from "@/features/note/images/useImageSrc";
 import { useCategories, useNotes } from "@/features/notes/hooks";
 import { useSafeForWork } from "@/features/settings/hooks";
 import { ALL_SETTINGS_PAGES, shownPages } from "@/features/settings/pages";
@@ -81,6 +83,7 @@ import {
   PaletteNote,
   PalettePhrase,
   PaletteRoot,
+  PaletteThumb,
 } from "@/ui";
 import { useFindNotes, useSearchThreads, useSearchVocabulary } from "./hooks";
 import { saidBy, useNearWords, whereSaid } from "./near";
@@ -200,8 +203,14 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
   const detailHits = details ? liveHits.slice(0, 12) : [];
   const bodyHits =
     q && !details
-      ? liveHits.filter((h) => h.source !== "transcript" && !shownIds.has(h.note.id)).slice(0, 5)
+      ? liveHits
+          .filter(
+            (h) => h.source !== "transcript" && h.source !== "image" && !shownIds.has(h.note.id),
+          )
+          .slice(0, 5)
       : [];
+  const imageHits =
+    q && !details ? liveHits.filter((h) => h.source === "image" && h.image).slice(0, 4) : [];
   const transcriptHits =
     q && !details ? liveHits.filter((h) => h.source === "transcript").slice(0, 4) : [];
 
@@ -253,6 +262,12 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         ? openNote(hit.note.id, { panel: "transcript", atMs: hit.at_ms ?? undefined })
         : openNote(hit.note.id),
     );
+
+  const openImageHit = (hit: SearchHit) =>
+    run(() => {
+      if (hit.image) useImageUi.getState().revealImage(hit.image);
+      openNote(hit.note.id);
+    });
 
   const hitHint = (hit: SearchHit) => {
     if (hit.matched_at) return dayAndTime(hit.matched_at);
@@ -405,6 +420,26 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
               ))}
             </PaletteGroup>
           )}
+          {imageHits.length > 0 && (
+            <PaletteGroup heading="Text in images">
+              {imageHits.map((hit) => {
+                const value = `img:${hit.note.id}:${hit.image}`;
+                return (
+                  <PaletteItem
+                    key={value}
+                    value={value}
+                    selected={selected === value}
+                    leading={<HitThumb src={hit.image} alt={displayTitle(hit.note.title)} />}
+                    hint={categoryName(hit.note.category_id)}
+                    onSelect={() => openImageHit(hit)}
+                    sub={<Excerpt excerpt={hit.excerpt} />}
+                  >
+                    {displayTitle(hit.note.title)}
+                  </PaletteItem>
+                );
+              })}
+            </PaletteGroup>
+          )}
           {transcriptHits.length > 0 && (
             <PaletteGroup heading="Transcript matches">
               {transcriptHits.map((hit) => {
@@ -549,4 +584,10 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       </PaletteRoot>
     </DialogSurface>
   );
+}
+
+/** A matched image's thumbnail, loaded from its file. */
+function HitThumb({ src, alt }: { src: string | null; alt: string }) {
+  const source = useImageSrc(src);
+  return <PaletteThumb src={source.kind === "ready" ? source.url : null} alt={alt} />;
 }

@@ -29,6 +29,41 @@ export function useProviderStatus() {
   });
 }
 
+/** A Markdown image (`![alt](src)`) anywhere in a note body. */
+const IMAGE_IN_MARKDOWN = /!\[[^\]\n]*\]\([^)\s]+/;
+
+export function hasImages(body: string | null | undefined): boolean {
+  return !!body && IMAGE_IN_MARKDOWN.test(body);
+}
+
+/** Whether the chosen provider and model can see images. */
+export function useImageSupport() {
+  const { data: settings } = useSettings();
+  return useQuery({
+    queryKey: [
+      ...qk.providerStatus,
+      "images",
+      settings?.ai.provider ?? "",
+      settings?.ai.base_url ?? "",
+      settings?.ai.model ?? "",
+    ],
+    queryFn: () => api.assistantImageSupport(),
+    enabled: Boolean(settings),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * When the open note has images Cilica can't see with the chosen model, the name of that model
+ * (for the composer's "Images not included" mark). Null otherwise.
+ */
+export function useUnseenImages(noteId: string | null): string | null {
+  const { data: note } = useNote(noteId);
+  const { data: support } = useImageSupport();
+  if (!noteId || !support || support.sees_images || !hasImages(note?.body_md)) return null;
+  return support.model_name;
+}
+
 /** The current ViewContext, rebuilt whenever what you are looking at changes. */
 export function useViewContext(): ViewContext {
   const view = useRouter((s) => s.view);

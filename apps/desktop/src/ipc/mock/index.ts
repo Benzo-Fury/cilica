@@ -7,6 +7,7 @@
  */
 import type { BackendEvent, Commands } from "@/ipc/types";
 import { assistantCommands } from "./assistant";
+import { attachmentsCommands } from "./attachments";
 import { homeCommands } from "./home";
 import { importsCommands } from "./imports";
 import { linksCommands } from "./links";
@@ -64,6 +65,7 @@ export function createMockBackend(options: MockOptions = {}): MockBackend {
   const { dispose: disposeImports, ...imports } = importsCommands(ctx);
   const impl: Impl = {
     ...notesCommands(ctx),
+    ...attachmentsCommands(ctx),
     ...linksCommands(ctx),
     ...homeCommands(ctx),
     ...nearCommands(ctx),

@@ -1,4 +1,6 @@
 pub mod notes;
+pub mod attachments;
+pub mod image_text;
 pub mod settings;
 pub mod recording;
 pub mod assistant;

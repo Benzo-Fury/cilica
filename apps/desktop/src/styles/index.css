@@ -14,8 +14,10 @@
 @import "./components.css" layer(components);
 @import "../ui/ui.css" layer(components);
 @import "../ui/links.css" layer(components);
+@import "../ui/tabs.css" layer(components);
 @import "../ui/voice.css" layer(components);
 @import "../ui/formatbar.css" layer(components);
+@import "../ui/images.css" layer(components);
 @import "../ui/math.css" layer(components);
 @import "../ui/setup.css" layer(components);
 @import "../ui/installer.css" layer(components);

@@ -70,6 +70,15 @@ export const ACTIONS = [
     inPalette: true,
   },
   {
+    id: "note.insertImage",
+    label: "Insert image",
+    group: "Notes",
+    defaultKeys: "Mod+Shift+I",
+    scope: "note",
+    allowInInputs: true,
+    inPalette: true,
+  },
+  {
     id: "note.togglePanel",
     label: "Swap Notes and Transcript",
     group: "Notes",
@@ -196,6 +205,22 @@ export const ACTIONS = [
   },
   { id: "edit.undo", label: "Undo", group: "Editing", defaultKeys: "Mod+Z", scope: "editor" },
   { id: "edit.redo", label: "Redo", group: "Editing", defaultKeys: "Mod+Shift+Z", scope: "editor" },
+  {
+    id: "edit.imageUp",
+    label: "Move image up",
+    group: "Editing",
+    defaultKeys: "Alt+Up",
+    scope: "editor",
+    rebindable: false,
+  },
+  {
+    id: "edit.imageDown",
+    label: "Move image down",
+    group: "Editing",
+    defaultKeys: "Alt+Down",
+    scope: "editor",
+    rebindable: false,
+  },
   {
     id: "layer.close",
     label: "Close the topmost layer",

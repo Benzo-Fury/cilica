@@ -1,5 +1,6 @@
 import { Keyboard, RefreshCw, RotateCw, Sparkle } from "lucide-react";
 import { isJarFace } from "@/features/home/glance";
+import { imageTextLine, useImageTextStatus } from "@/features/note/images/imageText";
 import { useOpenSetup } from "@/features/onboarding/hooks";
 import { useOverlays } from "@/features/shell/overlays";
 import {
@@ -48,6 +49,40 @@ export function GeneralPage() {
               onCheckedChange={(check_spelling) =>
                 update((s) => ({ ...s, writing: { ...s.writing, check_spelling } }))
               }
+            />
+          }
+        />
+        <SettingsRow
+          id="shrink-images-label"
+          label="Shrink large images"
+          description="Resizes images wider or taller than 2560 px when you add them, so notes take less space. Animated GIFs are kept as they are."
+          control={
+            <Switch
+              aria-labelledby="shrink-images-label"
+              checked={settings.writing.shrink_large_images}
+              onCheckedChange={(shrink_large_images) =>
+                update((s) => ({ ...s, writing: { ...s.writing, shrink_large_images } }))
+              }
+            />
+          }
+        />
+        <ImageTextRow
+          checked={settings.writing.find_text_in_images}
+          onChange={(find_text_in_images) =>
+            update((s) => ({ ...s, writing: { ...s.writing, find_text_in_images } }))
+          }
+        />
+      </SettingsGroup>
+      <SettingsGroup title="Tabs">
+        <SettingsRow
+          id="tabs-label"
+          label="Open notes in tabs"
+          description="Keeps several notes open in a bar along the bottom of the window. A note you only look at shares one preview tab; notes you create or write in keep their own. Middle-click a note to open it in a new tab."
+          control={
+            <Switch
+              aria-labelledby="tabs-label"
+              checked={settings.tabs}
+              onCheckedChange={(tabs) => update((s) => ({ ...s, tabs }))}
             />
           }
         />
@@ -210,4 +245,50 @@ function downloadedLabel({ downloaded, total }: UpdateProgress): string {
   return total
     ? `${megabytes(downloaded)} of ${megabytes(total)} MB`
     : `${megabytes(downloaded)} MB so far`;
+}
+
+/**
+ * "Find text in images": macOS reads the words in every note image on this Mac, so search and
+ * Cilica find them. Hidden where the system has no text recognition. Shows the work in progress
+ * after an import or on first run.
+ */
+function ImageTextRow({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  const { data: status } = useImageTextStatus();
+  if (!status?.supported) return null;
+  const working = checked && status.running && status.done < status.total;
+  const line = imageTextLine(status);
+  return (
+    <SettingsRow
+      id="image-text-label"
+      label="Find text in images"
+      description={
+        <>
+          Reads the words in your images on this Mac, so search and Cilica can find them. Nothing
+          leaves your computer.
+          {line && (
+            <>
+              <br />
+              <span className="nt-faint">{line}</span>
+            </>
+          )}
+        </>
+      }
+      control={
+        <Switch aria-labelledby="image-text-label" checked={checked} onCheckedChange={onChange} />
+      }
+    >
+      {working && (
+        <Progress
+          value={status.total ? status.done / status.total : null}
+          label={`Finding text in ${status.total} images`}
+        />
+      )}
+    </SettingsRow>
+  );
 }

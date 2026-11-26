@@ -1,11 +1,21 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { Folder, FolderInput, Inbox, Mic, PenLine, Sparkles, Trash2 } from "lucide-react";
+import {
+  AppWindow,
+  Folder,
+  FolderInput,
+  Inbox,
+  Mic,
+  PenLine,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { type KeyboardEvent, type MouseEvent, memo, useCallback } from "react";
 import { useShortcut } from "@/app/keybinds";
 import { isMac } from "@/app/platform";
 import { openNote } from "@/app/router";
 import { useMoveNote, useRenameNote, useTrashNote } from "@/features/notes/hooks";
 import { type ClickKind, clickKind, countNotes } from "@/features/notes/selection";
+import { openInNewTab, useTabs } from "@/features/tabs/store";
 import type { Category, NoteSummary } from "@/ipc/types";
 import { displayTitle, relativeDate } from "@/lib/format";
 import {
@@ -113,6 +123,7 @@ export const NoteRow = memo(function NoteRow({
   const renaming = useSidebarUi((s) => s.renaming?.kind === "note" && s.renaming.id === note.id);
   const setRenaming = useSidebarUi((s) => s.setRenaming);
   const rename = useRenameNote();
+  const tabs = useTabs((s) => s.enabled);
   const move = useMoveNote();
   const trash = useTrashNote();
   const trashKeys = useShortcut("note.trash");
@@ -203,8 +214,13 @@ export const NoteRow = memo(function NoteRow({
       }
       meta={renaming ? undefined : meta}
       onClick={onClick}
+      // Middle-click opens the note in a new tab (when tabs are on).
+      onAuxClick={(event: MouseEvent<HTMLDivElement>) => {
+        if (tabs && event.button === 1 && !renaming) openInNewTab(note.id);
+      }}
       // Shift-click selects notes, not the text of the rows in between.
-      onMouseDown={(event) => event.shiftKey && event.preventDefault()}
+      // Middle-click must not start the browser's autoscroll.
+      onMouseDown={(event) => (event.shiftKey || event.button === 1) && event.preventDefault()}
       onDoubleClick={() => setRenaming({ kind: "note", id: note.id })}
       onKeyDown={onKeyDown}
     />
@@ -231,6 +247,14 @@ export const NoteRow = memo(function NoteRow({
             <BulkMenuItems categories={categories} />
           ) : (
             <>
+              {tabs && (
+                <>
+                  <ContextMenuItem icon={AppWindow} onSelect={() => openInNewTab(note.id)}>
+                    Open in new tab
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                </>
+              )}
               <ContextMenuItem
                 icon={PenLine}
                 onSelect={() => setRenaming({ kind: "note", id: note.id })}

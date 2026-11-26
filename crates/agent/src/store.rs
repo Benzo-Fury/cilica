@@ -39,6 +39,12 @@ pub trait NoteStore: Send + Sync {
     }
     /// `[12:34] Sam: text` lines; empty when there is no transcript.
     async fn transcript_text(&self, note_id: Id) -> AppResult<String>;
+    /// Text read in the note's images, as `(attachments/<name>, text)` in body order. The default
+    /// has none, for fakes.
+    async fn image_texts(&self, note_id: Id) -> AppResult<Vec<(String, String)>> {
+        let _ = note_id;
+        Ok(Vec::new())
+    }
     async fn list_speakers(&self, note_id: Id) -> AppResult<Vec<Speaker>>;
     async fn rename_speaker(&self, speaker_id: Id, label: &str) -> AppResult<Speaker>;
     async fn link_speaker(&self, speaker_id: Id, person_id: Option<Id>) -> AppResult<Speaker>;
@@ -112,6 +118,9 @@ impl NoteStore for DbNoteStore {
     }
     async fn transcript_text(&self, note_id: Id) -> AppResult<String> {
         Ok(self.0.transcript_text(note_id).await?)
+    }
+    async fn image_texts(&self, note_id: Id) -> AppResult<Vec<(String, String)>> {
+        Ok(self.0.note_image_texts(note_id).await?)
     }
     async fn list_speakers(&self, note_id: Id) -> AppResult<Vec<Speaker>> {
         Ok(self.0.list_speakers(note_id).await?)
@@ -385,7 +394,7 @@ impl NoteStore for FakeNotes {
                 } else {
                     return None;
                 };
-                Some(SearchHit { note: summary(n), source, excerpt: n.snippet.clone(), at_ms: None, matched_at: None })
+                Some(SearchHit { note: summary(n), source, excerpt: n.snippet.clone(), at_ms: None, matched_at: None, image: None })
             })
             .take(limit as usize)
             .collect())

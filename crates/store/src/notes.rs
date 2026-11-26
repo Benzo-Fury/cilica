@@ -18,6 +18,7 @@ use cilica_domain::{Author, Category, Id, Note, NoteKind, NoteQuery, NoteSummary
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, Sqlite, SqliteExecutor, Transaction};
 
+use crate::image_text::sync_note_image_text;
 use crate::{Db, StoreError, StoreResult, codec};
 
 /// Fields for a new note. Everything else gets a default.
@@ -144,6 +145,7 @@ impl Db {
             .bind(markdown_to_plain(&new.body_md))
             .execute(&mut *tx)
             .await?;
+        sync_note_image_text(&mut tx, id, &new.body_md).await?;
         tx.commit().await?;
         self.get_note(id).await
     }
@@ -706,6 +708,7 @@ impl Db {
             .bind(transcript)
             .execute(&mut *tx)
             .await?;
+        sync_note_image_text(&mut tx, id, &note.body_md).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -879,7 +882,8 @@ async fn prune_versions<'e>(ex: impl SqliteExecutor<'e>, note_id: Id, at: Timest
     Ok(())
 }
 
-/// Update the title and body of a note's search row, creating the row if it is missing.
+/// Update the title and body of a note's search row, creating the row if it is missing, and its
+/// image text rows.
 async fn fts_set_text(tx: &mut Transaction<'static, Sqlite>, id: Id, title: &str, body_md: &str) -> StoreResult<()> {
     let title = index_text(title);
     let body = markdown_to_plain(body_md);
@@ -899,7 +903,7 @@ async fn fts_set_text(tx: &mut Transaction<'static, Sqlite>, id: Id, title: &str
             .execute(&mut **tx)
             .await?;
     }
-    Ok(())
+    sync_note_image_text(tx, id, body_md).await
 }
 
 /// Final segments of a note, one per line, read straight from the `segments` table.

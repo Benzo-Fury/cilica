@@ -1846,6 +1846,24 @@ mark {
 .nt-prow-tall {
   height: 48px;
 }
+/* An image hit's thumbnail: the row's icon slot, widened. */
+.nt-prow-thumb {
+  flex: none;
+  display: block;
+  width: 48px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: calc(var(--radius-xs) * var(--sq));
+  background: var(--fill-hover);
+  outline: 0.5px solid var(--line);
+  outline-offset: -0.5px;
+}
+.nt-prow-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .nt-palette-empty {
   padding: var(--space-6) var(--space-4);
   text-align: center;
@@ -2242,6 +2260,27 @@ mark {
   flex: none;
   display: inline-flex;
   margin-left: calc(var(--space-1) * -1);
+}
+/* A mark about the next message (Images not included): quiet until hovered or focused. */
+.nt-composer-mark {
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--ink-3);
+  cursor: default;
+  outline: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.nt-composer-mark:hover {
+  color: var(--ink-2);
+}
+.nt-composer-mark:focus-visible {
+  box-shadow: var(--focus);
 }
 .nt-send-slot {
   flex: none;

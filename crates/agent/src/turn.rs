@@ -13,11 +13,16 @@ use cilica_llm::{
 
 use crate::prompt::{self, SYSTEM_PROMPT};
 use crate::runner::{CallContext, ChatEmit};
-use crate::{Agent, tools};
+use crate::{Agent, images, tools};
 
 const MAX_MESSAGE_CHARS: usize = 20_000;
 /// Tool results from older turns are cut to this size when history must be trimmed.
 const OLD_TOOL_RESULT_CHARS: usize = 2_000;
+/// Images in tool results stay attached for this many of the latest turns; older ones are
+/// dropped (their text stays), so a long conversation doesn't resend every picture.
+const IMAGE_TURNS: usize = 2;
+/// What an old tool result says once its images are dropped.
+const IMAGES_DROPPED: &str = "[The images were shown in an earlier turn and are no longer attached. Call view_images again to look at them.]";
 
 /// Where to save the assistant message as it grows.
 #[derive(Debug, Clone, Copy)]
@@ -68,6 +73,8 @@ pub(crate) struct LoopRequest {
     pub tools: Vec<cilica_llm::ToolSpec>,
     pub max_tokens: u32,
     pub effort: Option<Effort>,
+    /// The model sees images: tool-result images are loaded and sent. Otherwise they are dropped.
+    pub sees_images: bool,
 }
 
 impl Agent {
@@ -146,12 +153,14 @@ impl Agent {
             Err(e) => return TurnEnd::Error { message: e.message },
         };
         let ctx = CallContext::chat(Some(thread_id), turn_id, settings.auto_apply_edits, Some(ChatEmit { thread_id, message_id: message.id }));
+        let sees_images = self.sees_images(&settings, provider.as_ref()).await;
         let request = LoopRequest {
             model: settings.model.clone(),
             system: SYSTEM_PROMPT.to_string(),
-            tools: tools::specs(false),
+            tools: tools::specs(false, sees_images),
             max_tokens: self.inner.limits.max_tokens,
             effort: Some(Effort::Medium),
+            sees_images,
         };
         let (_, end) = self.run_loop(provider.as_ref(), &request, history, &ctx, &cancel, Some(&message)).await;
         match end {
@@ -209,6 +218,11 @@ impl Agent {
             }
             let mut messages = history.clone();
             messages.extend(state.raw.iter().cloned());
+            if base.sees_images {
+                self.inner.runner.images.hydrate(&mut messages).await;
+            } else {
+                images::strip_images(&mut messages);
+            }
             let request = ChatRequest {
                 model: base.model.clone(),
                 system: base.system.clone(),
@@ -272,7 +286,7 @@ impl Agent {
                     // Cut off mid tool call: answer the calls so the history stays valid.
                     let results = calls
                         .iter()
-                        .map(|(id, _, _)| ContentBlock::ToolResult { tool_use_id: id.clone(), content: "Not run: the response was cut off.".into(), is_error: true })
+                        .map(|(id, _, _)| ContentBlock::tool_result(id.clone(), "Not run: the response was cut off.", true))
                         .collect();
                     state.raw.push(ChatMessage { role: ChatRole::User, content: results });
                 }
@@ -293,7 +307,7 @@ impl Agent {
                 if let Some(p) = &outcome.proposal {
                     state.parts.push(MessagePart::Proposal { proposal_id: p.id });
                 }
-                results.push(ContentBlock::ToolResult { tool_use_id: id.clone(), content: outcome.content, is_error: outcome.is_error });
+                results.push(ContentBlock::ToolResult { tool_use_id: id.clone(), content: outcome.content, is_error: outcome.is_error, images: outcome.images });
             }
             state.raw.push(ChatMessage { role: ChatRole::User, content: results });
             self.persist(persist, &state).await;
@@ -394,6 +408,19 @@ fn chars(msgs: &[ChatMessage]) -> usize {
 /// thinking signatures bound to the old prefix.
 pub(crate) fn trim_history(turns: Vec<(Id, Vec<ChatMessage>)>, budget: usize) -> Vec<ChatMessage> {
     let mut turns: Vec<Vec<ChatMessage>> = turns.into_iter().map(|(_, m)| repair(m)).collect();
+    // Images only ride along for the latest turns.
+    let keep_from = turns.len().saturating_sub(IMAGE_TURNS);
+    for turn in turns.iter_mut().take(keep_from) {
+        for block in turn.iter_mut().flat_map(|m| m.content.iter_mut()) {
+            if let ContentBlock::ToolResult { content, images, .. } = block
+                && !images.is_empty()
+            {
+                images.clear();
+                content.push('\n');
+                content.push_str(IMAGES_DROPPED);
+            }
+        }
+    }
     let total: usize = turns.iter().map(|t| chars(t)).sum();
     if total <= budget {
         return turns.concat();
@@ -452,7 +479,7 @@ fn repair(msgs: Vec<ChatMessage>) -> Vec<ChatMessage> {
         let missing: Vec<ContentBlock> = calls
             .into_iter()
             .filter(|id| !answered.contains(id))
-            .map(|id| ContentBlock::ToolResult { tool_use_id: id, content: "This step was interrupted.".into(), is_error: true })
+            .map(|id| ContentBlock::tool_result(id, "This step was interrupted.", true))
             .collect();
         if missing.is_empty() {
             continue;
@@ -482,7 +509,7 @@ mod tests {
     }
 
     fn result(id: &str, size: usize) -> ChatMessage {
-        ChatMessage { role: ChatRole::User, content: vec![ContentBlock::ToolResult { tool_use_id: id.into(), content: "x".repeat(size), is_error: false }] }
+        ChatMessage { role: ChatRole::User, content: vec![ContentBlock::tool_result(id, "x".repeat(size), false)] }
     }
 
     #[test]
@@ -502,6 +529,30 @@ mod tests {
         assert!(out.iter().all(|m| m.content.iter().all(|b| !b.is_provider_internal())));
         let first_result = out.iter().find_map(|m| m.content.iter().find_map(|b| if let ContentBlock::ToolResult { content, .. } = b { Some(content.clone()) } else { None })).unwrap();
         assert!(first_result.ends_with("[cut to save space]"));
+    }
+
+    #[test]
+    fn images_ride_along_only_for_the_latest_turns() {
+        let with_image = |id: &str| ChatMessage {
+            role: ChatRole::User,
+            content: vec![ContentBlock::ToolResult {
+                tool_use_id: id.into(),
+                content: "1 image".into(),
+                is_error: false,
+                images: vec![cilica_llm::ToolImage { path: "attachments/0123456789abcdef0123456789abcdef.png".into(), media_type: "image/png".into(), data: None }],
+            }],
+        };
+        let turns: Vec<_> = (0..3).map(|i| (new_id(), vec![ChatMessage::user(format!("q{i}")), call(&format!("c{i}")), with_image(&format!("c{i}"))])).collect();
+        let out = trim_history(turns, 1_000_000);
+        let results: Vec<_> = out
+            .iter()
+            .flat_map(|m| m.content.iter())
+            .filter_map(|b| if let ContentBlock::ToolResult { content, images, .. } = b { Some((content.clone(), images.len())) } else { None })
+            .collect();
+        assert_eq!(results[0].1, 0, "the oldest turn's image is dropped");
+        assert!(results[0].0.contains("no longer attached"));
+        assert_eq!((results[1].1, results[2].1), (1, 1));
+        assert_eq!(results[1].0, "1 image");
     }
 
     #[test]

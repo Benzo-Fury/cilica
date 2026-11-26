@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useBackendEvent } from "@/app/backendEvents";
 import { qk } from "@/app/queryKeys";
+import { keepTab } from "@/features/tabs/store";
 import { api, errorMessage } from "@/ipc/client";
 import type { Note, NoteSummary } from "@/ipc/types";
 import { refsSignature } from "@/lib/links";
@@ -53,6 +54,8 @@ export function useAutosave(noteId: string, initialBody: string): Autosave {
         // The graph and backlinks only need a refetch when the links themselves changed.
         const linksChanged = refsSignature(known.current) !== refsSignature(body);
         known.current = normalizeMarkdown(body);
+        // Written in: the note's tab stays when another note opens.
+        keepTab(noteId);
         if (linksChanged) void queryClient.invalidateQueries({ queryKey: qk.links });
         queryClient.setQueryData<Note>(qk.note(noteId), (note) =>
           // The editor saves the text only: keep the note's hidden properties.

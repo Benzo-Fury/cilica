@@ -143,11 +143,13 @@ export interface CanvasSheetProps extends HTMLAttributes<HTMLElement> {
   children: ReactNode;
   /** Rendered in the gutters around the sheet (resize handles). */
   gutter?: ReactNode;
+  /** Rendered under the sheet, on the sidebar's ground (the tab bar). */
+  footer?: ReactNode;
   ref?: Ref<HTMLElement>;
 }
 
 /** The opaque content sheet (`bg-canvas`), inset with squircle corners on macOS. */
-export function CanvasSheet({ children, gutter, className, ...props }: CanvasSheetProps) {
+export function CanvasSheet({ children, gutter, footer, className, ...props }: CanvasSheetProps) {
   const ref = useRef<HTMLElement>(null);
   useSquircleClip(ref, 14);
   return (
@@ -158,6 +160,7 @@ export function CanvasSheet({ children, gutter, className, ...props }: CanvasShe
           {children}
         </main>
       </div>
+      {footer}
     </div>
   );
 }

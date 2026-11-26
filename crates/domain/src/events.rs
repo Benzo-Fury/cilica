@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::{
-    AssistantEvent, AudioLevels, Id, ImportProgress, MeetingDetected, ModelDownloadProgress,
-    RecordingState, Segment, Settings, TaskRun,
+    AssistantEvent, AudioLevels, Id, ImageTextStatus, ImportProgress, MeetingDetected,
+    ModelDownloadProgress, RecordingState, Segment, Settings, TaskRun,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -146,6 +146,10 @@ pub enum AppEvent {
     /// What the transcription test has heard so far (the whole text, replacing the last).
     TranscriptionTestProgress {
         text: String,
+    },
+    /// Finding text in images moved on: started, read more images, paused for a recording or finished.
+    ImageTextProgress {
+        status: ImageTextStatus,
     },
 }
 

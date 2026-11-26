@@ -19,6 +19,7 @@ import type {
   GraphNode_Serialize,
   HomeFace_Serialize,
   HomeGlance_Serialize,
+  ImageTextStatus,
   ImportDetection_Serialize,
   ImportInput_Deserialize,
   ImportKeyStatus_Serialize,
@@ -47,6 +48,7 @@ import type {
   ProviderStatus_Serialize,
   RecordingSettings_Serialize,
   RecordingState_Serialize,
+  SavedImage,
   SearchHit_Serialize,
   Segment_Serialize,
   Settings_Deserialize,
@@ -81,6 +83,7 @@ export type {
   AiActionStatus,
   AppError,
   AppInfo,
+  AssistantImageSupport,
   AudioChannel,
   AudioDevice,
   AudioLevels,
@@ -159,7 +162,7 @@ export type Commands = typeof commands;
 export type Note = Note_Serialize;
 export type LinkGraph = LinkGraph_Serialize;
 export type GraphNode = GraphNode_Serialize;
-export type { Backlinks };
+export type { Backlinks, ImageTextStatus, SavedImage };
 export type NoteSummary = NoteSummary_Serialize;
 export type NoteVersion = NoteVersion_Serialize;
 export type SearchHit = SearchHit_Serialize;

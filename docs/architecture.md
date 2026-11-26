@@ -13,6 +13,8 @@ apps/desktop/
       assistant.rs    threads, turns, proposals, audit log, providers
       tasks.rs        scheduled tasks and reports
       import.rs       Settings › Import: detection, previews, imports, keys (keychain `import.<provider>`)
+      attachments.rs  images in notes: save, read dropped files, download, Save as, the attachments folder; startup migration and clean-up; the macOS HEIC converter (`sips`)
+      image_text.rs   text in images: wires ImageTextQueue to settings, recordings and saves; `image_text_status`; the macOS recognizer (Apple Vision)
     shell/            windows, tray, taskbar, app menu, global hotkey, material, haptics, spelling
       onboarding.rs   the first-run setup window
       status.rs       recording state + clock → the labels below (pure, unit-tested)
@@ -38,10 +40,11 @@ crates/
   stt/                Transcriber trait: whisper_local (+ model catalogue, download, hardware recommendation), cloud adapters (Soniox, Deepgram, AssemblyAI over WebSocket; OpenAI-compatible over HTTP)
   diarize/            live speaker detection (segmentation, embeddings), voiceprints
   pipeline/           one recording session end to end: capture → VAD → STT + live speakers → store → events → summarise
-  llm/                Provider trait: anthropic, openai_compat, ollama, claude_code
-  agent/              tool registry, view context, tiers, proposals, audit log, undo, summariser, prompt chips
+  llm/                Provider trait: anthropic, openai_compat, ollama, claude_code; which models see images (`Provider::sees_images`, `vision`)
+  agent/              tool registry, view context, tiers, proposals, audit log, undo, summariser, prompt chips, `view_images` (ModelImages: note images loaded, fitted and cached per request)
   scheduler/          task runner, the default Notes review
   mcp/                the agent's tools over MCP (stdio) for the Claude Code bridge
+  attachments/        images as files: ImageStore (type sniffing, decode checks, TIFF/HEIC conversion, shrinking, content-hash names), WebFetcher (safe downloads), Markdown helpers, NoteImages (move inline images out of notes, find references, delete unused files), ImageTextQueue (reads text in note images in the background, one at a time, through a `TextRecognizer`; pauses while recording)
   import/             notes from other apps: file formats, local databases, API-key accounts, preview, re-import, undo (docs/import.md)
   thesaurus/          synonyms for the selection toolbar, from the bundled ABC Thesaurus, cleaned (no network)
 ```
@@ -77,6 +80,7 @@ Every window loads the same bundle; `main.tsx` picks the root from `?window=`: t
 
 - **Recording → summary.** `pipeline` does not depend on `agent`. It takes an `Arc<dyn MeetingSummarizer>` (trait in `domain`, implemented in `agent`), injected in `commands::recording::setup` from a service the assistant area manages.
 - **Scheduler ↔ recording.** Scheduled tasks never run while recording: the scheduler checks a `fn is_recording() -> bool` closure supplied at setup.
+- **Assistant ↔ note images.** `agent` and `mcp` read attachments through `cilica_attachments::ImageStore` (`read_for_model`, `note_images`); `commands::assistant::setup` hands the folder to the agent and passes `--attachments <dir>` to the MCP server. Tool results store image paths only; bytes are loaded before each request and only for models that see images. The UI asks `assistant_image_support` to show when they can't.
 - **AI writes** go only through the `agent` tool registry, which snapshots a version, writes the audit row and emits `data_changed`.
 
 ## Ownership (who edits what)
@@ -84,7 +88,7 @@ Every window loads the same bundle; `main.tsx` picks the root from `?window=`: t
 | Area | Files |
 | --- | --- |
 | UI | `apps/desktop/src/**` (except `ipc/bindings.ts`, generated), `apps/desktop/index.html`, frontend config |
-| Core | `crates/store/src/{lib,notes,settings}.rs`, `src-tauri/src/{lib,core,events}.rs`, `src-tauri/src/commands/{notes,settings}.rs`, `src-tauri/{tauri.conf.json,capabilities,Info.plist,Entitlements.plist}`, tray, windows, vibrancy, global shortcuts |
+| Core | `crates/attachments`, `crates/store/src/{lib,notes,settings,attachments,image_text}.rs` (`image_text`: `attachment_text`, `image_text_fts`, migration `0013_image_text.sql`), `src-tauri/src/commands/{attachments,image_text}.rs`, `src-tauri/src/{lib,core,events}.rs`, `src-tauri/src/commands/{notes,settings}.rs`, `src-tauri/{tauri.conf.json,capabilities,Info.plist,Entitlements.plist}`, tray, windows, vibrancy, global shortcuts |
 | Audio | `crates/{audio,detect,stt,diarize,pipeline}`, `crates/store/src/transcripts.rs`, `src-tauri/src/commands/recording.rs` |
 | AI | `crates/{llm,agent,scheduler,mcp}`, `crates/store/src/{assistant,tasks}.rs`, `src-tauri/src/commands/{assistant,tasks}.rs` |
 | Import | `crates/import`, `crates/store/src/imports.rs`, `crates/store/migrations/0004_imports.sql`, `src-tauri/src/commands/import.rs`, `src/features/import`, `src/ui/ImportParts.tsx` |

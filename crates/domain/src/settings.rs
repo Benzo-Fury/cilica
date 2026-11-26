@@ -404,12 +404,18 @@ impl Default for SwearJarSettings {
 pub struct WritingSettings {
     /// Underline misspelt words in notes, titles and the assistant box, using the system's checker.
     pub check_spelling: bool,
+    /// Resize photos larger than 2560 px on their longest side when they're added.
+    pub shrink_large_images: bool,
+    /// Read the text in note images on this device so search and Cilica can find it.
+    pub find_text_in_images: bool,
 }
 
 impl Default for WritingSettings {
     fn default() -> Self {
         Self {
             check_spelling: true,
+            shrink_large_images: false,
+            find_text_in_images: true,
         }
     }
 }
@@ -445,6 +451,8 @@ pub struct Settings {
     /// Keep Cilica's own words clean: its quips lose the swearing and the swear jar goes away
     /// entirely. Notes, transcripts and anything else you or other people wrote or said stay as they are.
     pub safe_for_work: bool,
+    /// Keep several notes open as tabs in a bar along the bottom of the window. Off by default.
+    pub tabs: bool,
     pub onboarding_done: bool,
     pub updates: UpdateSettings,
 }
@@ -502,6 +510,13 @@ mod tests {
     fn settings_saved_before_writing_existed_check_spelling() {
         let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
         assert!(settings.writing.check_spelling);
+    }
+
+    #[test]
+    fn tabs_are_off_until_turned_on() {
+        assert!(!Settings::default().tabs);
+        let settings: Settings = serde_json::from_str(r#"{"launch_at_login":true}"#).unwrap();
+        assert!(!settings.tabs);
     }
 }
 

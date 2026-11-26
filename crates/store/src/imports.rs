@@ -105,6 +105,7 @@ impl Db {
             .bind(transcript_text(w))
             .execute(&mut *tx)
             .await?;
+        crate::image_text::sync_note_image_text(&mut tx, id, &w.body_md).await?;
         insert_version(&mut tx, id, &title, &w.body_md).await?;
         tx.commit().await?;
         Ok(id)
